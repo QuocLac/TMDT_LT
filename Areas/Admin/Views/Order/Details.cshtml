@@ -1,0 +1,243 @@
+﻿@model TMDT_LT.Models.Orders
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Chi tiết Đơn hàng #" + Model.OrderId;
+    var paymentInfo = Model.Payments?.FirstOrDefault();
+    var shippingInfo = Model.Shipping?.FirstOrDefault();
+}
+
+<style>
+    .vertical-timeline {
+        position: relative;
+        padding-left: 20px;
+        margin: 10px 0;
+        border-left: 1px solid #E5E7EB;
+    }
+
+    .timeline-node {
+        position: relative;
+        padding-bottom: 24px;
+    }
+
+        .timeline-node:last-child {
+            padding-bottom: 0;
+        }
+
+        .timeline-node::before {
+            content: '';
+            position: absolute;
+            left: -24.5px;
+            top: 4px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #9CA3AF;
+        }
+
+        .timeline-node.active::before {
+            background: #111827;
+            box-shadow: 0 0 0 4px #E5E7EB;
+        }
+
+    .info-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .info-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #6B7280;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .info-value {
+        font-size: 14px;
+        color: #111827;
+        font-weight: 500;
+    }
+</style>
+
+<div style="margin-bottom: 35px;">
+    <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
+        <svg style="width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Quay lại sổ quản lý đơn
+    </a>
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px;">
+        <h2 style="font-weight: 800; letter-spacing: -0.5px; margin: 0;">Đơn hàng #ORD-@Model.OrderId</h2>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            @if (Model.Status == "Đang xử lý" || Model.Status == "Đang giao" || Model.Status == "Hoàn thành")
+            {
+                <button onclick="openPrintWindow(@Model.OrderId)" class="btn-outline" style="padding: 8px 16px; font-size: 13px; border-color: #111827; color: #111827; font-weight: 600;">
+                    🖨️ In mã vận đơn đóng gói
+                </button>
+            }
+            <span style="font-size: 13px; color: #6B7280;">Ngày lập: @Model.OrderDate?.ToString("dd/MM/yyyy HH:mm")</span>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-bottom: 60px;">
+    <div style="display: flex; flex-direction: column; gap: 30px;">
+
+        <div class="admin-card">
+            <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #6B7280;">1. Khách hàng & Địa chỉ giao nhận</h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                <div class="info-block"><span class="info-label">Người nhận</span><span class="info-value">@Model.ShippingFullName</span></div>
+                <div class="info-block"><span class="info-label">Số điện thoại</span><span class="info-value" style="font-family: monospace;">@Model.ShippingPhone</span></div>
+                <div class="info-block"><span class="info-label">Quốc gia</span><span class="info-value">@Model.ShippingCountry</span></div>
+            </div>
+            <div class="info-block" style="margin-top: 20px; border-top: 1px dashed var(--admin-border); padding-top: 15px;">
+                <span class="info-label">Địa chỉ chi tiết</span>
+                <span class="info-value">@Model.ShippingStreet, @Model.ShippingDistrict, @Model.ShippingCity</span>
+            </div>
+        </div>
+
+        <div class="admin-card">
+            <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #6B7280;">2. Kiểm soát dòng tiền & Vận tải</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <div class="info-block"><span class="info-label">Phương thức thanh toán</span><span class="info-value">@(paymentInfo?.PaymentMethod ?? "COD (Tiền mặt khi nhận hàng)")</span></div>
+                    <div class="info-block">
+                        <span class="info-label">Trạng thái dòng tiền</span>
+                        <span class="info-value" style="color: @(paymentInfo?.PaymentStatus == "Đã thanh toán" ? "#059669" : "#DC2626"); font-weight: 700;">
+                            @(paymentInfo?.PaymentStatus ?? "Chưa đối soát")
+                        </span>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 15px; border-left: 1px solid var(--admin-border); padding-left: 30px;">
+                    <div class="info-block"><span class="info-label">Đơn vị vận chuyển</span><span class="info-value">@(shippingInfo?.Carrier ?? "Chưa chỉ định")</span></div>
+                    <div class="info-block"><span class="info-label">Mã vận đơn hành trình</span><span class="info-value" style="font-family: monospace; font-weight: 700;">@(shippingInfo?.TrackingNumber ?? "Chưa phát hành")</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 16px 24px; border-bottom: 1px solid var(--admin-border); background: #F9FAFB;">
+                <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #6B7280; margin: 0;">3. Thiết bị xuất kho hóa đơn</h3>
+            </div>
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F9FAFB; border-bottom: 1px solid var(--admin-border);">
+                        <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: left;">Sản phẩm</th>
+                        <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: center; width: 15%;">Số lượng</th>
+                        <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: right; width: 25%;">Đơn giá</th>
+                        <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: right; width: 25%;">Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.OrderDetails)
+                    {
+                        decimal subTotal = (d.Quantity ?? 0) * (d.UnitPrice ?? 0);
+                        <tr style="border-bottom: 1px solid #F3F4F6;">
+                            <td style="padding: 14px 20px;">
+                                <span style="font-weight: 600; color: #111827; font-size: 14px;">@d.Variant?.Product?.Name</span>
+                                <div style="font-size: 12px; color: #6B7280; margin-top: 2px;">Bản @d.Variant?.Storage | Màu @d.Variant?.Color</div>
+                            </td>
+                            <td style="padding: 14px 20px; text-align: center; font-weight: 600; color: #4B5563;">x@(d.Quantity)</td>
+                            <td style="padding: 14px 20px; text-align: right; font-family: monospace;">@string.Format("{0:N0}", d.UnitPrice) đ</td>
+                            <td style="padding: 14px 20px; text-align: right; font-weight: 700; color: #111827; font-family: monospace;">@string.Format("{0:N0}", subTotal) đ</td>
+                        </tr>
+                    }
+                    <tr style="background: #F9FAFB;">
+                        <td colspan="3" style="padding: 16px 20px; text-align: right; font-weight: 700; font-size: 12px; color: #6B7280; text-transform: uppercase;">Tổng giá trị chứng từ kinh tế:</td>
+                        <td style="padding: 16px 20px; text-align: right; font-size: 16px; font-weight: 800; color: #111827; font-family: monospace; border-top: 2px solid #111827;">
+                            @string.Format("{0:N0}", Model.TotalAmount) đ
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 30px;">
+        <div class="admin-card" style="text-align: center; padding: 20px;">
+            <span class="info-label" style="display: block; margin-bottom: 6px;">Trạng thái vận hành hiện tại</span>
+            <h2 style="margin: 0; font-weight: 800; color: #111827; letter-spacing: -0.5px;">@Model.Status</h2>
+        </div>
+
+        <div class="admin-card">
+            <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #6B7280;">Hành trình đơn hàng</h3>
+            <div class="vertical-timeline">
+                @foreach (var h in Model.OrderHistories.OrderByDescending(x => x.UpdatedAt))
+                {
+                    <div class="timeline-node active">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                            <strong style="font-size: 13px; color: #111827;">@h.Status</strong>
+                            <span style="font-size: 11px; color: #9CA3AF; font-family: monospace;">@h.UpdatedAt.ToString("dd/MM HH:mm")</span>
+                        </div>
+                        <p style="font-size: 12px; color: #6B7280; margin: 4px 0 0 0; line-height: 1.4;">@h.Note</p>
+                    </div>
+                }
+                <div class="timeline-node @(Model.OrderHistories.Any() ? "" : "active")">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: 13px; color: #6B7280; font-weight: 500;">Hệ thống ghi nhận đơn hàng mới</span>
+                        <span style="font-size: 11px; color: #9CA3AF; font-family: monospace;">@Model.OrderDate?.ToString("dd/MM HH:mm")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Status != "Hoàn thành" && Model.Status != "Đã hủy")
+        {
+            <div class="admin-card" style="display: flex; flex-direction: column; gap: 12px;">
+                <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 10px; text-transform: uppercase; color: #6B7280;">Điều phối chứng từ</h3>
+
+                @if (Model.Status == "Chờ xác nhận")
+                {
+                    <button onclick="triggerUpdateStatus('Đang xử lý')" class="btn-dark" style="width: 100%; padding: 12px;">XÁC NHẬN ĐƠN & TRỪ KHO</button>
+                    <button onclick="triggerUpdateStatus('Đã hủy')" class="btn-outline" style="width: 100%; padding: 12px; color: #DC2626; border-color: #FEE2E2; background: #FEF2F2;">HỦY BỎ ĐƠN HÀNG</button>
+                }
+                else if (Model.Status == "Đang xử lý")
+                {
+                    <button onclick="triggerUpdateStatus('Đang giao')" class="btn-dark" style="width: 100%; padding: 12px;">XUẤT KHO BÀN GIAO ĐƠN VỊ VẬN CHUYỂN</button>
+                    <button onclick="triggerUpdateStatus('Đã hủy')" class="btn-outline" style="width: 100%; padding: 12px; color: #DC2626; border-color: #FEE2E2; background: #FEF2F2;">HỦY ĐƠN & HOÀN TỒN KHO</button>
+                }
+                else if (Model.Status == "Đang giao")
+                {
+                    <button onclick="triggerUpdateStatus('Hoàn thành')" class="btn-dark" style="width: 100%; padding: 12px; background: #059669; border-color: #059669;">ĐỐI SOÁT GIAO THÀNH CÔNG (KHÓA ĐƠN)</button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<form id="antiForgeryForm">@Html.AntiForgeryToken()</form>
+
+@section Scripts {
+    <script>
+        function openPrintWindow(orderId) {
+            window.open(`/Admin/Order/PrintInvoice/${orderId}`, '_blank', 'width=750,height=600');
+        }
+
+        async function triggerUpdateStatus(nextStatus) {
+            const note = prompt(`Nhập lý do / nội dung ghi chú khi chuyển trạng thái sang [${nextStatus}]:`);
+            if (note === null) return;
+
+            const token = document.querySelector('#antiForgeryForm input[name="__RequestVerificationToken"]')?.value;
+            const formData = new FormData();
+            formData.append("orderId", @Model.OrderId);
+            formData.append("newStatus", nextStatus);
+            formData.append("note", note);
+
+            try {
+                const response = await fetch('/Admin/Order/UpdateStatus', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token },
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert("Chặn nghiệp vụ: " + data.message);
+                }
+            } catch (e) {
+                alert("Lỗi kết nối máy chủ dữ liệu.");
+            }
+        }
+    </script>
+}

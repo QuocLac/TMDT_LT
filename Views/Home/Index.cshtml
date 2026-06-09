@@ -1,0 +1,115 @@
+﻿@model IEnumerable<TMDT_LT.Models.Products>
+@{
+    ViewData["Title"] = "Trang Chủ";
+    var brands = ViewBag.Brands as IEnumerable<TMDT_LT.Models.Brands>;
+    var categories = ViewBag.Categories as IEnumerable<TMDT_LT.Models.Categories>;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/home.css" asp-append-version="true" />
+}
+<div class="home-container">
+
+    <aside class="home-sidebar">
+        <div class="filter-box">
+            <h4 class="filter-title">Danh mục</h4>
+            <ul class="filter-list">
+                <li class="filter-item @(ViewBag.CurrentCategory == null ? "active" : "")">
+                    <a asp-action="Index" asp-route-brandId="@ViewBag.CurrentBrand" asp-route-searchTerm="@ViewBag.CurrentSearch">Tất cả danh mục</a>
+                </li>
+                @if (categories != null)
+                {
+                    foreach (var cat in categories)
+                    {
+                        <li class="filter-item @(ViewBag.CurrentCategory == cat.CategoryId ? "active" : "")">
+                            <a asp-action="Index" asp-route-categoryId="@cat.CategoryId" asp-route-brandId="@ViewBag.CurrentBrand" asp-route-searchTerm="@ViewBag.CurrentSearch">@cat.CategoryName</a>
+                        </li>
+                    }
+                }
+            </ul>
+        </div>
+
+        <div class="filter-box">
+            <h4 class="filter-title">Thương hiệu</h4>
+            <ul class="filter-list">
+                <li class="filter-item @(ViewBag.CurrentBrand == null ? "active" : "")">
+                    <a asp-action="Index" asp-route-categoryId="@ViewBag.CurrentCategory" asp-route-searchTerm="@ViewBag.CurrentSearch">Tất cả thương hiệu</a>
+                </li>
+                @if (brands != null)
+                {
+                    foreach (var brand in brands)
+                    {
+                        <li class="filter-item @(ViewBag.CurrentBrand == brand.BrandId ? "active" : "")">
+                            <a asp-action="Index" asp-route-brandId="@brand.BrandId" asp-route-categoryId="@ViewBag.CurrentCategory" asp-route-searchTerm="@ViewBag.CurrentSearch">@brand.BrandName</a>
+                        </li>
+                    }
+                }
+            </ul>
+        </div>
+    </aside>
+
+    <section class="home-main-content">
+
+        <div class="promo-banner">
+            <h2>BLACK & WHITE FRIDAY</h2>
+            <p>SỰ TINH TẾ ĐẾN TỪ CÔNG NGHỆ TỐI GIẢN - TRẢ GÓP 0% TOÀN BỘ SẢN PHẨM</p>
+        </div>
+
+        <div class="products-display-section">
+            <h3 class="grid-title">
+                @if (!string.IsNullOrEmpty(ViewBag.CurrentSearch))
+                {
+                    <span style="font-weight:400; text-transform:none;">Kết quả tìm kiếm cho:</span> 
+                    @ViewBag.CurrentSearch
+                }
+                else
+                {
+                    @Html.Raw("Sản phẩm dành cho bạn")
+                }
+            </h3>
+
+            <div class="products-grid">
+                @foreach (var product in Model)
+                {
+                    // Lấy thông tin biến thể đầu tiên để đại diện giá bán công khai
+                    var firstVariant = product.ProductVariants.FirstOrDefault();
+
+                    <a class="phone-card" asp-controller="Home" asp-action="Detail" asp-route-id="@product.ProductId">
+                        <div>
+                            <div class="phone-card-img">
+                                <img src="@product.MainImage" alt="@product.Name" onerror="this.src='/images/default-phone.jpg';" />
+                            </div>
+                            <div class="phone-card-name">@product.Name</div>
+                            <span class="phone-card-specs">⚡ @product.Chipset</span>
+                        </div>
+
+                        <div class="phone-card-price">
+                            @if (firstVariant != null)
+                            {
+                                if (firstVariant.DiscountPrice.HasValue)
+                                {
+                                    <span class="price-now">@string.Format("{0:N0}", firstVariant.DiscountPrice.Value) đ</span>
+                                    <span class="price-was">@string.Format("{0:N0}", firstVariant.Price) đ</span>
+                                }
+                                else
+                                {
+                                    <span class="price-now">@string.Format("{0:N0}", firstVariant.Price) đ</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="price-now" style="color: var(--text-muted); font-size: 13px;">Hàng sắp về</span>
+                            }
+                        </div>
+                    </a>
+                }
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div style="text-align: center; padding: 40px; color: var(--text-gray); background: var(--neutral-white); border-radius: 12px; border: 1px solid var(--border-gray);">
+                    Không tìm thấy điện thoại nào phù hợp với bộ lọc hiện tại.
+                </div>
+            }
+        </div>
+    </section>
+</div>

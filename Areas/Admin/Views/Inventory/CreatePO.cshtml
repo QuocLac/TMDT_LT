@@ -1,0 +1,325 @@
+﻿@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Tạo Phiếu Nhập Kho";
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div>
+        <h2 style="margin-bottom: 5px;">Tạo Phiếu Nhập Kho</h2>
+        <p style="color: #6B7280; font-size: 14px;">Quy trình nhập kho bắt buộc để ghi nhận tồn kho hợp lệ.</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
+    <div>
+        <div class="admin-card" style="padding: 15px 20px; display: flex; gap: 15px; align-items: center;">
+            <div class="search-container" style="flex: 1;">
+                <svg class="search-icon svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="searchInput" class="search-input" placeholder="Tìm sản phẩm / biến thể có sẵn..." autocomplete="off" onkeyup="searchVariants(this.value)" />
+
+                <div id="searchDropdown" class="search-dropdown">
+                </div>
+            </div>
+            <div style="color: #D1D5DB;">|</div>
+            <button onclick="openModal()" class="btn-dark" style="display: flex; align-items: center; gap: 6px;">
+                <svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Sản phẩm mới
+            </button>
+        </div>
+
+        <div class="admin-card" style="padding: 0;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40%;">Sản phẩm (Biến thể)</th>
+                        <th style="width: 20%;">Số lượng</th>
+                        <th style="width: 25%;">Đơn giá nhập (VNĐ)</th>
+                        <th style="width: 15%; text-align: right;">Thành tiền</th>
+                        <th style="width: 5%; text-align: center;"></th>
+                    </tr>
+                </thead>
+                <tbody id="poTableBody">
+                    <tr><td colspan="5" style="text-align:center; padding: 40px; color: #9CA3AF;">Chưa có sản phẩm nào được chọn.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-card" style="height: fit-content;">
+        <h3 style="font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px;">Thông tin chứng từ</h3>
+
+        <div class="form-row">
+            <label class="form-label">Nhà cung cấp (*)</label>
+            <select id="poSupplier" class="form-control" required>
+                <option value="">-- Chọn nhà cung cấp --</option>
+                @if (ViewBag.Suppliers != null)
+                {
+                    foreach (var s in ViewBag.Suppliers)
+                    {
+                        <option value="@s.SupplierId">@s.SupplierName</option>
+                    }
+                }
+            </select>
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">Ghi chú phiếu nhập</label>
+            <textarea id="poNote" class="form-control" style="height: 80px;" placeholder="Ví dụ: Lô hàng tháng 10..."></textarea>
+        </div>
+
+        <div style="border-top: 2px dashed var(--admin-border); padding-top: 15px; margin: 20px 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 14px; color: #6B7280; margin-bottom: 8px;">
+                <span>Tổng số lượng:</span>
+                <span id="summaryQty" style="font-weight: 600; color: var(--admin-text-dark);">0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 800;">
+                <span>TỔNG TIỀN:</span>
+                <span id="summaryTotal" style="color: #DC2626;">0 đ</span>
+            </div>
+        </div>
+
+        <button onclick="submitPO()" class="btn-dark" style="width: 100%; padding: 12px; font-size: 14px; text-transform: uppercase;">Xác nhận nhập kho</button>
+    </div>
+</div>
+
+<div id="newProductModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Khai báo Sản phẩm mới</h3>
+            <button onclick="closeModal()" class="btn-close">
+                <svg class="svg-icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-row" style="grid-column: span 2;">
+                    <label class="form-label">Tên sản phẩm Master</label>
+                    <input type="text" id="newProductName" class="form-control" placeholder="VD: iPhone 16 Pro Max..." />
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Danh mục</label>
+                    <select id="newProductCategory" class="form-control">
+                        @if (ViewBag.Categories != null)
+                        {
+                            foreach (var c in ViewBag.Categories)
+                            {
+                                <option value="@c.CategoryId">@c.CategoryName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Thương hiệu</label>
+                    <select id="newProductBrand" class="form-control">
+                        @if (ViewBag.Brands != null)
+                        {
+                            foreach (var b in ViewBag.Brands)
+                            {
+                                <option value="@b.BrandId">@b.BrandName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <h4 style="font-size: 13px; color: #6B7280; text-transform: uppercase; margin: 15px 0 10px 0;">Thông tin Biến thể nhập kho</h4>
+            <div style="background: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid var(--admin-border); display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label class="form-label">Màu sắc</label>
+                    <input type="text" id="newVariantColor" class="form-control" placeholder="VD: Titan Đen" />
+                </div>
+                <div>
+                    <label class="form-label">Dung lượng (RAM/ROM)</label>
+                    <input type="text" id="newVariantStorage" class="form-control" placeholder="VD: 8GB - 256GB" />
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeModal()" class="btn-outline">Hủy</button>
+            <button onclick="saveQuickProduct()" class="btn-dark">Tạo mới & Thêm vào phiếu</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const formatter = new Intl.NumberFormat('vi-VN');
+        let poItems = []; // Mảng lưu trữ các mặt hàng đang nhập
+
+        // --- 1. LOGIC TÌM KIẾM SẢN PHẨM CÓ SẴN (GIẢ LẬP GỌI API) ---
+        let searchTimeout = null;
+        async function searchVariants(keyword) {
+            const dropdown = document.getElementById('searchDropdown');
+            if(keyword.length < 2) { dropdown.style.display = 'none'; return; }
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    // Sẽ viết API này ở bước Controller sau
+                    const res = await fetch(`/Admin/Inventory/SearchVariants?q=${encodeURIComponent(keyword)}`);
+                    const data = await res.json();
+
+                    dropdown.innerHTML = '';
+                    if(data.length === 0) {
+                        dropdown.innerHTML = '<div style="padding: 10px 15px; color: #9CA3AF; font-size: 13px;">Không tìm thấy kết quả. Vui lòng thêm mới.</div>';
+                    } else {
+                        data.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'search-item';
+                            div.innerHTML = `
+                                <div>
+                                    <div class="search-item-title">${item.productName}</div>
+                                    <div class="search-item-sub">Màu: ${item.color} | ${item.storage}</div>
+                                </div>
+                                <div style="font-size: 12px; color: #111827; font-weight: 600;">Tồn: ${item.stock}</div>
+                            `;
+                            // Khi click, thêm vào mảng poItems
+                            div.onclick = () => { addItemToPO(item); dropdown.style.display = 'none'; document.getElementById('searchInput').value = ''; };
+                            dropdown.appendChild(div);
+                        });
+                    }
+                    dropdown.style.display = 'block';
+                } catch(e) { console.error('Lỗi tìm kiếm'); }
+            }, 300);
+        }
+
+        // --- 2. LOGIC QUẢN LÝ MẢNG ITEMS VÀ RENDER BẢNG ---
+        function addItemToPO(variant) {
+            // Kiểm tra xem đã có trong bảng chưa
+            const existingItem = poItems.find(i => i.variantId === variant.variantId);
+            if(existingItem) {
+                existingItem.qty += 1;
+            } else {
+                poItems.push({
+                    variantId: variant.variantId,
+                    name: variant.productName,
+                    desc: `${variant.color} | ${variant.storage}`,
+                    qty: 1,
+                    price: variant.lastImportPrice || 0
+                });
+            }
+            renderTable();
+        }
+
+        function updateItem(id, field, value) {
+            const item = poItems.find(i => i.variantId === id);
+            if(item) {
+                item[field] = parseFloat(value) || 0;
+                renderTable();
+            }
+        }
+
+        function removeItem(id) {
+            poItems = poItems.filter(i => i.variantId !== id);
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('poTableBody');
+            let totalQty = 0;
+            let totalPrice = 0;
+
+            if(poItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: #9CA3AF;">Chưa có sản phẩm nào được chọn.</td></tr>';
+            } else {
+                tbody.innerHTML = '';
+                poItems.forEach(item => {
+                    totalQty += item.qty;
+                    totalPrice += (item.qty * item.price);
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>
+                            <strong style="color: var(--admin-text-dark); font-size: 14px;">${item.name}</strong>
+                            <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">${item.desc}</div>
+                        </td>
+                        <td><input type="number" class="form-control" value="${item.qty}" min="1" onchange="updateItem(${item.variantId}, 'qty', this.value)" style="width: 80px; padding: 6px;" /></td>
+                        <td><input type="number" class="form-control" value="${item.price}" min="0" onchange="updateItem(${item.variantId}, 'price', this.value)" style="padding: 6px;" /></td>
+                        <td style="text-align: right; font-weight: 700;">${formatter.format(item.qty * item.price)} đ</td>
+                        <td style="text-align: center;">
+                            <button onclick="removeItem(${item.variantId})" class="btn-close" style="margin: 0 auto;">
+                                <svg class="svg-icon" viewBox="0 0 24 24" style="color: #DC2626;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('summaryQty').innerText = totalQty;
+            document.getElementById('summaryTotal').innerText = formatter.format(totalPrice) + ' đ';
+        }
+
+        // --- 3. LOGIC XỬ LÝ MODAL (THÊM SẢN PHẨM MỚI BẰNG AJAX) ---
+        function openModal() { document.getElementById('newProductModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('newProductModal').style.display = 'none'; }
+
+        async function saveQuickProduct() {
+            const data = {
+                name: document.getElementById('newProductName').value,
+                categoryId: document.getElementById('newProductCategory').value,
+                brandId: document.getElementById('newProductBrand').value,
+                color: document.getElementById('newVariantColor').value,
+                storage: document.getElementById('newVariantStorage').value
+            };
+
+            if(!data.name || !data.color || !data.storage) {
+                alert("Vui lòng điền đủ Tên, Màu sắc và Dung lượng."); return;
+            }
+
+            try {
+                // Sẽ viết API này ở phần Controller
+                const res = await fetch('/Admin/Inventory/QuickAddProduct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+
+                if(result.success) {
+                    // Thêm thẳng biến thể vừa tạo vào mảng PO
+                    addItemToPO(result.newVariant);
+                    closeModal();
+                    // Clear form
+                    document.getElementById('newProductName').value = '';
+                    document.getElementById('newVariantColor').value = '';
+                    document.getElementById('newVariantStorage').value = '';
+                } else { alert("Lỗi: " + result.message); }
+            } catch(e) { alert("Lỗi kết nối."); }
+        }
+
+        // --- 4. LOGIC CHỐT PHIẾU NHẬP (GỬI TRANSACTION XUỐNG SERVER) ---
+        async function submitPO() {
+            if(poItems.length === 0) { alert("Phiếu nhập chưa có hàng hóa."); return; }
+            const supplierId = document.getElementById('poSupplier').value;
+            if(!supplierId) { alert("Vui lòng chọn nhà cung cấp."); return; }
+
+            const payload = {
+                supplierId: supplierId,
+                note: document.getElementById('poNote').value,
+                items: poItems.map(i => ({ variantId: i.variantId, quantity: i.qty, importPrice: i.price }))
+            };
+
+            if(!confirm("Xác nhận chốt phiếu và cộng Tồn kho? Thao tác này không thể hoàn tác.")) return;
+
+            try {
+                const res = await fetch('/Admin/Inventory/SubmitPO', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if(data.success) {
+                    alert("Nhập kho thành công!");
+                    window.location.href = '/Admin/Inventory/Index'; // Chuyển về màn hình tồn kho
+                } else { alert("Lỗi: " + data.message); }
+            } catch(e) { alert("Lỗi kết nối hệ thống."); }
+        }
+
+        // Ẩn dropdown khi click ra ngoài
+        document.addEventListener('click', function(e) {
+            if(!e.target.closest('.search-container')) document.getElementById('searchDropdown').style.display = 'none';
+        });
+    </script>
+}
