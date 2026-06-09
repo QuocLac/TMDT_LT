@@ -1,0 +1,323 @@
+﻿@model IEnumerable<TMDT_LT.Models.ShippingCarriers>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Cấu hình Đối tác Vận chuyển";
+}
+
+<style>
+    /* CSS TOOLTIP CỦA HỆ THỐNG */
+    .tooltip-container {
+        display: inline-flex;
+        align-items: center;
+        position: relative;
+    }
+
+    .tooltip-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #E5E7EB;
+        color: #4B5563;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: help;
+        margin-left: 6px;
+    }
+
+        .tooltip-trigger:hover {
+            background: #111827;
+            color: #FFFFFF;
+        }
+
+    .tooltip-content {
+        display: none;
+        position: absolute;
+        bottom: 130%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #111827;
+        color: #FFFFFF;
+        padding: 16px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 400;
+        line-height: 1.5;
+        text-transform: none;
+        width: 320px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        text-align: left;
+    }
+
+        .tooltip-content::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #111827 transparent transparent transparent;
+        }
+
+    .tooltip-trigger:hover .tooltip-content {
+        display: block;
+    }
+
+    /* CSS ĐỊNH DẠNG CẤU TRÚC MODAL PHẲNG ĐƠN SẮC */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-box {
+        background: #FFFFFF;
+        padding: 28px;
+        border-radius: 6px;
+        width: 520px;
+        max-width: 90%;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    }
+</style>
+
+<div style="margin-bottom: 30px;">
+    <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;">Đối tác vận chuyển</h1>
+    <p style="color: #6B7280; font-size: 13px; margin-top: 4px;">Cấu hình cổng kết nối API kết nối trực tiếp đến các đơn vị vận tải bên thứ ba.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+
+    <div class="admin-card" style="height: fit-content;">
+        <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #4B5563;">Khai báo cổng kết nối</h3>
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Tên đối tác vận tải (*)</label>
+                    <input name="CarrierName" type="text" class="form-control" placeholder="Ví dụ: Giao Hàng Tiết Kiệm, GHN, Viettel Post..." required />
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <div class="tooltip-container">
+                        <label class="form-label" style="margin: 0;">Môi trường Giao tiếp (Endpoint URL) (*)</label>
+                        <span class="tooltip-trigger">
+                            ?
+                            <span class="tooltip-content">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid #374151; padding-bottom: 10px;">
+                                    <svg style="width: 16px; height: 16px; color: #10B981;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                                    <span style="font-weight: 700; font-size: 12px; color: #F9FAFB;">Giao thức truyền tải dữ liệu</span>
+                                </div>
+                                <div style="font-size: 11px; color: #D1D5DB; margin-bottom: 12px; line-height: 1.5;">
+                                    Điểm cuối (Endpoint) chuẩn RESTful tiếp nhận luồng dữ liệu bưu kiện từ hệ thống Cửa hàng đồng bộ sang máy chủ của nhà vận chuyển.
+                                </div>
+                                <div style="font-size: 11px; color: #9CA3AF; line-height: 1.5; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px;">
+                                    <strong style="color: #F9FAFB;">Quy trình thiết lập:</strong><br>
+                                    1. Truy cập Developer Center của đối tác.<br>
+                                    2. Cấp quyền và chọn Môi trường Tích hợp.<br>
+                                    3. Sao chép địa chỉ URL gốc.
+                                </div>
+                            </span>
+                        </span>
+                    </div>
+                    <input name="ApiUrl" type="url" class="form-control" placeholder="https://services.giaohangtietkiem.vn/..." style="margin-top: 6px;" required />
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <div class="tooltip-container">
+                        <label class="form-label" style="margin: 0;">Khóa Định danh Bảo mật (Secret Token) (*)</label>
+                        <span class="tooltip-trigger">
+                            ?
+                            <span class="tooltip-content">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid #374151; padding-bottom: 10px;">
+                                    <svg style="width: 16px; height: 16px; color: #F59E0B;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                                    <span style="font-weight: 700; font-size: 12px; color: #F9FAFB;">Định danh & Ủy quyền (Bearer Token)</span>
+                                </div>
+                                <div style="font-size: 11px; color: #D1D5DB; margin-bottom: 12px; line-height: 1.5;">
+                                    Chữ ký số định danh duy nhất cấp quyền cho hệ thống tự động sinh mã vận đơn và đối soát dòng tiền thu hộ (COD).
+                                </div>
+                                <div style="font-size: 11px; color: #9CA3AF; line-height: 1.5; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; margin-bottom: 10px;">
+                                    <strong style="color: #F9FAFB;">Hướng dẫn trích xuất:</strong><br>
+                                    Tại giao diện đối tác ➞ Cài đặt API / Kết nối hệ thống ➞ Sinh mã API Access Token ➞ Sao chép.
+                                </div>
+                                <div style="display: flex; gap: 6px; font-size: 11px; color: #FCA5A5; background: rgba(220, 38, 38, 0.1); padding: 6px; border-radius: 4px;">
+                                    <span>⚠️</span><span>Tuyệt đối bảo mật, không chia sẻ khóa API để tránh giả mạo hóa đơn.</span>
+                                </div>
+                            </span>
+                        </span>
+                    </div>
+                    <input name="ApiToken" type="text" class="form-control" placeholder="Nhập chữ ký bảo mật cấp phép truy cập..." style="margin-top: 6px;" required />
+                </div>
+
+                <button type="submit" class="btn-dark" style="width: 100%; padding: 12px; margin-top: 10px;">THIẾT LẬP KẾT NỐI API</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="admin-card" style="padding: 0; overflow: hidden;">
+        <div style="padding: 16px 24px; border-bottom: 1px solid var(--admin-border); background: #F9FAFB;">
+            <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #4B5563; margin: 0;">Danh sách cổng phân phối kết nối</h3>
+        </div>
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #F9FAFB; border-bottom: 1px solid var(--admin-border);">
+                    <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: left;">Nhà vận chuyển</th>
+                    <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: left;">API Base URL</th>
+                    <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: right; width: 35%;">Trạng thái & Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="3" style="text-align:center; padding: 40px; color: #9CA3AF;">Chưa có cấu hình kết nối đơn vị vận chuyển bên thứ 3 nào.</td></tr>
+                }
+                @foreach (var item in Model)
+                {
+                    <tr style="border-bottom: 1px solid #F3F4F6;">
+                        <td style="padding: 14px 20px;">
+                            <strong style="color: #111827; font-size: 14px;">@item.CarrierName</strong>
+                            <div style="font-size: 11px; color: #9CA3AF; margin-top: 2px; font-family: monospace;">Token: *******@item.ApiToken.Substring(Math.Max(0, item.ApiToken.Length - 5))</div>
+                        </td>
+                        <td style="padding: 14px 20px; font-family: monospace; font-size: 12px; color: #4B5563;">@item.ApiUrl</td>
+                        <td style="padding: 14px 20px; text-align: right;">
+                            <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+                                <button onclick="toggleCarrierActive(@item.CarrierId, this)" class="btn-outline" style="font-size: 11px; padding: 5px 12px; border-color: @(item.IsActive ? "#111827" : "#E5E7EB"); color: @(item.IsActive ? "#111827" : "#9CA3AF"); font-weight: 600;">
+                                    @(item.IsActive ? "● Đang kích hoạt" : "○ Đang tắt")
+                                </button>
+
+                                <button type="button"
+                                        onclick="openEditModal(this)"
+                                        data-id="@item.CarrierId"
+                                        data-name="@item.CarrierName"
+                                        data-url="@item.ApiUrl"
+                                        data-token="@item.ApiToken"
+                                        class="btn-outline"
+                                        style="font-size: 11px; padding: 5px 12px; color: #2563EB; border-color: #BFDBFE; background: #EFF6FF; font-weight: 600;">
+                                    Sửa
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="editCarrierModal" class="modal-overlay" onclick="closeEditModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #111827; letter-spacing: 0.5px;">
+            Cập nhật thiết lập cổng kết nối (3PL)
+        </h3>
+        <form id="editCarrierForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" id="editCarrierId" name="CarrierId" />
+
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Tên nhà vận chuyển (*)</label>
+                    <input id="editCarrierName" name="CarrierName" type="text" class="form-control" required />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Môi trường Giao tiếp (Endpoint URL) (*)</label>
+                    <input id="editApiUrl" name="ApiUrl" type="url" class="form-control" required />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Khóa Định danh Bảo mật (Secret Token) (*)</label>
+                    <input id="editApiToken" name="ApiToken" type="text" class="form-control" required />
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px; border-top: 1px solid var(--admin-border); padding-top: 15px;">
+                    <button type="button" class="btn-outline" onclick="closeEditModal()" style="padding: 10px 20px;">Hủy bỏ</button>
+                    <button type="submit" class="btn-dark" style="padding: 10px 24px; font-weight: 700;">LƯU THIẾT LẬP</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Hàm AJAX bật tắt trạng thái hoạt động cổng vận chuyển
+        async function toggleCarrierActive(carrierId, button) {
+            try {
+                const response = await fetch(`/Admin/Shipping/ToggleStatus/${carrierId}`, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.isActive) {
+                        button.innerText = "● Đang kích hoạt";
+                        button.style.borderColor = "#111827";
+                        button.style.color = "#111827";
+                    } else {
+                        button.innerText = "○ Đang tắt";
+                        button.style.borderColor = "#E5E7EB";
+                        button.style.color = "#9CA3AF";
+                    }
+                } else {
+                    alert("Không thể thay đổi trạng thái cổng kết nối.");
+                }
+            } catch (e) {
+                alert("Lỗi kết nối máy chủ dữ liệu vận chuyển.");
+            }
+        }
+
+        // Bóc tách dữ liệu từ data attributes để đổ vào Form của Modal
+        function openEditModal(button) {
+            const id = button.getAttribute("data-id");
+            const name = button.getAttribute("data-name");
+            const url = button.getAttribute("data-url");
+            const token = button.getAttribute("data-token");
+
+            document.getElementById("editCarrierId").value = id;
+            document.getElementById("editCarrierName").value = name;
+            document.getElementById("editApiUrl").value = url;
+            document.getElementById("editApiToken").value = token;
+
+            // Kích hoạt hiển thị Modal dưới dạng flexbox căn giữa màn hình
+            document.getElementById("editCarrierModal").style.display = "flex";
+        }
+
+        function closeEditModal() {
+            document.getElementById("editCarrierModal").style.display = "none";
+            document.getElementById("editCarrierForm").reset();
+        }
+
+        // Đón chặn sự kiện Submit form của Modal để gửi dữ liệu ngầm bằng AJAX
+        document.getElementById("editCarrierForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const id = document.getElementById("editCarrierId").value;
+            const csrfToken = this.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch(`/Admin/Shipping/Edit/${id}`, {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': csrfToken },
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Cập nhật thành công, reload lại trang để đồng bộ lưới hiển thị mới nhất
+                    location.reload();
+                } else {
+                    alert("Chặn nghiệp vụ: " + data.message);
+                }
+            } catch (error) {
+                alert("Lỗi đường truyền tín hiệu kết nối máy chủ.");
+            }
+        });
+    </script>
+}

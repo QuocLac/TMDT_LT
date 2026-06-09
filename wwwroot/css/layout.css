@@ -1,0 +1,106 @@
+﻿.site-header {
+    background-color: var(--neutral-black);
+    color: var(--neutral-white);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    border-bottom: 1px solid var(--neutral-dark);
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.header-logo a {
+    color: var(--neutral-white);
+    font-weight: 900;
+    font-size: 24px;
+    text-decoration: none;
+    letter-spacing: -1px;
+}
+
+.header-search {
+    flex: 1;
+    max-width: 550px;
+}
+
+.search-form {
+    display: flex;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    padding: 6px 14px;
+    transition: all 0.2s;
+}
+
+    .search-form:focus-within {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-color: var(--neutral-white);
+    }
+
+    .search-form input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        color: var(--neutral-white);
+        outline: none;
+        font-size: 14px;
+    }
+
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.main-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px 15px;
+    min-height: calc(100vh - 300px);
+}
+
+.site-footer {
+    background-color: var(--neutral-black);
+    color: var(--neutral-white);
+    padding: 45px 0 25px 0;
+    border-top: 1px solid var(--border-gray);
+    font-size: 13px;
+}
+
+.footer-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 35px;
+}
+
+.footer-bottom {
+    max-width: 1200px;
+    margin: 35px auto 0 auto;
+    padding: 20px 15px 0 15px;
+    border-top: 1px solid #262626;
+    text-align: center;
+    color: #737373;
+}
+
+@media (max-width: 768px) {
+    .header-container {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .header-search {
+        max-width: 100%;
+        width: 100%;
+    }
+}

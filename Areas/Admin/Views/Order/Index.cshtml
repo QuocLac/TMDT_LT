@@ -1,0 +1,90 @@
+﻿@model IEnumerable<TMDT_LT.Models.Orders>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Đơn hàng";
+}
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div>
+        <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;">Quản lý dữ liệu đơn hàng</h1>
+        <p style="color: #6B7280; font-size: 13px; margin-top: 4px;">Hệ thống kiểm soát chứng từ, luồng tiền và trạng thái vận hành kho bãi.</p>
+    </div>
+    <div>
+        <a href="@Url.Action("ExportToExcel", "Order", new { searchKeyword = ViewBag.Keyword, status = ViewBag.Status, fromDate = ViewBag.FromDate, toDate = ViewBag.ToDate })" class="btn-outline" style="display: inline-flex; align-items: center; gap: 6px; border-color: #111827; color: #111827; text-decoration: none; padding: 10px 16px; font-size: 13px; font-weight: 600;">
+            📥 Xuất báo cáo tài chính (.csv)
+        </a>
+    </div>
+</div>
+
+<div class="admin-card" style="margin-bottom: 24px; padding: 15px 20px;">
+    <form method="get" asp-action="Index" style="display: flex; gap: 15px; align-items: flex-end;">
+        <div style="flex: 1.5;">
+            <label class="form-label">Mã chứng từ / Số điện thoại</label>
+            <input type="text" name="searchKeyword" value="@ViewBag.Keyword" class="form-control" placeholder="Tìm kiếm..." />
+        </div>
+        <div style="flex: 1;">
+            <label class="form-label">Trạng thái vận hành</label>
+            <select name="status" class="form-control">
+                <option value="">- Tất cả -</option>
+                <option value="Chờ xác nhận" selected="@(ViewBag.Status == "Chờ xác nhận")">Chờ xác nhận</option>
+                <option value="Đang xử lý" selected="@(ViewBag.Status == "Đang xử lý")">Đang xử lý</option>
+                <option value="Đang giao" selected="@(ViewBag.Status == "Đang giao")">Đang giao</option>
+                <option value="Hoàn thành" selected="@(ViewBag.Status == "Hoàn thành")">Hoàn thành</option>
+                <option value="Đã hủy" selected="@(ViewBag.Status == "Đã hủy")">Đã hủy</option>
+            </select>
+        </div>
+        <div style="flex: 1;">
+            <label class="form-label">Từ ngày đặt</label>
+            <input type="date" name="fromDate" value="@ViewBag.FromDate" class="form-control" />
+        </div>
+        <div style="flex: 1;">
+            <label class="form-label">Đến ngày đặt</label>
+            <input type="date" name="toDate" value="@ViewBag.ToDate" class="form-control" />
+        </div>
+        <div>
+            <button type="submit" class="btn-dark">Lọc dữ liệu</button>
+            <a asp-action="Index" class="btn-outline" style="margin-left: 5px; text-decoration: none;">Xóa lọc</a>
+        </div>
+    </form>
+</div>
+
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--admin-border);">
+                <th style="padding: 16px; text-align: left; font-size: 11px; text-transform: uppercase; color: #6B7280;">Mã đơn</th>
+                <th style="padding: 16px; text-align: left; font-size: 11px; text-transform: uppercase; color: #6B7280;">Khách hàng</th>
+                <th style="padding: 16px; text-align: left; font-size: 11px; text-transform: uppercase; color: #6B7280;">Ngày khởi tạo</th>
+                <th style="padding: 16px; text-align: right; font-size: 11px; text-transform: uppercase; color: #6B7280;">Tổng tiền</th>
+                <th style="padding: 16px; text-align: center; font-size: 11px; text-transform: uppercase; color: #6B7280;">Trạng thái</th>
+                <th style="padding: 16px; text-align: center; font-size: 11px; text-transform: uppercase; color: #6B7280;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                string bStyle = item.Status == "Chờ xác nhận" ? "background: #FEF3C7; color: #D97706;" :
+                item.Status == "Đang xử lý" ? "background: #DBEAFE; color: #2563EB;" :
+                item.Status == "Đang giao" ? "background: #E0F2FE; color: #0369A1;" :
+                item.Status == "Hoàn thành" ? "background: #D1FAE5; color: #059669;" :
+                "background: #FEE2E2; color: #DC2626;";
+
+                <tr style="border-bottom: 1px solid #F3F4F6;">
+                    <td style="padding: 16px; font-family: monospace; font-weight: 700;">#ORD-@item.OrderId</td>
+                    <td style="padding: 16px;">
+                        <span style="font-weight: 600; color: #111827;">@item.ShippingFullName</span>
+                        <div style="font-size: 12px; color: #6B7280; margin-top: 2px;">SĐT: @item.ShippingPhone</div>
+                    </td>
+                    <td style="padding: 16px; color: #4B5563;">@item.OrderDate?.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td style="padding: 16px; text-align: right; font-weight: 700;">@string.Format("{0:N0}", item.TotalAmount) đ</td>
+                    <td style="padding: 16px; text-align: center;">
+                        <span style="padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; @bStyle">@item.Status</span>
+                    </td>
+                    <td style="padding: 16px; text-align: center;">
+                        <a asp-action="Details" asp-route-id="@item.OrderId" style="color: #111827; text-decoration: none; font-weight: 700; font-size: 13px;">Xem chi tiết</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

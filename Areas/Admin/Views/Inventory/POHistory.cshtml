@@ -1,0 +1,254 @@
+﻿@model IEnumerable<TMDT_LT.Models.PurchaseOrders>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Nhật ký nhập kho";
+}
+
+<style>
+    /* CSS Modal và Text (Kế thừa phong cách phẳng đơn sắc) */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-box {
+        background: #FFFFFF;
+        padding: 28px;
+        border-radius: 6px;
+        width: 450px;
+        max-width: 90%;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    }
+
+    .info-block {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+
+    .info-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #6B7280;
+        font-weight: 700;
+    }
+
+    .info-value {
+        font-size: 14px;
+        color: #111827;
+        font-weight: 500;
+    }
+</style>
+
+<div style="margin-bottom: 25px;">
+    <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 4px;">
+        ← Quay lại kiểm soát tồn kho
+    </a>
+    <h2 style="margin-top: 10px; font-weight: 800; letter-spacing: -0.5px;">Nhật ký Nhập kho</h2>
+    <p style="color: #6B7280; font-size: 14px;">Quản lý toàn bộ chứng từ nhập hàng, giá vốn và danh sách nhà cung ứng.</p>
+</div>
+
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 12%;">Mã số PO</th>
+                <th style="width: 18%;">Ngày ghi sổ</th>
+                <th style="width: 25%;">Nhà cung cấp</th>
+                <th style="width: 20%; text-align: right;">Giá trị lô hàng</th>
+                <th style="width: 15%;">Người thực hiện</th>
+                <th style="width: 10%; text-align: center;">Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 50px; color: #9CA3AF;">Hệ thống chưa ghi nhận phiếu nhập kho nào.</td>
+                </tr>
+            }
+            @foreach (var item in Model)
+            {
+                <tr style="transition: background 0.15s;" onmouseover="this.style.backgroundColor='#F9FAFB'" onmouseout="this.style.backgroundColor='transparent'">
+                    <td style="font-weight: 700; font-family: monospace;">#@item.Poid</td>
+                    <td style="color: #6B7280; font-family: monospace;">@item.OrderDate?.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td style="padding: 14px 20px;">
+                        <a href="javascript:void(0);"
+                           onclick="openSupplierInfoModal(this)"
+                           data-name="@item.Supplier?.SupplierName"
+                           data-tax="@item.Supplier?.TaxCode"
+                           data-contact="@item.Supplier?.ContactName"
+                           data-phone="@item.Supplier?.Phone"
+                           data-email="@item.Supplier?.Email"
+                           data-address="@item.Supplier?.Address"
+                           style="color: #2563EB; font-weight: 600; text-decoration: none;"
+                           onmouseover="this.style.color='#1D4ED8'"
+                           onmouseout="this.style.color='#2563EB'">
+                            @item.Supplier?.SupplierName
+                        </a>
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: #DC2626;">
+                        @string.Format("{0:N0}", item.TotalAmount) đ
+                    </td>
+                    <td style="font-size: 13px; color: #4B5563;">@item.Account?.Email</td>
+                    <td style="text-align: center;">
+                        <button onclick="openPODetailModal(@item.Poid)" class="btn-outline" style="font-size: 12px; padding: 6px 12px;">
+                            Xem lô hàng
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div id="poDetailModal" class="modal-overlay" onclick="closePOModal()">
+    <div class="modal-content" style="max-width: 650px;" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalPOTitle">Chi tiết chứng từ nhập kho</h3>
+            <button onclick="closePOModal()" class="btn-close">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 0;">
+            <table class="data-table" style="border-radius: 0; border: none;">
+                <thead style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th style="width: 45%; background: #F3F4F6;">Sản phẩm phân phối</th>
+                        <th style="width: 15%; text-align: center; background: #F3F4F6;">SL</th>
+                        <th style="width: 20%; text-align: right; background: #F3F4F6;">Giá nhập</th>
+                        <th style="width: 20%; text-align: right; background: #F3F4F6;">Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody id="modalPOItemsBody">
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid var(--admin-border); display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 14px; font-weight: 700;">Tổng tiền thanh toán hóa đơn: <span id="modalPOTotal" style="color:#DC2626;">0đ</span></div>
+            <button onclick="closePOModal()" class="btn-dark" style="padding: 8px 20px;">Đóng</button>
+        </div>
+    </div>
+</div>
+<div id="supplierInfoModal" class="modal-overlay" onclick="closeSupplierInfoModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #111827; letter-spacing: 0.5px;">
+            Hồ sơ nhà phân phối
+        </h3>
+
+        <div style="display: flex; flex-direction: column;">
+            <div class="info-block">
+                <span class="info-label">Tên doanh nghiệp</span>
+                <span class="info-value" id="infoSupplierName"></span>
+            </div>
+            <div class="info-block">
+                <span class="info-label">Mã số thuế (Tax Code)</span>
+                <span class="info-value" id="infoTaxCode" style="font-family: monospace; color: #059669; font-weight: 700;"></span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="info-block">
+                    <span class="info-label">Đại diện kinh doanh</span>
+                    <span class="info-value" id="infoContactName"></span>
+                </div>
+                <div class="info-block">
+                    <span class="info-label">Hotline liên hệ</span>
+                    <span class="info-value" id="infoPhone" style="font-family: monospace;"></span>
+                </div>
+            </div>
+            <div class="info-block">
+                <span class="info-label">Hòm thư Email</span>
+                <span class="info-value" id="infoEmail"></span>
+            </div>
+            <div class="info-block">
+                <span class="info-label">Địa chỉ trụ sở</span>
+                <span class="info-value" id="infoAddress"></span>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 15px; border-top: 1px solid var(--admin-border); padding-top: 15px;">
+            <button type="button" class="btn-outline" onclick="closeSupplierInfoModal()" style="padding: 8px 24px; font-weight: 600;">ĐÓNG</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const currencyFormatter = new Intl.NumberFormat('vi-VN');
+
+        async function openPODetailModal(poId) {
+            document.getElementById('modalPOTitle').innerText = `Chi tiết Phiếu nhập kho #` + poId;
+            const tbody = document.getElementById('modalPOItemsBody');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#9CA3AF;">Đang truy xuất bảng kê khai sản phẩm...</td></tr>';
+
+            document.getElementById('poDetailModal').style.display = 'flex';
+
+            try {
+                const res = await fetch(`/Admin/Inventory/GetPODetails/${poId}`);
+                const data = await res.json();
+
+                tbody.innerHTML = '';
+                let totalPOValue = 0;
+
+                data.forEach(item => {
+                    totalPOValue += item.totalPrice;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>
+                            <strong style="color: var(--admin-text-dark); font-size: 13px;">${item.productName}</strong>
+                            <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">${item.variantDesc}</div>
+                        </td>
+                        <td style="text-align: center; font-weight: 600;">${item.qty}</td>
+                        <td style="text-align: right; font-family: monospace;">${currencyFormatter.format(item.importPrice)} đ</td>
+                        <td style="text-align: right; font-weight: 700; font-family: monospace;">${currencyFormatter.format(item.totalPrice)} đ</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                document.getElementById('modalPOTotal').innerText = currencyFormatter.format(totalPOValue) + ' đ';
+
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#DC2626;">Lỗi truy xuất dữ liệu từ máy chủ kế toán.</td></tr>';
+            }
+        }
+
+        function closePOModal() {
+            document.getElementById('poDetailModal').style.display = 'none';
+        }
+
+            // Hàm bóc tách dữ liệu và hiển thị lên Modal
+        function openSupplierInfoModal(element) {
+            // Lấy dữ liệu từ các thuộc tính data-*
+            const name = element.getAttribute("data-name") || "Không xác định";
+            const tax = element.getAttribute("data-tax") || "Chưa cập nhật";
+            const contact = element.getAttribute("data-contact") || "Chưa thiết lập";
+            const phone = element.getAttribute("data-phone") || "Chưa cập nhật";
+            const email = element.getAttribute("data-email") || "Chưa cập nhật";
+            const address = element.getAttribute("data-address") || "Chưa cập nhật";
+
+            // Gán vào các ID tương ứng trên Modal
+            document.getElementById("infoSupplierName").innerText = name;
+            document.getElementById("infoTaxCode").innerText = tax;
+            document.getElementById("infoContactName").innerText = contact;
+            document.getElementById("infoPhone").innerText = phone;
+            document.getElementById("infoEmail").innerText = email;
+            document.getElementById("infoAddress").innerText = address;
+
+            // Hiển thị Modal
+            document.getElementById("supplierInfoModal").style.display = "flex";
+        }
+
+        // Hàm đóng Modal
+        function closeSupplierInfoModal() {
+            document.getElementById("supplierInfoModal").style.display = "none";
+        }
+    </script>
+}

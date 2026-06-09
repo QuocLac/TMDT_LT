@@ -1,0 +1,307 @@
+﻿@model IEnumerable<TMDT_LT.Models.Suppliers>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Nhà phân phối";
+}
+
+<style>
+    .tooltip-container {
+        display: inline-flex;
+        align-items: center;
+        position: relative;
+    }
+
+    .tooltip-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #E5E7EB;
+        color: #4B5563;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: help;
+        margin-left: 6px;
+    }
+
+        .tooltip-trigger:hover {
+            background: #111827;
+            color: #FFFFFF;
+        }
+
+    .tooltip-content {
+        display: none;
+        position: absolute;
+        bottom: 130%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #111827;
+        color: #FFFFFF;
+        padding: 14px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 400;
+        line-height: 1.5;
+        text-transform: none;
+        width: 280px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        text-align: left;
+    }
+
+        .tooltip-content::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #111827 transparent transparent transparent;
+        }
+
+    .tooltip-trigger:hover .tooltip-content {
+        display: block;
+    }
+
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-box {
+        background: #FFFFFF;
+        padding: 28px;
+        border-radius: 6px;
+        width: 500px;
+        max-width: 90%;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    }
+</style>
+
+<div style="margin-bottom: 30px;">
+    <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;">Danh bạ Nhà phân phối dữ liệu kho</h1>
+    <p style="color: #6B7280; font-size: 13px; margin-top: 4px;">Khai báo đơn vị cung ứng, đối tác thương mại điều phối thiết bị phần cứng đầu vào.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+
+    <div class="admin-card" style="height: fit-content;">
+        <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #4B5563;">Đăng ký đối tác mới</h3>
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Tên nhà phân phối doanh nghiệp (*)</label>
+                    <input name="SupplierName" type="text" class="form-control" placeholder="Ví dụ: Công ty TNHH Apple Việt Nam..." required />
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Mã số thuế (Tax Code)</label>
+                    <input name="TaxCode" type="text" class="form-control" placeholder="Nhập mã số thuế..." style="font-family: monospace;" />
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <div class="tooltip-container">
+                        <label class="form-label" style="margin: 0;">Đại diện thương mại</label>
+                        <span class="tooltip-trigger">
+                            ?
+                            <span class="tooltip-content">Định danh họ tên nhân viên điều phối kinh doanh (Sale Lead) phụ trách trực tiếp bàn giao công nợ và chứng từ với cửa hàng.</span>
+                        </span>
+                    </div>
+                    <input name="ContactName" type="text" class="form-control" placeholder="Họ tên người phụ trách kinh doanh..." style="margin-top: 6px;" />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Số điện thoại hotline liên hệ (*)</label>
+                    <input name="Phone" type="text" class="form-control" placeholder="Số điện thoại bàn hoặc di động..." required />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Địa chỉ hòm thư Email</label>
+                    <input name="Email" type="email" class="form-control" placeholder="sales@apple.com..." />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Địa chỉ trụ sở chính</label>
+                    <input name="Address" type="text" class="form-control" placeholder="Số nhà, Tên đường, Tỉnh/Thành phố..." />
+                </div>
+                <button type="submit" class="btn-dark" style="width: 100%; padding: 12px; margin-top: 10px;">XÁC NHẬN LƯU HỒ SƠ</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="admin-card" style="padding: 0; overflow: hidden;">
+        <div style="padding: 16px 24px; border-bottom: 1px solid var(--admin-border); background: #F9FAFB;">
+            <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #4B5563; margin: 0;">Sổ hồ sơ đối tác chuỗi cung ứng</h3>
+        </div>
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #F9FAFB; border-bottom: 1px solid var(--admin-border);">
+                    <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: left;">Nhà phân phối & Mã số thuế</th>
+                    <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: left;">Thông tin liên lạc</th>
+                    <th style="padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: #6B7280; text-align: right; width: 35%;">Trạng thái hợp tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    bool isActive = item.IsActive ?? false; // Ép kiểu an toàn cho bool?
+
+                    <tr style="border-bottom: 1px solid #F3F4F6;">
+                        <td style="padding: 14px 20px;">
+                            <strong style="color: #111827; font-size: 14px;">@item.SupplierName</strong>
+                            @if (!string.IsNullOrEmpty(item.TaxCode))
+                            {
+                                <div style="font-size: 11px; color: #059669; font-weight: 600; margin-top: 2px;">MST: @item.TaxCode</div>
+                            }
+                            <div style="font-size: 12px; color: #6B7280; margin-top: 2px;">Đại diện: @(item.ContactName ?? "Chưa thiết lập")</div>
+                        </td>
+                        <td style="padding: 14px 20px; font-size: 13px; color: #4B5563;">
+                            <div>SĐT: <span style="font-family: monospace; font-weight: 600;">@item.Phone</span></div>
+                            <div style="font-size: 11px; color: #9CA3AF; margin-top: 2px;">@item.Email</div>
+                        </td>
+                        <td style="padding: 14px 20px; text-align: right;">
+                            <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+                                <button onclick="toggleSupplierActive(@item.SupplierId, this)" class="btn-outline" style="font-size: 11px; padding: 5px 12px; border-color: @(isActive ? "#111827" : "#E5E7EB"); color: @(isActive ? "#111827" : "#9CA3AF"); font-weight: 600;">
+                                    @(isActive ? "● Đang cung ứng" : "○ Tạm dừng")
+                                </button>
+                                <button type="button"
+                                        onclick="openSupplierEditModal(this)"
+                                        data-id="@item.SupplierId"
+                                        data-name="@item.SupplierName"
+                                        data-tax="@item.TaxCode"
+                                        data-contact="@item.ContactName"
+                                        data-phone="@item.Phone"
+                                        data-email="@item.Email"
+                                        data-address="@item.Address"
+                                        class="btn-outline"
+                                        style="font-size: 11px; padding: 5px 12px; color: #2563EB; border-color: #BFDBFE; background: #EFF6FF; font-weight: 600;">
+                                    Sửa
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="editSupplierModal" class="modal-overlay" onclick="closeSupplierEditModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #111827; letter-spacing: 0.5px;">
+            Cập nhật hồ sơ nhà phân phối
+        </h3>
+        <form id="editSupplierForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" id="editSupplierId" name="SupplierId" />
+
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Tên nhà phân phối doanh nghiệp (*)</label>
+                    <input id="editSupplierName" name="SupplierName" type="text" class="form-control" required />
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Mã số thuế (Tax Code)</label>
+                    <input id="editTaxCode" name="TaxCode" type="text" class="form-control" style="font-family: monospace;" />
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Họ tên người đại diện</label>
+                    <input id="editContactName" name="ContactName" type="text" class="form-control" />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Số điện thoại hotline (*)</label>
+                    <input id="editSupplierPhone" name="Phone" type="text" class="form-control" required />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Địa chỉ Email</label>
+                    <input id="editSupplierEmail" name="Email" type="email" class="form-control" />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Địa chỉ trụ sở</label>
+                    <input id="editSupplierAddress" name="Address" type="text" class="form-control" />
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px; border-top: 1px solid var(--admin-border); padding-top: 15px;">
+                    <button type="button" class="btn-outline" onclick="closeSupplierEditModal()" style="padding: 10px 20px;">Hủy bỏ</button>
+                    <button type="submit" class="btn-dark" style="padding: 10px 24px; font-weight: 700;">LƯU THÔNG TIN</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        async function toggleSupplierActive(id, button) {
+            try {
+                const response = await fetch(`/Admin/Supplier/ToggleStatus/${id}`, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.isActive) {
+                        button.innerText = "● Đang cung ứng";
+                        button.style.borderColor = "#111827";
+                        button.style.color = "#111827";
+                    } else {
+                        button.innerText = "○ Tạm dừng";
+                        button.style.borderColor = "#E5E7EB";
+                        button.style.color = "#9CA3AF";
+                    }
+                }
+            } catch (e) {
+                alert("Lỗi tín hiệu đường truyền máy chủ.");
+            }
+        }
+
+        function openSupplierEditModal(button) {
+            document.getElementById("editSupplierId").value = button.getAttribute("data-id");
+            document.getElementById("editSupplierName").value = button.getAttribute("data-name");
+            document.getElementById("editTaxCode").value = button.getAttribute("data-tax"); // Gán giá trị MST
+            document.getElementById("editContactName").value = button.getAttribute("data-contact");
+            document.getElementById("editSupplierPhone").value = button.getAttribute("data-phone");
+            document.getElementById("editSupplierEmail").value = button.getAttribute("data-email");
+            document.getElementById("editSupplierAddress").value = button.getAttribute("data-address");
+
+            document.getElementById("editSupplierModal").style.display = "flex";
+        }
+
+        function closeSupplierEditModal() {
+            document.getElementById("editSupplierModal").style.display = "none";
+            document.getElementById("editSupplierForm").reset();
+        }
+
+        document.getElementById("editSupplierForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            const id = document.getElementById("editSupplierId").value;
+            const token = this.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch(`/Admin/Supplier/Edit/${id}`, {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token },
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert("Chặn nghiệp vụ: " + data.message);
+                }
+            } catch (error) {
+                alert("Lỗi kết nối đồng bộ cơ sở dữ liệu.");
+            }
+        });
+    </script>
+}

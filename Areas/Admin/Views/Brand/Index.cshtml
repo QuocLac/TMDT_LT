@@ -1,0 +1,67 @@
+﻿@model IEnumerable<TMDT_LT.Models.Brands>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Thương hiệu";
+}
+
+<div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
+    <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Thương hiệu phân phối</h2>
+            <form method="get" style="display: flex; gap: 8px;">
+                <input type="text" name="search" value="@ViewBag.Search" class="form-control" style="width: 200px; padding: 6px;" placeholder="Tìm thương hiệu..." />
+                <button type="submit" class="btn-dark" style="padding: 6px 12px;">Lọc</button>
+            </form>
+        </div>
+
+        <div class="admin-card" style="padding: 0;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Mã Hãng</th>
+                        <th>Tên thương hiệu</th>
+                        <th>Mô tả / Xuất xứ</th>
+                        <th style="text-align: center;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>#@item.BrandId</td>
+                            <td><strong>@item.BrandName</strong></td>
+                            <td style="text-align: center;">
+                                <button onclick="editBrand(@item.BrandId, '@item.BrandName')" class="btn-dark" style="font-size: 12px; padding: 4px 10px;">Sửa</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-card" style="height: fit-content;">
+        <h3 id="brand-form-title" style="font-size: 16px; margin-bottom: 20px; border-bottom: 1px solid #E5E7EB; padding-bottom: 10px;">Thêm đối tác thương hiệu</h3>
+        <form asp-action="Save" method="post">
+            <input type="hidden" name="BrandId" id="brand-id" value="0" />
+            <div class="form-row">
+                <label class="form-label">Tên thương hiệu (*)</label>
+                <input type="text" name="BrandName" id="brand-name" class="form-control" required />
+            </div>
+            <div class="form-row">
+                <label class="form-label">Thông tin mô tả</label>
+                <textarea name="Description" id="brand-desc" class="form-control" style="height: 80px;"></textarea>
+            </div>
+            <button type="submit" class="btn-dark" style="width: 100%; margin-top: 20px;">LƯU THƯƠNG HIỆU</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function editBrand(id, name, desc) {
+        document.getElementById('brand-form-title').innerText = "Cập nhật Hãng #" + id;
+        document.getElementById('brand-id').value = id;
+        document.getElementById('brand-name').value = name;
+        document.getElementById('brand-desc').value = desc;
+    }
+</script>

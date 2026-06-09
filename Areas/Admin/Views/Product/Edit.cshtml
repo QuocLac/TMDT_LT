@@ -1,0 +1,170 @@
+﻿@model TMDT_LT.Models.ViewModels.ProductEditVM
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Cập nhật Thiết bị";
+}
+
+<div style="margin-bottom: 35px;">
+    <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
+        <svg style="width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Quay lại danh sách thiết bị
+    </a>
+    <h2 style="margin-top: 12px; font-weight: 800; letter-spacing: -0.5px;">Chỉnh sửa cấu hình sản phẩm</h2>
+</div>
+
+<form asp-action="Edit" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="ProductId" />
+
+    <div class="admin-card">
+        <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 25px; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px;">1. Thông số kỹ thuật nền tảng</h3>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Tên sản phẩm thương mại (*)</label>
+                    <input asp-for="Name" class="form-control" placeholder="Ví dụ: iPhone 15 Pro Max..." required />
+                    <span asp-validation-for="Name" style="color: #DC2626; font-size: 12px; margin-top: 4px; display: block;"></span>
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Thay đổi hình ảnh đại diện sản phẩm (Để trống nếu giữ nguyên)</label>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 20px;">
+                        <img src="@Model.MainImage" style="width: 50px; height: 50px; object-fit: contain; border: 1px solid var(--admin-border); border-radius: 4px;" onerror="this.src='/images/default.png';" />
+                        <input asp-for="MainImageFile" type="file" class="form-control" accept="image/*" style="padding: 6px 12px; flex: 1;" />
+                    </div>
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Bổ sung hình ảnh vào bộ sưu tập</label>
+                    <input asp-for="GalleryFiles" type="file" class="form-control" accept="image/*" multiple style="padding: 6px 12px; margin-bottom: 15px;" />
+
+                    @if (Model.ExistingGallery != null && Model.ExistingGallery.Any())
+                    {
+                        <label class="form-label" style="font-size: 12px; color: #6B7280; margin-bottom: 8px;">Bộ sưu tập ảnh hiện tại (Bấm ✖ để xóa ảnh khỏi hệ thống):</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                            @foreach (var img in Model.ExistingGallery)
+                            {
+                                <div id="gallery-item-@img.ImageId" style="position: relative; width: 70px; height: 70px; border: 1px solid var(--admin-border); background: #ffffff; padding: 4px; display: flex; align-items: center; justify-content: center;">
+                                    <img src="@img.ImageUrl" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                                    <button type="button" onclick="executeDeleteGallery(@img.ImageId)" style="position: absolute; top: -6px; right: -6px; background: #111827; color: #ffffff; border: none; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;" title="Xóa ảnh này">✖</button>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Mô tả sản phẩm văn bản</label>
+                    <textarea asp-for="Description" id="Description" class="form-control" style="height: 300px; resize: none;"></textarea>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 20px; border-left: 1px solid var(--admin-border); padding-left: 30px;">
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Phân mục phân loại</label>
+                    <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-control"></select>
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Hãng sản xuất</label>
+                    <select asp-for="BrandId" asp-items="ViewBag.Brands" class="form-control"></select>
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Vi xử lý (Chipset CPU)</label>
+                    <input asp-for="Chipset" class="form-control" />
+                </div>
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Hệ điều hành gốc</label>
+                    <input asp-for="OperatingSystem" class="form-control" />
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 25px; border-top: 1px dashed var(--admin-border); padding-top: 25px;">
+            <div class="form-row" style="margin: 0;"><label class="form-label">Màn hình (inch)</label><input asp-for="ScreenSize" type="number" step="0.1" class="form-control" /></div>
+            <div class="form-row" style="margin: 0;"><label class="form-label">Tần số quét (Hz)</label><input asp-for="RefreshRate" type="number" class="form-control" /></div>
+            <div class="form-row" style="margin: 0;"><label class="form-label">Dung lượng pin (mAh)</label><input asp-for="BatteryCapacity" type="number" class="form-control" /></div>
+            <div class="form-row" style="margin: 0;"><label class="form-label">Trọng lượng (g)</label><input asp-for="Weight" type="number" step="0.01" class="form-control" /></div>
+        </div>
+    </div>
+
+    <div class="admin-card" style="padding: 0; overflow: hidden;">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--admin-border); background: #F9FAFB;">
+            <h3 style="font-size: 14px; font-weight: 700; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px; margin: 0;">2. Quản lý danh sách phiên bản phân phối (SKU)</h3>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Màu sắc</th>
+                    <th style="width: 15%;">Bộ nhớ RAM</th>
+                    <th style="width: 15%;">Bộ nhớ trong (ROM)</th>
+                    <th style="width: 20%;">Giá niêm yết thương mại (VNĐ)</th>
+                    <th style="width: 35%;">Hình ảnh phân loại hiện tại</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Variants.Count; i++)
+                {
+                    <tr>
+                        <input type="hidden" asp-for="Variants[i].VariantId" />
+                        <td><input asp-for="Variants[i].Color" class="form-control" style="padding: 8px 12px;" required /></td>
+                        <td><input asp-for="Variants[i].Ram" class="form-control" style="padding: 8px 12px;" /></td>
+                        <td><input asp-for="Variants[i].Storage" class="form-control" style="padding: 8px 12px;" required /></td>
+                        <td><input asp-for="Variants[i].Price" type="number" class="form-control" style="padding: 8px 12px; font-weight: 700; color: #059669;" required /></td>
+                        <td>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <img src="@Model.Variants[i].ImageUrl" style="width: 32px; height: 32px; object-fit: contain; border: 1px solid #E5E7EB; border-radius: 4px;" onerror="this.src='/images/default.png';" />
+                                <input asp-for="Variants[i].VariantImageFile" type="file" class="form-control" accept="image/*" style="padding: 4px 8px; font-size: 12px;" />
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 15px; margin-bottom: 50px;">
+        <a asp-action="Index" class="btn-outline" style="padding: 12px 30px;">Hủy bỏ chỉnh sửa</a>
+        <button type="submit" class="btn-dark" style="padding: 12px 40px; letter-spacing: 0.5px; font-weight: 700;">LƯU TẤT CẢ THAY ĐỔI</button>
+    </div>
+</form>
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        tinymce.init({
+            selector: '#Description',
+            height: 320,
+            menubar: false,
+            plugins: 'advlist autolink lists link image charmap preview anchor visualblocks code fullscreen insertdatetime media table wordcount',
+            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat',
+            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
+            branding: false
+        });
+
+        // Hàm AJAX xóa ảnh cục bộ trong bộ sưu tập mà không reload trang
+        async function executeDeleteGallery(imageId) {
+            if (!confirm("Xác nhận gỡ bỏ hình ảnh này khỏi bộ sưu tập sản phẩm? Thao tác này không thể hoàn tác.")) return;
+
+            try {
+                const response = await fetch(`/Admin/Product/DeleteGalleryImage/${imageId}`, {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                    }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Xóa phần tử HTML chứa ảnh trên giao diện ngay lập tức
+                    const element = document.getElementById(`gallery-item-${imageId}`);
+                    if (element) element.remove();
+                } else {
+                    alert("Lỗi: " + data.message);
+                }
+            } catch (error) {
+                alert("Không thể kết nối tới máy chủ dữ liệu.");
+            }
+        }
+    </script>
+}

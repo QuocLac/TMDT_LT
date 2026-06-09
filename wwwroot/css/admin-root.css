@@ -1,0 +1,25 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+:root {
+    --admin-bg-sidebar: #111827;
+    --admin-bg-main: #F3F4F6;
+    --admin-bg-card: #FFFFFF;
+    --admin-text-light: #F9FAFB;
+    --admin-text-muted: #9CA3AF;
+    --admin-text-dark: #111827;
+    --admin-border: #E5E7EB;
+    --admin-font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --sidebar-width: 260px;
+    --header-height: 60px;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--admin-font);
+    background-color: var(--admin-bg-main);
+    color: var(--admin-text-dark);
+    -webkit-font-smoothing: antialiased;
+}

@@ -1,0 +1,80 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PHONE STORE</title>
+
+    <link rel="stylesheet" href="~/css/root.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/base.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components.css" asp-append-version="true" />
+
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-LVMYTXS755"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-LVMYTXS755');
+        </script>
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+
+    <header class="site-header">
+        <div class="header-container">
+            <div class="header-logo">
+                <a asp-controller="Home" asp-action="Index">PHONE.ST</a>
+            </div>
+
+            <div class="header-search">
+                <form method="get" asp-controller="Home" asp-action="Index" class="search-form">
+                    <input type="text" name="searchTerm" placeholder="Bạn cần tìm kiếm sản phẩm gì?..." autocomplete="off" value="@Context.Request.Query["searchTerm"]" />
+                </form>
+            </div>
+
+            <nav class="header-nav">
+                <a class="nav-link-btn" asp-controller="Cart" asp-action="Index">
+                    <span>🛒 Giỏ hàng</span>
+                </a>
+                <a class="nav-link-btn admin-gate" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
+                    <span>Hệ thống Admin</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="main-wrapper">
+        <main role="main">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h4>Tổng đài hỗ trợ</h4>
+                <p>Gọi mua hàng: <strong>1800.1000</strong> (7h30 - 22h00)</p>
+                <p>Gọi bảo hành: <strong>1800.2000</strong> (8h00 - 21h00)</p>
+            </div>
+            <div class="footer-col">
+                <h4>Chính sách cửa hàng</h4>
+                <a href="#">Chính sách đổi trả 30 ngày</a>
+                <a href="#">Chính sách bảo hành chính hãng</a>
+                <a href="#">Chính sách giao hàng tận nơi</a>
+            </div>
+            <div class="footer-col">
+                <h4>Về hệ thống PHONE.ST</h4>
+                <p>Hệ thống giả lập sàn thương mại điện tử chuyên nghiệp cung cấp thiết bị di động công nghệ cao toàn quốc.</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; @DateTime.Now.Year - TMDT_LT - Thiết kế nhất quán hai tông màu Trắng & Đen</p>
+        </div>
+    </footer>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

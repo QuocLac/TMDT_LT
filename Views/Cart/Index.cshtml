@@ -1,0 +1,171 @@
+﻿@model List<TMDT_LT.Models.ViewModels.CartItemSession>
+@{
+    ViewData["Title"] = "Giỏ hàng của bạn";
+    decimal cartTotal = Model.Sum(x => x.TotalPrice);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/cart.css" asp-append-version="true" />
+}
+
+<div style="max-width: 1000px; margin: 0 auto;">
+    <h2 style="font-weight: 800; text-transform: uppercase; font-size: 22px; margin-bottom: 20px;">
+        Giỏ hàng (<span id="global-cart-count">@Model.Sum(x => x.Quantity)</span> sản phẩm)
+    </h2>
+
+    <div id="empty-cart-msg" style="display: @(!Model.Any() ? "block" : "none"); text-align: center; padding: 60px 20px; background: var(--neutral-white); border-radius: var(--radius-lg); border: 1px solid var(--border-gray);">
+        <h3 style="margin-bottom: 15px;">Giỏ hàng của bạn đang trống</h3>
+        <p style="color: var(--text-gray); margin-bottom: 20px;">Hãy chọn thêm sản phẩm công nghệ để mua sắm nhé!</p>
+        <a asp-controller="Home" asp-action="Index" class="btn-checkout" style="max-width: 250px; margin: 0 auto;">Quay lại mua sắm</a>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="cart-layout" id="main-cart-layout">
+            <div class="cart-items-section">
+                @foreach (var item in Model)
+                {
+                    <div class="cart-item-row" id="row-@item.VariantId">
+                        <img src="@item.ImageUrl" alt="@item.ProductName" class="cart-item-img" onerror="this.src='/images/default-phone.jpg';" />
+
+                        <div class="cart-item-info">
+                            <a asp-controller="Home" asp-action="Detail" asp-route-id="@item.ProductId" class="cart-item-name">
+                                @item.ProductName
+                            </a>
+                            <div class="cart-item-variant">
+                                Màu @item.Color | @item.Storage - @item.RAM
+                            </div>
+
+                            <div class="action-group">
+                                <div class="qty-control">
+                                    <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, -1)" @(item.Quantity <= 1 ? "disabled" : "")>−</button>
+                                    <input type="text" id="qty-val-@item.VariantId" value="@item.Quantity" class="qty-input" />
+                                    <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, 1)" @(item.Quantity >= item.MaxStock ? "disabled" : "")>+</button>
+                                </div>
+                                <button type="button" class="btn-remove" onclick="removeCartItem(@item.VariantId)">
+                                    🗑 Xóa
+                                </button>
+                            </div>
+                            <div style="font-size: 12px; color: #d70018; margin-top: 5px; display: none;" id="err-@item.VariantId"></div>
+                        </div>
+
+                        <div style="text-align: right; min-width: 130px;">
+                            <div style="font-weight: 800; font-size: 16px; color: #d70018;" id="item-total-@item.VariantId">
+                                @string.Format("{0:N0}", item.TotalPrice) đ
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-gray); text-decoration: line-through; margin-top: 4px;">
+                                @string.Format("{0:N0}", item.UnitPrice) đ
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="cart-summary-section">
+                <h3 class="summary-title">Thông tin thanh toán</h3>
+
+                <div class="summary-line">
+                    <span>Tổng tiền hàng</span>
+                    <span style="font-weight: 600;" id="summary-subtotal">@string.Format("{0:N0}", cartTotal) đ</span>
+                </div>
+                <div class="summary-line">
+                    <span>Phí vận chuyển</span>
+                    <span>Miễn phí</span>
+                </div>
+
+                <div class="summary-total">
+                    <span>TỔNG CỘNG</span>
+                    <span class="total-price-text" id="summary-total">@string.Format("{0:N0}", cartTotal) đ</span>
+                </div>
+
+                <a asp-controller="Order" asp-action="Checkout" class="btn-checkout">XÁC NHẬN ĐẶT HÀNG</a>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        const formatter = new Intl.NumberFormat('vi-VN');
+
+        async function updateQty(variantId, change) {
+            const row = document.getElementById(`row-${variantId}`);
+            const input = document.getElementById(`qty-val-${variantId}`);
+            const errorDiv = document.getElementById(`err-${variantId}`);
+
+            let currentQty = parseInt(input.value);
+            let newQty = currentQty + change;
+
+            // Chặn UI tránh spam click
+            row.classList.add('is-loading');
+            errorDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/Cart/UpdateQuantityAjax', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ variantId: variantId, quantity: newQty })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update UI Thành công
+                    input.value = newQty;
+                    document.getElementById(`item-total-${variantId}`).innerText = formatter.format(data.itemTotal) + ' đ';
+                    document.getElementById('summary-subtotal').innerText = formatter.format(data.cartTotal) + ' đ';
+                    document.getElementById('summary-total').innerText = formatter.format(data.cartTotal) + ' đ';
+                    document.getElementById('global-cart-count').innerText = data.totalItems;
+
+                    // Cập nhật trạng thái disable của nút bấm
+                    const buttons = row.querySelectorAll('.qty-btn');
+                    buttons[0].disabled = (newQty <= 1); // Nút trừ
+                    buttons[1].disabled = false; // Phải gọi API để biết có max chưa, nhưng tạm mở. Sẽ bị chặn ở backend nếu vượt quá.
+                } else {
+                    // Hiển thị lỗi (Ví dụ: Vượt quá tồn kho)
+                    errorDiv.innerText = data.message;
+                    errorDiv.style.display = 'block';
+                    const buttons = row.querySelectorAll('.qty-btn');
+                    if (change > 0) buttons[1].disabled = true; // Khóa nút cộng
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Có lỗi kết nối, vui lòng thử lại.');
+            } finally {
+                row.classList.remove('is-loading');
+            }
+        }
+
+        async function removeCartItem(variantId) {
+            if (!confirm('Bạn có chắc chắn muốn bỏ sản phẩm này?')) return;
+
+            const row = document.getElementById(`row-${variantId}`);
+            row.classList.add('is-loading');
+
+            try {
+                const response = await fetch('/Cart/RemoveAjax', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ variantId: variantId, quantity: 0 })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    row.remove(); // Xóa HTML row
+                    if (data.isEmpty) {
+                        document.getElementById('main-cart-layout').style.display = 'none';
+                        document.getElementById('empty-cart-msg').style.display = 'block';
+                    } else {
+                        document.getElementById('summary-subtotal').innerText = formatter.format(data.cartTotal) + ' đ';
+                        document.getElementById('summary-total').innerText = formatter.format(data.cartTotal) + ' đ';
+                        document.getElementById('global-cart-count').innerText = data.totalItems;
+                    }
+                }
+            } catch (err) {
+                row.classList.remove('is-loading');
+                alert('Có lỗi khi xóa sản phẩm.');
+            }
+        }
+    </script>
+}
