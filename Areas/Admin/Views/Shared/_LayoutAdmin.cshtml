@@ -1,0 +1,61 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Hệ thống Quản trị</title>
+
+    <link rel="stylesheet" href="~/css/admin-root.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-layout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-components.css" asp-append-version="true" />
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <div class="admin-layout-wrapper">
+
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="sidebar-brand">
+                    PHONE.ST ADMIN
+                </a>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Tổng quan</div>
+                <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="nav-item">Báo cáo doanh thu</a>
+
+                <div class="nav-section-title">Quản lý bán hàng</div>
+                <a asp-area="Admin" asp-controller="Order" asp-action="Index" class="nav-item">Xử lý đơn hàng</a>
+                <a asp-area="Admin" asp-controller="Review" asp-action="Index" class="nav-item">Đánh giá khách hàng</a>
+
+                <div class="nav-section-title">Kho hàng & Sản phẩm</div>
+                <a asp-area="Admin" asp-controller="Product" asp-action="Index" class="nav-item">Danh sách sản phẩm</a>
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" class="nav-item">Kiểm soát tồn kho</a>
+
+                <div class="nav-section-title">Cấu hình hệ thống</div>
+                <a asp-area="Admin" asp-controller="Category" asp-action="Index" class="nav-item">Danh mục sản phẩm</a>
+                <a asp-area="Admin" asp-controller="Brand" asp-action="Index" class="nav-item">Thương hiệu phân phối</a>
+                <a asp-area="Admin" asp-controller="Shipping" asp-action="Index" class="nav-item">Đơn vị vận chuyển</a>
+            </nav>
+        </aside>
+
+        <main class="admin-main-content">
+
+            <header class="top-header">
+                <div style="font-size: 14px; font-weight: 500;">
+                    <a asp-area="" asp-controller="Home" asp-action="Index" style="color: var(--admin-text-muted); text-decoration: none; margin-right: 20px;">Về trang cửa hàng</a>
+                    <span>Tài khoản Quản trị</span>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                @RenderBody()
+            </div>
+
+        </main>
+    </div>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

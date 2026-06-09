@@ -1,0 +1,77 @@
+﻿@model IEnumerable<TMDT_LT.Models.InventoryTransactions>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Thẻ Kho Sản Phẩm";
+    var variantInfo = ViewBag.VariantInfo as TMDT_LT.Models.ProductVariants;
+}
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div>
+        <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px;">← Quay lại danh sách</a>
+        <h2 style="margin-top: 10px;">Thẻ Kho: @variantInfo?.Product?.Name</h2>
+        <div style="color: #4B5563; font-size: 14px; margin-top: 5px;">
+            <span style="background: #E5E7EB; padding: 4px 8px; border-radius: 4px; margin-right: 10px;">Màu: @variantInfo?.Color</span>
+            <span style="background: #E5E7EB; padding: 4px 8px; border-radius: 4px; margin-right: 10px;">Bộ nhớ: @variantInfo?.Storage / @variantInfo?.Ram</span>
+            <span style="background: #111827; color: white; padding: 4px 8px; border-radius: 4px;">Tồn kho hiện tại: <strong>@variantInfo?.Stock</strong></span>
+        </div>
+    </div>
+</div>
+
+<div class="admin-card" style="padding: 0;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Ngày giao dịch</th>
+                <th>Loại giao dịch</th>
+                <th style="text-align: right;">Biến động</th>
+                <th>Mã tham chiếu</th>
+                <th>Người thao tác</th>
+                <th>Ghi chú</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                foreach (var item in Model)
+                {
+                    <tr>
+                        <td style="color: #6B7280;">@item.TransactionDate?.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>
+                            @switch (item.TransactionType)
+                            {
+                                case "IN_PURCHASE":
+                                    <span style="color: #059669; background: #D1FAE5; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">NHẬP KHO</span>
+                                    break;
+                                case "OUT_ORDER":
+                                    <span style="color: #DC2626; background: #FEE2E2; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">XUẤT BÁN</span>
+                                    break;
+                                case "RETURN":
+                                    <span style="color: #D97706; background: #FEF3C7; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">KHÁCH TRẢ</span>
+                                    break;
+                                case "ADJUST":
+                                    <span style="color: #4B5563; background: #F3F4F6; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">KIỂM KÊ</span>
+                                    break;
+                            }
+                        </td>
+                        <td style="text-align: right; font-weight: 800; font-size: 15px; color: @(item.Quantity > 0 ? "#059669" : "#DC2626")">
+                            @(item.Quantity > 0 ? "+" + item.Quantity : item.Quantity.ToString())
+                        </td>
+                        <td style="font-family: monospace;">
+                            @(item.ReferenceId.HasValue ? "#" + item.ReferenceId : "-")
+                        </td>
+                        <td>@item.Account?.Email</td>
+                        <td style="font-size: 13px; color: #4B5563;">@item.Note</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #9CA3AF;">
+                        Chưa có lịch sử giao dịch nào cho sản phẩm này.
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

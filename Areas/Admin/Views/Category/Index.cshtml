@@ -1,0 +1,102 @@
+﻿@model IEnumerable<TMDT_LT.Models.Categories>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Danh mục";
+}
+
+<div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
+    <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Danh mục sản phẩm</h2>
+            <form method="get" style="display: flex; gap: 8px;">
+                <input type="text" name="search" value="@ViewBag.Search" class="form-control" style="width: 200px; padding: 6px;" placeholder="Tìm danh mục..." />
+                <button type="submit" class="btn-dark" style="padding: 6px 12px;">Tìm</button>
+            </form>
+        </div>
+
+        <div class="admin-card" style="padding: 0;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Tên danh mục</th>
+                        <th>Mô tả</th>
+                        <th>Trạng thái</th>
+                        <th style="text-align: center;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>#@item.CategoryId</td>
+                            <td><strong>@item.CategoryName</strong></td>
+                            <td style="color: #6B7280; font-size: 13px;">@item.Description</td>
+                            <td id="status-@item.CategoryId">
+                                @if (item.IsActive == true)
+                                {
+                                    <span style="color: #059669; font-weight: 600;">● Hiển thị</span>
+                                }
+                                else
+                                {
+
+                                    <span style="color: #DC2626; font-weight: 600;">● Đang ẩn</span>
+                                }
+                            </td>
+                            <td style="text-align: center;">
+                                <button onclick="editCategory(@item.CategoryId, '@item.CategoryName', '@item.Description')" class="btn-outline" style="font-size: 12px; padding: 4px 8px;">Sửa</button>
+                                <button onclick="toggleCatStatus(@item.CategoryId)" class="btn-outline" style="font-size: 12px; padding: 4px 8px; margin-left: 5px;">Ẩn/Hiện</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-card" style="height: fit-content; position: sticky; top: 20px;">
+        <h3 id="form-title" style="font-size: 16px; margin-bottom: 20px; border-bottom: 1px solid #E5E7EB; padding-bottom: 10px;">Thêm danh mục mới</h3>
+        <form asp-action="Save" method="post">
+            <input type="hidden" name="CategoryId" id="input-id" value="0" />
+            <div class="form-row">
+                <label class="form-label">Tên danh mục (*)</label>
+                <input type="text" name="CategoryName" id="input-name" class="form-control" required />
+            </div>
+            <div class="form-row">
+                <label class="form-label">Mô tả ngắn</label>
+                <textarea name="Description" id="input-desc" class="form-control" style="height: 80px;"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn-dark" style="flex: 1;">LƯU DỮ LIỆU</button>
+                <button type="button" onclick="resetForm()" class="btn-outline" style="display: none;" id="btn-cancel">Hủy</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function editCategory(id, name, desc) {
+            document.getElementById('form-title').innerText = "Cập nhật danh mục #" + id;
+            document.getElementById('input-id').value = id;
+            document.getElementById('input-name').value = name;
+            document.getElementById('input-desc').value = desc;
+            document.getElementById('btn-cancel').style.display = "block";
+        }
+        function resetForm() {
+            document.getElementById('form-title').innerText = "Thêm danh mục mới";
+            document.getElementById('input-id').value = "0";
+            document.getElementById('input-name').value = "";
+            document.getElementById('input-desc').value = "";
+            document.getElementById('btn-cancel').style.display = "none";
+        }
+        async function toggleCatStatus(id) {
+            const res = await fetch(`/Admin/Category/ToggleStatus/${id}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                const statusTd = document.getElementById(`status-${id}`);
+                statusTd.innerHTML = data.isActive ? '<span style="color: #059669; font-weight: 600;">● Hiển thị</span>' : '<span style="color: #DC2626; font-weight: 600;">● Đang ẩn</span>';
+            }
+        }
+    </script>
+}

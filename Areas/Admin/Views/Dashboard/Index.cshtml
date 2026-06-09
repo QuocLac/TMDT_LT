@@ -1,0 +1,144 @@
+﻿@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Báo cáo Doanh thu & Vận hành";
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div>
+        <h2 style="margin-bottom: 5px;">Hệ thống Báo cáo Tổng quan</h2>
+        <p style="color: #6B7280; font-size: 14px;">Phân tích chỉ số tài chính và hiệu suất xử lý đơn hàng.</p>
+    </div>
+
+    <form method="get" style="display: flex; gap: 10px; align-items: center; background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #E5E7EB;">
+        <input type="date" name="fromDate" value="@ViewBag.FromDate" class="form-control" style="border: none; padding: 4px;" />
+        <span style="color: #9CA3AF;">➔</span>
+        <input type="date" name="toDate" value="@ViewBag.ToDate" class="form-control" style="border: none; padding: 4px;" />
+        <button type="submit" class="btn-dark" style="padding: 6px 16px; font-size: 13px;">Lọc báo cáo</button>
+    </form>
+</div>
+
+<div class="analytics-grid">
+    <div class="metric-card">
+        <div class="metric-title">Tổng doanh thu thuần</div>
+        <div class="metric-value" style="color: #111827;">@string.Format("{0:N0}", ViewBag.TotalRevenue) đ</div>
+        <div class="metric-sub">✓ Từ các đơn hàng giao thành công</div>
+    </div>
+
+    <div class="metric-card" style="border-left: 4px solid #111827;">
+        <div class="metric-title">Lợi nhuận thực tế</div>
+        <div class="metric-value" style="color: #059669;">@string.Format("{0:N0}", ViewBag.NetProfit) đ</div>
+        <div class="metric-sub">⚙ Đã khấu trừ toàn bộ giá vốn kho</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-title">Tỷ lệ đơn Boom</div>
+        <div class="metric-value" style="color: @(ViewBag.BoomRate > 10 ? "#DC2626" : "#111827");">@ViewBag.BoomRate %</div>
+        <div class="metric-sub">⚠ Tổng số đơn: @ViewBag.TotalOrders đơn hàng</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-title">Doanh thu hụt (Hủy đơn)</div>
+        <div class="metric-value" style="color: #6B7280; text-decoration: line-through;">@string.Format("{0:N0}", ViewBag.TotalLosses) đ</div>
+        <div class="metric-sub">✖ Giá trị từ các đơn hàng thất bại</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <div class="chart-header">
+            <div class="chart-title">Biểu đồ xu hướng tăng trưởng doanh thu</div>
+            <span style="font-size: 12px; color: #6B7280;">Đơn vị: VNĐ</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="revenueGrowthChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <div class="chart-header">
+            <div class="chart-title">Cơ cấu Trạng thái</div>
+        </div>
+        <div class="chart-container">
+            <canvas id="orderStatusPieChart"></canvas>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // 1. Cấu hình Biểu đồ Tăng trưởng Doanh thu (Kết hợp Cột và Đường)
+        const ctxGrowth = document.getElementById('revenueGrowthChart').getContext('2d');
+        new Chart(ctxGrowth, {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(Json.Serialize(ViewBag.TimelineLabels)),
+                datasets: [
+                    {
+                        label: 'Doanh thu ngày',
+                        type: 'line',
+                        data: @Html.Raw(Json.Serialize(ViewBag.TimelineRevenue)),
+                        borderColor: '#111827',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#111827',
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Sản lượng cột',
+                        type: 'bar',
+                        data: @Html.Raw(Json.Serialize(ViewBag.TimelineRevenue)),
+                        backgroundColor: '#E5E7EB',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#F3F4F6' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // 2. Cấu hình Biểu đồ Tròn (Cơ cấu trạng thái đơn hàng)
+        const ctxPie = document.getElementById('orderStatusPieChart').getContext('2d');
+        new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: @Html.Raw(Json.Serialize(ViewBag.StatusLabels)),
+                datasets: [{
+                    data: @Html.Raw(Json.Serialize(ViewBag.StatusData)),
+                    backgroundColor: [
+                        '#111827', // Hoàn thành - Đen đặc
+                        '#6B7280', // Chờ xác nhận - Xám
+                        '#9CA3AF', // Đang giao - Xám nhạt
+                        '#E5E7EB'  // Đã hủy - Xám siêu nhạt
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    </script>
+}

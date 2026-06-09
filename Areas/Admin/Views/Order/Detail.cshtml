@@ -1,0 +1,107 @@
+﻿@model TMDT_LT.Models.Orders
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Chi tiết Đơn hàng #" + Model.OrderId;
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div>
+        <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px;">← Quay lại danh sách</a>
+        <h2 style="margin-top: 10px;">Đơn hàng: #@Model.OrderId</h2>
+    </div>
+
+    <div style="display: flex; gap: 10px;" id="action-buttons">
+        @if (Model.Status == "Chờ xác nhận")
+        {
+            <button onclick="changeStatus('Đang giao hàng')" class="btn-dark" style="background: #2563EB;">Chốt đơn & Giao hàng</button>
+            <button onclick="changeStatus('Đã hủy')" class="btn-outline" style="color: #DC2626; border-color: #DC2626;">Hủy đơn</button>
+        }
+        else if (Model.Status == "Đang giao hàng")
+        {
+            <button onclick="changeStatus('Hoàn thành')" class="btn-dark" style="background: #059669;">Xác nhận Đã giao thành công</button>
+            <button onclick="changeStatus('Đã hủy')" class="btn-outline" style="color: #DC2626; border-color: #DC2626;">Khách không nhận hàng (Hủy)</button>
+        }
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+
+    <div class="admin-card">
+        <h3 style="font-size: 16px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #E5E7EB;">Sản phẩm đặt mua</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tbody>
+                @foreach (var item in Model.OrderDetails)
+                {
+                    <tr style="border-bottom: 1px solid #F3F4F6;">
+                        <td style="padding: 15px 0;">
+                            <div style="font-weight: 600; color: #111827;">@item.Variant?.Product?.Name</div>
+                            <div style="font-size: 13px; color: #6B7280; margin-top: 5px;">Phân loại: @item.Variant?.Storage - Màu @item.Variant?.Color</div>
+                        </td>
+                        <td style="text-align: center; font-weight: 600;">x @item.Quantity</td>
+                        <td style="text-align: right; font-weight: 600;">@string.Format("{0:N0}", item.UnitPrice) đ</td>
+                        <td style="text-align: right; font-weight: 700; color: #DC2626;">@string.Format("{0:N0}", item.Quantity * item.UnitPrice) đ</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div style="text-align: right; margin-top: 20px; font-size: 18px;">
+            Tổng cộng: <span style="font-weight: 800; color: #DC2626;">@string.Format("{0:N0}", Model.TotalAmount) đ</span>
+        </div>
+    </div>
+
+    <div>
+        <div class="admin-card" style="margin-bottom: 24px;">
+            <h3 style="font-size: 16px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #E5E7EB;">Thông tin nhận hàng</h3>
+            <div style="margin-bottom: 10px;">
+                <span style="color: #6B7280; font-size: 13px; display: block;">Khách hàng:</span>
+                <strong style="color: #111827;">@Model.ShippingFullName</strong>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span style="color: #6B7280; font-size: 13px; display: block;">Số điện thoại:</span>
+                <strong>@Model.ShippingPhone</strong>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span style="color: #6B7280; font-size: 13px; display: block;">Địa chỉ giao:</span>
+                <span style="color: #111827; font-size: 14px; line-height: 1.5;">@Model.ShippingStreet, @Model.ShippingDistrict, @Model.ShippingCity</span>
+            </div>
+        </div>
+
+        <div class="admin-card">
+            <h3 style="font-size: 16px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #E5E7EB;">Trạng thái hiện tại</h3>
+            <div style="font-size: 18px; font-weight: 800; text-align: center; padding: 15px; background: #F3F4F6; border-radius: 8px;" id="current-status-display">
+                @Model.Status
+            </div>
+            <p style="font-size: 12px; color: #6B7280; text-align: center; margin-top: 10px;">Ngày đặt: @Model.OrderDate?.ToString("dd/MM/yyyy HH:mm")</p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        async function changeStatus(newStatus) {
+            if (!confirm(`Bạn có chắc chắn muốn đổi trạng thái đơn hàng thành: ${newStatus}?`)) return;
+
+            try {
+                const res = await fetch('/Admin/Order/UpdateStatus', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        orderId: @Model.OrderId,
+                        newStatus: newStatus
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert('Cập nhật thành công!');
+                    location.reload(); // Reload lại trang để ẩn hiện các nút bấm tương ứng
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                alert('Có lỗi xảy ra, vui lòng thử lại.');
+            }
+        }
+    </script>
+}

@@ -1,0 +1,110 @@
+﻿@model IEnumerable<TMDT_LT.Models.ProductVariants>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Khuyến mãi";
+    var warningStock = ViewBag.WarningStock as List<TMDT_LT.Models.ProductVariants>;
+    var activePromotions = ViewBag.ActivePromotions as List<TMDT_LT.Models.ProductVariants>;
+}
+
+<div style="margin-bottom: 25px;">
+    <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px;">← Quay lại Sản phẩm</a>
+    <h2 style="margin-top: 10px; color: #DC2626;">Trung tâm Khuyến mãi & Xả kho</h2>
+    <p style="color: #4B5563; font-size: 14px;">Thiết lập giá gạch ngang để kích thích tâm lý FOMO của khách hàng.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px;">
+    <div style="background: white; border: 1px solid #FCA5A5; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.1);">
+        <h3 style="font-size: 16px; color: #DC2626; margin-bottom: 15px;">Gợi ý Xả kho</h3>
+        @if (warningStock.Any())
+        {
+            <ul style="list-style: none; padding: 0;">
+                @foreach (var item in warningStock.Take(3))
+                {
+                    <li style="font-size: 14px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #E5E7EB;">
+                        <strong>@item.Product.Name</strong> (@item.Storage, Màu @item.Color)<br />
+                        <span style="color: #6B7280;">Giá gốc: @string.Format("{0:N0}", item.Price)đ | Tồn: <b style="color: #DC2626;">@item.Stock</b></span>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p style="font-size: 14px; color: #059669;">Kho hàng đang luân chuyển rất tốt, không có tồn đọng.</p>
+        }
+    </div>
+
+    <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px;">
+        <h3 style="font-size: 16px; margin-bottom: 15px;">🔥 Đang áp dụng giảm giá</h3>
+        <div style="font-size: 36px; font-weight: 800; color: #111827;">@activePromotions.Count <span style="font-size: 16px; font-weight: 500; color: #6B7280;">biến thể</span></div>
+        <p style="font-size: 14px; color: #6B7280; margin-top: 10px;">Việc duy trì tối đa 20% mặt hàng có giá khuyến mãi sẽ giúp duy trì tỷ lệ chuyển đổi ổn định.</p>
+    </div>
+</div>
+
+<div class="admin-card" style="padding: 0;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Sản phẩm / Biến thể</th>
+                <th>Tồn kho</th>
+                <th>Giá Gốc</th>
+                <th>Giá Khuyến Mãi</th>
+                <th style="text-align: center;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr id="row-@item.VariantId">
+                    <td>
+                        <strong style="color: #111827;">@item.Product?.Name</strong><br />
+                        <span style="font-size: 12px; color: #6B7280;">@item.Storage, Màu @item.Color</span>
+                    </td>
+                    <td>@item.Stock</td>
+                    <td style="font-weight: 600;">@string.Format("{0:N0}", item.Price) đ</td>
+                    <td>
+                        <input type="number" id="discount-@item.VariantId" class="form-control" style="width: 150px; padding: 6px; border: 1px solid #D1D5DB; border-radius: 4px;" value="@(item.DiscountPrice != null ? Math.Round(item.DiscountPrice.Value) : "")" placeholder="Nhập giá mới..." />
+                        <div style="font-size: 11px; color: #6B7280; margin-top: 4px;">(Nhập 0 để hủy KM)</div>
+                    </td>
+                    <td style="text-align: center;">
+                        <button onclick="saveDiscount(@item.VariantId)" style="background: #111827; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">Lưu giá</button>
+                        <div id="msg-@item.VariantId" style="font-size: 12px; font-weight: bold; margin-top: 5px;"></div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        async function saveDiscount(variantId) {
+            const inputVal = document.getElementById(`discount-${variantId}`).value;
+            const msgBox = document.getElementById(`msg-${variantId}`);
+            const val = inputVal ? parseFloat(inputVal) : 0;
+
+            msgBox.style.color = "#D97706";
+            msgBox.innerText = "Đang lưu...";
+
+            try {
+                const response = await fetch('/Admin/Product/UpdateDiscount', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ variantId: variantId, discountPrice: val })
+                });
+
+                const data = await response.json();
+                if(data.success) {
+                    msgBox.style.color = "#059669";
+                    msgBox.innerText = "✓ Đã cập nhật";
+                    setTimeout(() => msgBox.innerText = "", 3000);
+                } else {
+                    msgBox.style.color = "#DC2626";
+                    msgBox.innerText = "✖ " + data.message;
+                }
+            } catch (err) {
+                msgBox.style.color = "#DC2626";
+                msgBox.innerText = "✖ Lỗi kết nối";
+            }
+        }
+    </script>
+}

@@ -1,0 +1,190 @@
+﻿@model IEnumerable<TMDT_LT.Models.Products>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Sản phẩm";
+}
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div>
+        <h2 style="margin-bottom: 5px;">Quản lý Danh mục Sản phẩm</h2>
+        <p style="color: #6B7280; font-size: 14px;">Quản trị dữ liệu thiết bị, phân loại biến thể và thông số kỹ thuật.</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <a asp-action="Promotions" class="btn-outline" style="color: #DC2626; border-color: #DC2626;">
+            Chiến dịch Khuyến mãi
+        </a>
+        <a asp-action="Create" class="btn-dark" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Thêm sản phẩm mới
+        </a>
+    </div>
+</div>
+
+<div class="admin-card" style="margin-bottom: 24px; padding: 15px 20px;">
+    <form method="get" asp-action="Index" style="display: flex; gap: 15px; align-items: flex-end;">
+        <div style="flex: 2;">
+            <label class="form-label">Tìm kiếm tên, chip, bộ nhớ...</label>
+            <input type="text" name="searchKeyword" value="@ViewBag.Keyword" class="form-control" placeholder="Nhập từ khóa..." />
+        </div>
+        <div style="flex: 1;">
+            <label class="form-label">Danh mục</label>
+            <select name="categoryId" asp-items="ViewBag.Categories" class="form-control"><option value="">- Tất cả -</option></select>
+        </div>
+        <div style="flex: 1;">
+            <label class="form-label">Thương hiệu</label>
+            <select name="brandId" asp-items="ViewBag.Brands" class="form-control"><option value="">- Tất cả -</option></select>
+        </div>
+        <div style="flex: 1;">
+            <label class="form-label">Trạng thái</label>
+            <select name="status" class="form-control">
+                <option value="">- Tất cả -</option>
+                <option value="active" selected="@(ViewBag.Status == "active")">Đang kinh doanh</option>
+                <option value="inactive" selected="@(ViewBag.Status == "inactive")">Đã ngừng bán</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn-dark">Lọc dữ liệu</button>
+            <a asp-action="Index" class="btn-outline" style="margin-left: 5px;">Xóa lọc</a>
+        </div>
+    </form>
+</div>
+
+@if (ViewBag.IsFuzzyMatch == true)
+{
+    <div style="background: #FEF3C7; color: #92400E; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; border: 1px dashed #F59E0B; font-size: 14px;">
+        ⚠️ Không tìm thấy kết quả chính xác tuyệt đối cho từ khóa <strong>"@ViewBag.Keyword"</strong>. Hệ thống tự động gợi ý các sản phẩm có liên quan nhất dưới đây:
+    </div>
+}
+
+<div class="admin-card" style="padding: 0;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;"></th>
+                <th style="width: 30%;">Tên dòng sản phẩm</th>
+                <th style="width: 20%;">Phân loại</th>
+                <th style="width: 15%; text-align: center;">Số lượng biến thể</th>
+                <th style="width: 15%; text-align: center;">Tổng tồn kho</th>
+                <th style="width: 15%; text-align: center;">Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr><td colspan="6" style="text-align:center; padding: 40px; color: #9CA3AF;">Không có dữ liệu phù hợp với bộ lọc.</td></tr>
+            }
+            @foreach (var item in Model)
+            {
+                int totalStock = item.ProductVariants.Sum(v => v.Stock ?? 0);
+
+                <tr class="master-row" id="row-@item.ProductId" onclick="toggleDetail(@item.ProductId)" style="opacity: @(item.IsActive == true ? "1" : "0.5");">
+                    <td style="text-align: center; color: #9CA3AF;" id="icon-@item.ProductId">▶</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <img src="@item.MainImage" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; border: 1px solid #E5E7EB;" onerror="this.src='/images/default-phone.jpg';" />
+                            <div>
+                                <strong style="color: var(--admin-text-dark); font-size: 14px;">@item.Name</strong>
+                                @if (item.IsActive == false)
+                                {
+                                    <span style="background: #FEE2E2; color: #DC2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">ĐÃ ẨN</span>
+                                }
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="font-weight: 600;">@item.Brand?.BrandName</span>
+                        <div style="font-size: 12px; color: #6B7280;">@item.Category?.CategoryName</div>
+                    </td>
+                    <td style="text-align: center;"><span style="background: #E5E7EB; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">@item.ProductVariants.Count() bản</span></td>
+                    <td style="text-align: center; font-weight: 700; font-family: monospace;">@totalStock</td>
+                    <td style="text-align: center;" onclick="event.stopPropagation()">
+                        <a href="/Admin/Product/Edit/@item.ProductId" class="btn-outline" style="padding: 4px 8px; font-size: 12px;">Sửa</a>
+                        <button onclick="deleteSoft(@item.ProductId)" class="btn-outline" style="padding: 4px 8px; font-size: 12px; color: #DC2626; border-color: #FEE2E2; background: #FEF2F2; margin-left: 4px;">Khoá</button>
+                    </td>
+                </tr>
+
+                <tr class="detail-row" id="detail-@item.ProductId">
+                    <td colspan="6" style="padding: 0;">
+                        <div class="variant-panel">
+                            <h4 style="font-size: 13px; color: #6B7280; margin-bottom: 10px; text-transform: uppercase;">Danh sách SKU trực thuộc:</h4>
+                            <table class="variant-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 10%;">ID</th>
+                                        <th style="width: 30%;">Thuộc tính (RAM/ROM - Màu)</th>
+                                        <th style="width: 30%; text-align: right;">Giá niêm yết</th>
+                                        <th style="width: 30%; text-align: center;">Kho khả dụng</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var v in item.ProductVariants)
+                                    {
+                                        <tr>
+                                            <td style="color: #9CA3AF; font-family: monospace;">#@v.VariantId</td>
+                                            <td style="font-weight: 600; color: var(--admin-text-dark);">Bản @v.Storage @v.Ram - Màu @v.Color</td>
+                                            <td style="text-align: right; color: #059669; font-weight: 700;">@string.Format("{0:N0}", v.Price) đ</td>
+                                            <td style="text-align: center;">
+                                                @if (v.Stock > 0)
+                                                {
+                                                    <span>@v.Stock máy</span>
+                                                }
+                                                else
+                                                {
+
+                                                    <span style="color: #DC2626; font-weight: 600;">Hết hàng</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        // Xử lý hiệu ứng Toggle Accordion cho bảng Master-Detail
+        function toggleDetail(productId) {
+            const row = document.getElementById(`row-${productId}`);
+            const detail = document.getElementById(`detail-${productId}`);
+            const icon = document.getElementById(`icon-${productId}`);
+
+            if (detail.classList.contains('open')) {
+                detail.classList.remove('open');
+                row.classList.remove('expanded');
+                icon.innerText = "▶";
+            } else {
+                // Tùy chọn: Đóng các dòng khác đang mở trước khi mở dòng này
+                document.querySelectorAll('.detail-row.open').forEach(el => el.classList.remove('open'));
+                document.querySelectorAll('.master-row.expanded').forEach(el => {
+                    el.classList.remove('expanded');
+                    document.getElementById(`icon-${el.id.split('-')[1]}`).innerText = "▶";
+                });
+
+                detail.classList.add('open');
+                row.classList.add('expanded');
+                icon.innerText = "▼";
+            }
+        }
+
+        // Logic Xóa mềm (Sẽ viết API ở Giai đoạn 4)
+                async function deleteSoft(productId) {
+    if (!confirm("Xác nhận thay đổi trạng thái kinh doanh của sản phẩm này?")) return;
+
+    const res = await fetch(`/Admin/Product/ToggleStatus/${productId}`, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+        // Reload lại trang hoặc cập nhật DOM trực tiếp
+        location.reload(); 
+    } else {
+        alert(data.message);
+    }
+}
+    </script>
+}

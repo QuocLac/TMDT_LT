@@ -1,0 +1,121 @@
+﻿@model IEnumerable<TMDT_LT.Models.ReviewDetails>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Đánh giá khách hàng";
+    int criticalCount = ViewBag.CriticalCount;
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div>
+        <h2 style="margin-bottom: 5px;">Quản lý Nhận xét & Đánh giá</h2>
+        <p style="color: #6B7280; font-size: 14px;">Giám sát phản hồi của khách hàng về sản phẩm và biến thể.</p>
+    </div>
+</div>
+
+@if (criticalCount > 0)
+{
+    <div class="alert-banner-critical">
+        <div class="alert-text-group">
+            <div class="alert-icon-badge">!</div>
+            <div>
+                <h4 style="font-size: 15px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Phát hiện biến động tiêu cực</h4>
+                <p style="color: #4B5563; font-size: 13px;">Có <strong>@criticalCount đánh giá dưới 3 sao</strong> mới cần bộ phận quản trị kiểm tra và xử lý xử cố ngay lập tức.</p>
+            </div>
+        </div>
+        <a asp-action="Index" asp-route-criticalOnly="true" class="btn-dark" style="text-decoration: none; font-size: 13px; padding: 10px 18px;">
+            Xem các ca khẩn cấp
+        </a>
+    </div>
+}
+
+<div class="admin-card" style="margin-bottom: 24px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; gap: 10px;">
+        <a asp-action="Index" class="@(ViewBag.CurrentStarFilter == null && ViewBag.CriticalOnly == null ? "btn-dark" : "btn-outline")" style="text-decoration: none; font-size: 13px;">Tất cả đánh giá</a>
+        <a asp-action="Index" asp-route-criticalOnly="true" class="@(ViewBag.CriticalOnly == true ? "btn-dark" : "btn-outline")" style="text-decoration: none; font-size: 13px; border-color: #000;">Cảnh báo (< 3 sao)</a>
+    </div>
+
+    <form method="get" asp-action="Index" style="display: flex; gap: 10px; align-items: center;">
+        <select name="starFilter" class="form-control" style="width: 160px; padding: 6px;" onchange="this.form.submit()">
+            <option value="">-- Lọc theo sao --</option>
+            <option value="5" selected="@(ViewBag.CurrentStarFilter == 5)">★★★★★ (5 sao)</option>
+            <option value="4" selected="@(ViewBag.CurrentStarFilter == 4)">★★★★☆ (4 sao)</option>
+            <option value="3" selected="@(ViewBag.CurrentStarFilter == 3)">★★★☆☆ (3 sao)</option>
+            <option value="2" selected="@(ViewBag.CurrentStarFilter == 2)">★★☆☆☆ (2 sao)</option>
+            <option value="1" selected="@(ViewBag.CurrentStarFilter == 1)">★☆☆☆☆ (1 sao)</option>
+        </select>
+        @if (ViewBag.CurrentStarFilter != null || ViewBag.CriticalOnly != null)
+        {
+            <a asp-action="Index" style="font-size: 13px; color: #6B7280; text-decoration: none; margin-left: 5px;">Xóa bộ lọc</a>
+        }
+    </form>
+</div>
+
+<div class="admin-card" style="padding: 0;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 12%;">Mức điểm</th>
+                <th style="width: 25%;">Sản phẩm đặt mua</th>
+                <th style="width: 18%;">Khách hàng</th>
+                <th style="width: 33%;">Nội dung nhận xét</th>
+                <th style="text-align: center; width: 12%;">Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 40px; color: #9CA3AF;">Không có dữ liệu đánh giá nào trùng khớp.</td>
+                </tr>
+            }
+            @foreach (var item in Model)
+            {
+                bool isCritical = item.Rating < 3;
+                <tr class="@(isCritical ? "row-critical-review" : "")" id="review-row-@item.ReviewDetailId">
+                    <td>
+                        <div class="star-rating-display">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                if (i <= item.Rating)
+                                {
+                                    <span>★</span>
+                                }
+                                else
+                                {
+
+                                    <span class="star-muted">☆</span>
+                                }
+                            }
+                        </div>
+                        <div style="font-size: 11px; color: #6B7280; margin-top: 4px;">Ngày: @item.Review?.CreatedAt?.ToString("dd/MM/yyyy")</div>
+                    </td>
+                    <td>
+                        <strong style="color: #111827; font-size: 14px;">@item.Variant?.Product?.Name</strong>
+                        <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">Bản: @item.Variant?.Storage | Màu: @item.Variant?.Color</div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: #111827;">@item.Review?.Customer?.FullName</div>
+                        <div style="font-size: 12px; color: #6B7280;">ID: #@item.Review?.CustomerId</div>
+                    </td>
+                    <td>
+                        <div style="font-size: 14px; line-height: 1.5; color: #374151; word-break: break-word;">
+                            @item.Comment
+                        </div>
+                    </td>
+                    <td style="text-align: center;">
+                        @if (isCritical)
+                        {
+                            <a href="tel:@item.Review?.Customer?.Phone" class="btn-dark" style="font-size: 12px; padding: 6px 10px; background: #000; text-decoration: none; display: inline-block; border-radius: 4px;">
+                                📞 Gọi xử lý
+                            </a>
+                        }
+                        else
+                        {
+                            <span style="color: #9CA3AF; font-size: 13px;">Đã ghi nhận</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

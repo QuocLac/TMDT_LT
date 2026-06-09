@@ -1,0 +1,70 @@
+﻿@model IEnumerable<TMDT_LT.Models.Orders>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Đơn hàng";
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div>
+        <h2 style="margin-bottom: 5px;">Quản lý Đơn hàng</h2>
+        <p style="color: #6B7280; font-size: 14px;">Theo dõi và xử lý quy trình giao nhận.</p>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+        <a asp-action="Index" asp-route-status="" class="@(string.IsNullOrEmpty(ViewBag.CurrentStatus) ? "btn-dark" : "btn-outline")" style="text-decoration: none;">Tất cả</a>
+        <a asp-action="Index" asp-route-status="Chờ xác nhận" class="@(ViewBag.CurrentStatus == "Chờ xác nhận" ? "btn-dark" : "btn-outline")" style="text-decoration: none;">Chờ xác nhận</a>
+        <a asp-action="Index" asp-route-status="Đang giao hàng" class="@(ViewBag.CurrentStatus == "Đang giao hàng" ? "btn-dark" : "btn-outline")" style="text-decoration: none;">Đang giao</a>
+    </div>
+</div>
+
+<div class="admin-card" style="padding: 0;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Mã ĐH</th>
+                <th>Ngày đặt</th>
+                <th>Khách hàng</th>
+                <th>Tổng tiền</th>
+                <th>Trạng thái</th>
+                <th style="text-align: center;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td style="font-weight: 700;">#@item.OrderId</td>
+                    <td style="color: #6B7280;">@item.OrderDate?.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        <div style="font-weight: 600; color: #111827;">@item.ShippingFullName</div>
+                        <div style="font-size: 12px; color: #6B7280;">@item.ShippingPhone</div>
+                    </td>
+                    <td style="font-weight: 700;">@string.Format("{0:N0}", item.TotalAmount) đ</td>
+                    <td>
+                        @switch (item.Status)
+                        {
+                            case "Chờ xác nhận":
+                                <span style="background: #FEF3C7; color: #D97706; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">Chờ xác nhận</span>
+                                break;
+                            case "Đang giao hàng":
+                                <span style="background: #DBEAFE; color: #2563EB; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">Đang giao</span>
+                                break;
+                            case "Hoàn thành":
+                                <span style="background: #D1FAE5; color: #059669; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">Hoàn thành</span>
+                                break;
+                            case "Đã hủy":
+                                <span style="background: #FEE2E2; color: #DC2626; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">Đã hủy</span>
+                                break;
+                            default:
+                                <span>@item.Status</span>
+                                break;
+                        }
+                    </td>
+                    <td style="text-align: center;">
+                        <a asp-action="Detail" asp-route-id="@item.OrderId" style="color: #111827; font-weight: 600; text-decoration: none; font-size: 14px;">Xử lý đơn</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
