@@ -1,0 +1,238 @@
+﻿@model TMDT_LT.Models.ViewModels.Storefront.CatalogVM
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.Keyword) ? "Danh mục thiết bị" : $"Kết quả tìm kiếm: {Model.Keyword}";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/storefront/store-home.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/storefront/store-catalog.css" asp-append-version="true" />
+}
+
+<form id="catalogMainForm" method="get" action="/Store">
+    <input type="hidden" name="keyword" value="@Model.Keyword" />
+
+    <input type="hidden" name="page" id="pageInput" value="@Model.CurrentPage" />
+
+    <div class="catalog-layout-grid">
+        <aside class="catalog-sidebar">
+            <div class="filter-group-box">
+                <div class="filter-title-flat">Danh mục sản phẩm</div>
+                <div class="filter-list-inputs">
+                    @foreach (var cat in Model.AvailableCategories)
+                    {
+                        bool isChecked = Model.SelectedCategoryIds.Contains(cat.CategoryId);
+                        <label class="checkbox-label-flat">
+                            <input type="checkbox" name="categoryIds" value="@cat.CategoryId" @(isChecked ? "checked" : "") onchange="triggerSubmitForm()" />
+                            <span>@cat.CategoryName</span>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <div class="filter-group-box">
+                <div class="filter-title-flat">Hãng sản xuất</div>
+                <div class="filter-list-inputs">
+                    @foreach (var brand in Model.AvailableBrands)
+                    {
+                        bool isChecked = Model.SelectedBrandIds.Contains(brand.BrandId);
+                        <label class="checkbox-label-flat">
+                            <input type="checkbox" name="brandIds" value="@brand.BrandId" @(isChecked ? "checked" : "") onchange="triggerSubmitForm()" />
+                            <span>@brand.BrandName</span>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <div class="filter-group-box">
+                <div class="filter-title-flat">Khoảng giá (đ)</div>
+                <div class="price-range-inputs">
+                    <input type="number" name="minPrice" value="@(Model.MinPrice)" placeholder="Từ giá" min="0" step="500000" />
+                    <span style="color: var(--border-color)">-</span>
+                    <input type="number" name="maxPrice" value="@(Model.MaxPrice)" placeholder="Đến giá" min="0" step="500000" />
+                </div>
+                <button type="submit" class="btn-dark" style="width: 100%; height: 36px; font-size: 12px; font-weight: 700; border-radius: 4px;" onclick="document.getElementById('pageInput').value = 1;">
+                    ÁP DỤNG KHOẢNG GIÁ
+                </button>
+            </div>
+
+            <a href="/Store" class="btn-home-cart" style="text-decoration: none; text-align: center; margin-top: 10px; font-size: 11px;">
+                <i class="fas fa-undo"></i> XOÁ TẤT CẢ BỘ LỌC
+            </a>
+        </aside>
+
+        <main class="catalog-content-area">
+            <div class="catalog-toolbar-top">
+                <div class="result-counter-txt">
+                    @if (!string.IsNullOrWhiteSpace(Model.Keyword))
+                    {
+                        <span>Tìm thấy <strong>@Model.TotalResults</strong> kết quả cho <span style="color: var(--accent-red)">"@Model.Keyword"</span></span>
+                    }
+                    else
+                    {
+                        <span>Hiển thị <strong>@Model.TotalResults</strong> sản phẩm phân phối chính hãng</span>
+                    }
+                </div>
+
+                <div>
+                    <select name="sort" class="select-sort-flat" onchange="triggerSubmitForm()">
+                        <option value="newest" selected="@(Model.SortBy == "newest")">Mới ra mắt</option>
+                        <option value="bestseller-desc" selected="@(Model.SortBy == "bestseller-desc")">Bán chạy nhất</option>
+                        <option value="price_asc" selected="@(Model.SortBy == "price_asc")">Giá tăng dần</option>
+                        <option value="price_desc" selected="@(Model.SortBy == "price_desc")">Giá giảm dần</option>
+                    </select>
+                </div>
+            </div>
+
+            @if (Model.Products != null && Model.Products.Any())
+            {
+                <div class="catalog-products-grid">
+                    @foreach (var searchItem in Model.Products)
+                    {
+                        var item = searchItem.Product;
+                        var defaultVariant = item.ProductVariants?.Where(v => v.IsActive == true).OrderBy(v => v.Price).FirstOrDefault();
+
+                        <div class="market-product-card">
+                            <button type="button" class="btn-favorite" onclick="toggleFavorite(event, @item.ProductId)" title="Thêm vào yêu thích">
+                                <i class="far fa-heart"></i>
+                            </button>
+
+                            <a href="/Store/Product/@item.ProductId" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; flex: 1;">
+                                <img src="@item.MainImage" alt="@item.Name" class="product-card-img" onerror="this.src='https://via.placeholder.com/200?text=No+Image'" />
+                                <div class="product-card-name">@item.Name</div>
+                                <div class="price-group-market">
+                                    @if (defaultVariant != null)
+                                    {
+                                        var currentPrice = defaultVariant.DiscountPrice > 0 ? defaultVariant.DiscountPrice : defaultVariant.Price;
+                                        <span class="price-market-current">@string.Format("{0:N0}", currentPrice) đ</span>
+                                        if (defaultVariant.DiscountPrice > 0 && defaultVariant.DiscountPrice < defaultVariant.Price)
+                                        {
+                                            <span class="price-market-old">@string.Format("{0:N0}", defaultVariant.Price) đ</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="price-market-current">Liên hệ</span>
+                                    }
+                                </div>
+                            </a>
+
+                            <form action="/Cart/AddToCart" method="post" style="margin: 0; width: 100%;">
+                                <input type="hidden" name="variantId" value="@(defaultVariant?.VariantId)" />
+                                <input type="hidden" name="quantity" value="1" />
+
+                                @if (defaultVariant != null && defaultVariant.Stock > 0)
+                                {
+                                    <button type="submit" class="btn-home-cart">
+                                        <i class="fas fa-shopping-cart"></i> THÊM VÀO GIỎ
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn-home-cart" disabled>
+                                        <i class="fas fa-box-open"></i> HẾT HÀNG
+                                    </button>
+                                }
+                            </form>
+
+                            @if (!string.IsNullOrWhiteSpace(Model.Keyword))
+                            {
+                                <div class="score-badge-dev">Độ liên quan: @searchItem.RelevanceScore pts</div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (Model.TotalPages > 1)
+                {
+                    // Thuật toán: Chỉ hiển thị tối đa 5 nút trang ở giữa
+                    int maxPagesToShow = 3;
+                    int startPage = Math.Max(1, Model.CurrentPage - maxPagesToShow / 2);
+                    int endPage = Math.Min(Model.TotalPages, startPage + maxPagesToShow - 1);
+
+                    if (endPage - startPage + 1 < maxPagesToShow)
+                    {
+                        startPage = Math.Max(1, endPage - maxPagesToShow + 1);
+                    }
+
+                    <div class="catalog-pagination">
+                        <button type="button" class="page-btn" onclick="goToPage(@(Model.CurrentPage - 1))" @(Model.CurrentPage == 1 ? "disabled" : "")>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+
+                        @if (startPage > 1)
+                        {
+                            <button type="button" class="page-btn" onclick="goToPage(1)">1</button>
+                            if (startPage > 2)
+                            {
+                                <span class="page-dots">...</span>
+                            }
+                        }
+
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <button type="button" class="page-btn @(i == Model.CurrentPage ? "active" : "")" onclick="goToPage(@i)">
+                                @i
+                            </button>
+                        }
+
+                        @if (endPage < Model.TotalPages)
+                        {
+                            if (endPage < Model.TotalPages - 1)
+                            {
+                                <span class="page-dots">...</span>
+                            }
+                            <button type="button" class="page-btn" onclick="goToPage(@Model.TotalPages)">@Model.TotalPages</button>
+                        }
+
+                        <button type="button" class="page-btn" onclick="goToPage(@(Model.CurrentPage + 1))" @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                }
+            }
+            else
+            {
+                <div style="text-align: center; padding: 60px 0; background: var(--navy-light); border-radius: 6px; border: 1px dashed var(--border-color);">
+                    <i class="fas fa-search" style="font-size: 40px; color: #CBD5E1; margin-bottom: 16px;"></i>
+                    <h3 style="color: var(--navy-deep); font-size: 16px; margin-bottom: 6px;">Không tìm thấy thiết bị phù hợp!</h3>
+                    <p style="color: var(--navy-medium); font-size: 13px; margin: 0;">Vui lòng thử điều chỉnh lại khoảng giá hoặc tích chọn hãng sản xuất khác.</p>
+                </div>
+            }
+        </main>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        // Kích hoạt khi khách tích chọn Checkbox hoặc Dropdown
+        function triggerSubmitForm() {
+            document.getElementById('pageInput').value = 1; // Luôn Reset về trang 1 khi lọc
+            document.getElementById('catalogMainForm').submit();
+        }
+
+        // Kích hoạt khi khách bấm vào các nút chuyển trang (1, 2, 3, Tiếp...)
+        function goToPage(pageNum) {
+            document.getElementById('pageInput').value = pageNum;
+            document.getElementById('catalogMainForm').submit();
+        }
+
+        window.toggleFavorite = function(event, productId) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const btn = event.currentTarget;
+            const icon = btn.querySelector('i');
+
+            btn.classList.toggle('active');
+
+            if (btn.classList.contains('active')) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+            }
+        };
+    </script>
+}

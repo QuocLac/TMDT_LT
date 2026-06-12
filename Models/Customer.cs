@@ -17,7 +17,12 @@ public partial class Customer
 
     public DateOnly? BirthDate { get; set; }
 
-    public string? CustomerType { get; set; }
+    public string? CustomerType { get; set; } = "Newbie"; // Đặt mặc định là Newbie khi tạo tài khoản
+
+    // --- BỔ SUNG TRƯỜNG NGHIỆP VỤ TÍCH ĐIỂM THÀNH VIÊN CORES ---
+    // Dùng để tích lũy khi đơn hàng thành công (Ví dụ: 10.000đ = 1 điểm). 
+    // Hệ thống dựa vào mốc điểm này để tự động nâng hạng Bạc/Vàng mà không cần Admin can thiệp thủ công.
+    public int RewardPoints { get; set; } = 0;
 
     public virtual Account Account { get; set; } = null!;
 

@@ -1,0 +1,240 @@
+﻿@model IEnumerable<TMDT_LT.Models.ViewModels.CustomerListItemVM>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Khách hàng";
+}
+
+<style>
+    /* TYPOGRAPHY & LAYOUT PHẲNG */
+    .page-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+    }
+
+    .page-subtitle {
+        color: #6B7280;
+        font-size: 13px;
+        margin-top: 4px;
+    }
+
+    /* BỘ LỌC TỐI GIẢN */
+    .filter-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .filter-box {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 4px;
+        padding: 16px;
+    }
+
+    /* BADGE PHẦN HẠNG ĐƠN SẮC TRỰC QUAN */
+    .tier-text {
+        font-size: 12px;
+        font-weight: 600;
+        color: #111827;
+        background: #F3F4F6;
+        padding: 2px 8px;
+        border-radius: 2px;
+        display: inline-block;
+    }
+
+    /* CÔNG TẮC ĐƠN SẮC */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 18px;
+        margin: 0;
+    }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #E5E7EB;
+        transition: .2s;
+        border-radius: 10px;
+        border: 1px solid #D1D5DB;
+    }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #9CA3AF;
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+    input:checked + .slider {
+        background-color: #111827;
+        border-color: #111827;
+    }
+        /* Kích hoạt chuyển sang màu đen đặc */
+        input:checked + .slider:before {
+            transform: translateX(16px);
+            background-color: #FFFFFF;
+        }
+
+    .link-action {
+        color: #111827;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        border-bottom: 1px solid #111827;
+        transition: opacity 0.2s;
+    }
+
+        .link-action:hover {
+            opacity: 0.6;
+        }
+</style>
+
+<div style="margin-bottom: 24px;">
+    <h1 class="page-title">Khách hàng & Thành viên</h1>
+    <p class="page-subtitle">Hệ thống phân lớp đối tượng khách hàng và kiểm duyệt quyền truy cập tài khoản toàn hệ thống.</p>
+</div>
+
+<div class="filter-box" style="margin-bottom: 24px;">
+    <form method="get" asp-action="Index" style="display: flex; gap: 16px; align-items: flex-end;">
+        <div style="flex: 1.5; position: relative;">
+            <label class="filter-label">Tìm kiếm khách hàng</label>
+            <input type="text" name="searchKeyword" value="@ViewBag.SearchKeyword" class="form-control" placeholder="Nhập tên, số điện thoại hoặc email..." style="font-size: 13px; height: 36px; padding-left: 36px; border-radius: 4px;" />
+            <i class="fas fa-search" style="position: absolute; left: 14px; bottom: 11px; color: #9CA3AF; font-size: 13px;"></i>
+        </div>
+        <div style="flex: 1;">
+            <label class="filter-label">Phân khúc hạng</label>
+            <select name="customerType" class="form-control" style="font-size: 13px; height: 36px; border-radius: 4px; cursor: pointer;">
+                <option value="">Tất cả phân hạng</option>
+                <option value="Newbie" selected="@(ViewBag.SelectedType == "Newbie")">Mới đăng ký (Newbie)</option>
+                <option value="Bạc" selected="@(ViewBag.SelectedType == "Bạc")">Thành viên Bạc</option>
+                <option value="Vàng" selected="@(ViewBag.SelectedType == "Vàng")">Thành viên Vàng</option>
+                <option value="Kim Cương" selected="@(ViewBag.SelectedType == "Kim Cương")">Thành viên Kim Cương</option>
+            </select>
+        </div>
+        <div style="flex: 1;">
+            <label class="filter-label">Trạng thái tài khoản</label>
+            <select name="status" class="form-control" style="font-size: 13px; height: 36px; border-radius: 4px; cursor: pointer;">
+                <option value="">Tất cả trạng thái</option>
+                <option value="Active" selected="@(ViewBag.SelectedStatus == "Active")">Đang hoạt động</option>
+                <option value="Banned" selected="@(ViewBag.SelectedStatus == "Banned")">Đã bị khóa</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button type="submit" class="btn-dark" style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; border-radius: 4px;">ÁP DỤNG</button>
+            <a asp-action="Index" class="btn-outline" style="height: 36px; padding: 0 14px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; font-weight: 600; border-radius: 4px;">LÀM MỚI</a>
+        </div>
+    </form>
+</div>
+
+<div class="admin-card" style="padding: 0; overflow: hidden; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 4px;">
+    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 1px solid #E5E7EB; background: #F9FAFB;">
+                <th style="padding: 14px 16px; text-align: left; font-size: 11px; text-transform: uppercase; color: #4B5563; font-weight: 700;">Họ và tên</th>
+                <th style="padding: 14px 16px; text-align: left; font-size: 11px; text-transform: uppercase; color: #4B5563; font-weight: 700;">Thông tin liên hệ</th>
+                <th style="padding: 14px 16px; text-align: center; font-size: 11px; text-transform: uppercase; color: #4B5563; font-weight: 700;">Hạng hiện tại</th>
+                <th style="padding: 14px 16px; text-align: right; font-size: 11px; text-transform: uppercase; color: #4B5563; font-weight: 700;">Tích lũy mua sắm</th>
+                <th style="padding: 14px 16px; text-align: center; font-size: 11px; text-transform: uppercase; color: #4B5563; font-weight: 700;">Trạng thái</th>
+                <th style="padding: 14px 16px; text-align: center; font-size: 11px; text-transform: uppercase; color: #4B5563; font-weight: 700;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="6" style="padding: 32px; text-align: center; color: #9CA3AF; font-size: 13px;">Không tìm thấy kết quả phù hợp.</td>
+                </tr>
+            }
+            @foreach (var item in Model)
+            {
+                <tr style="border-bottom: 1px solid #F3F4F6;">
+                    <td style="padding: 14px 16px;">
+                        <span style="font-weight: 600; color: #111827; font-size: 14px; display: block;">@item.FullName</span>
+                        <span style="font-size: 11px; color: #9CA3AF; font-family: monospace;">MÃ: #CST-@item.CustomerId</span>
+                    </td>
+                    <td style="padding: 14px 16px; font-size: 13px; color: #374151;">
+                        <div style="margin-bottom: 2px;">@item.Email</div>
+                        <div style="font-family: monospace; color: #6B7280;">@item.Phone</div>
+                    </td>
+                    <td style="padding: 14px 16px; text-align: center;">
+                        <span class="tier-text">@item.CustomerType</span>
+                    </td>
+                    <td style="padding: 14px 16px; text-align: right; font-size: 13px;">
+                        <span style="font-weight: 600; color: #374151;">@item.TotalOrders đơn</span>
+                        <div style="font-family: monospace; color: #111827; font-weight: 700; margin-top: 2px;">@string.Format("{0:N0}", item.TotalSpent) đ</div>
+                    </td>
+                    <td style="padding: 14px 16px; text-align: center;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <label class="switch">
+                                <input type="checkbox" onchange="toggleAccountStatus(@item.AccountId, this)" @(item.IsActive ? "checked" : "")>
+                                <span class="slider"></span>
+                            </label>
+                            <span id="txt-status-@item.AccountId" style="font-size: 12px; font-weight: 600; width: 55px; text-align: left; color: @(item.IsActive ? "#111827" : "#9CA3AF")">
+                                @(item.IsActive ? "Hoạt động" : "Khóa")
+                            </span>
+                        </div>
+                    </td>
+                    <td style="padding: 14px 16px; text-align: center;">
+                        <a asp-action="Details" asp-route-id="@item.CustomerId" class="link-action">Xem chi tiết</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleAccountStatus(accountId, checkbox) {
+            const originalState = !checkbox.checked;
+            const txtStatus = document.getElementById(`txt-status-${accountId}`);
+
+            const formData = new FormData();
+            formData.append("accountId", accountId);
+
+            fetch('/Admin/Customer/ToggleStatus', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.isActive) {
+                        txtStatus.innerText = "Hoạt động";
+                        txtStatus.style.color = "#111827";
+                    } else {
+                        txtStatus.innerText = "Khóa";
+                        txtStatus.style.color = "#9CA3AF";
+                    }
+                } else {
+                    alert("Thao tác thất bại: " + data.message);
+                    checkbox.checked = originalState;
+                }
+            })
+            .catch(err => {
+                alert("Lỗi kết nối máy chủ.");
+                checkbox.checked = originalState;
+            });
+        }
+    </script>
+}

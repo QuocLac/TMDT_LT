@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
@@ -12,71 +11,73 @@ namespace TMDT_LT.Areas.Admin.Controllers
     public class ShippingController : Controller
     {
         private readonly ApplicationDbContext _context;
-        public ShippingController(ApplicationDbContext context) => _context = context;
 
-        // 1. TRANG DANH SÁCH CHÍNH (INDEX)
+        public ShippingController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // 1. Tải danh sách các đơn vị vận chuyển
         public async Task<IActionResult> Index()
         {
-            var carriers = await _context.ShippingCarriers.OrderByDescending(c => c.CreatedAt).ToListAsync();
+            // Tự động Seed (khởi tạo) dữ liệu mẫu nếu bảng đang trống để bạn dễ test giao diện
+            if (!_context.ShippingCarriers.Any())
+            {
+                _context.ShippingCarriers.AddRange(
+                    new ShippingCarriers { CarrierCode = "GHTK", CarrierName = "Giao Hàng Tiết Kiệm", LogoUrl = "https://cdn.haitrieu.com/wp-content/uploads/2022/05/Logo-GHTK-Green.png", IsActive = true, IsDefault = true },
+                    new ShippingCarriers { CarrierCode = "GHN", CarrierName = "Giao Hàng Nhanh", LogoUrl = "https://cdn.haitrieu.com/wp-content/uploads/2022/05/Logo-GHN-Orange.png", IsActive = true, IsDefault = false },
+                    new ShippingCarriers { CarrierCode = "VTP", CarrierName = "Viettel Post", LogoUrl = "https://cdn.haitrieu.com/wp-content/uploads/2022/05/Logo-Viettel-Post-Red.png", IsActive = false, IsDefault = false }
+                );
+                await _context.SaveChangesAsync();
+            }
+
+            var carriers = await _context.ShippingCarriers
+                .OrderByDescending(c => c.IsDefault) // Ưu tiên thằng mặc định lên đầu
+                .ThenBy(c => c.CarrierName)
+                .ToListAsync();
+
             return View(carriers);
         }
 
-        // 2. XỬ LÝ TẠO MỚI CỔNG VẬN CHUYỂN
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(ShippingCarriers model)
-        {
-            if (ModelState.IsValid)
-            {
-                model.CreatedAt = DateTime.Now;
-                model.IsActive = true;
-                _context.ShippingCarriers.Add(model);
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "Tích hợp cổng vận chuyển mới thành công.";
-                return RedirectToAction(nameof(Index));
-            }
-            TempData["Error"] = "Dữ liệu nhập vào không hợp lệ.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        // 3. BẬT / TẮT TRẠNG THÁI HOẠT ĐỘNG (SOFT DELETE)
+        // 2. API AJAX: Bật/Tắt trạng thái hoạt động của một hãng
         [HttpPost]
         public async Task<IActionResult> ToggleStatus(int id)
         {
             var carrier = await _context.ShippingCarriers.FindAsync(id);
-            if (carrier == null) return Json(new { success = false });
+            if (carrier == null) return NotFound();
+
+            // Không cho phép tắt nếu đang là phương thức mặc định
+            if (carrier.IsDefault && carrier.IsActive)
+            {
+                return Json(new { success = false, message = "Không thể tắt đơn vị vận chuyển đang được đặt làm mặc định!" });
+            }
 
             carrier.IsActive = !carrier.IsActive;
             await _context.SaveChangesAsync();
+
             return Json(new { success = true, isActive = carrier.IsActive });
         }
 
-        // 4. API LƯU THÔNG TIN CHỈNH SỬA TỪ MODAL (ĐÃ NÂNG CẤP)
+        // 3. API AJAX: Đặt một hãng làm phương thức giao hàng mặc định
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, ShippingCarriers model)
+        public async Task<IActionResult> SetDefault(int id)
         {
-            if (id != model.CarrierId) return Json(new { success = false, message = "Định danh mã cổng vận chuyển không đồng nhất." });
+            var carrier = await _context.ShippingCarriers.FindAsync(id);
+            if (carrier == null || !carrier.IsActive)
+                return Json(new { success = false, message = "Chỉ có thể đặt mặc định cho đơn vị đang hoạt động!" });
 
-            if (!ModelState.IsValid) return Json(new { success = false, message = "Thông tin nhập vào không đáp ứng chuẩn định dạng kỹ thuật." });
-
-            try
+            // Gỡ cờ mặc định của tất cả các hãng khác
+            var currentDefaults = await _context.ShippingCarriers.Where(c => c.IsDefault).ToListAsync();
+            foreach (var item in currentDefaults)
             {
-                var carrier = await _context.ShippingCarriers.FindAsync(id);
-                if (carrier == null) return Json(new { success = false, message = "Không tìm thấy dữ liệu đối tác vận chuyển trên hệ thống." });
-
-                // Đồng bộ cập nhật các tham số cấu hình lõi
-                carrier.CarrierName = model.CarrierName.Trim();
-                carrier.ApiUrl = model.ApiUrl.Trim();
-                carrier.ApiToken = model.ApiToken.Trim();
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
+                item.IsDefault = false;
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = "Lỗi hệ thống trong quá trình ghi dữ liệu: " + ex.Message });
-            }
+
+            // Đặt cờ mặc định cho hãng được chọn
+            carrier.IsDefault = true;
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
         }
     }
 }

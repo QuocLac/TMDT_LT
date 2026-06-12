@@ -1,0 +1,283 @@
+﻿@model TMDT_LT.Models.Customer
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Hồ sơ khách hàng #" + Model.CustomerId;
+}
+
+<style>
+    /* HỆ THỐNG ĐƯỜNG KẺ VÀ KHỐI HỘP ĐƠN SẮC */
+    .section-headline {
+        font-size: 13px;
+        font-weight: 700;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E5E7EB;
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+    }
+
+    .meta-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #9CA3AF;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .meta-value {
+        font-size: 14px;
+        font-weight: 500;
+        color: #111827;
+        margin-top: 2px;
+    }
+
+    .address-card {
+        border: 1px solid #E5E7EB;
+        border-radius: 4px;
+        padding: 12px;
+        margin-bottom: 12px;
+        position: relative;
+    }
+
+        .address-card.default {
+            border-color: #111827;
+            background: #F9FAFB;
+        }
+
+    .badge-default {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        font-size: 10px;
+        font-weight: 700;
+        background: #111827;
+        color: #FFFFFF;
+        padding: 2px 6px;
+        border-radius: 2px;
+        text-transform: uppercase;
+    }
+
+    /* KHUNG THÔNG BÁO MẬT KHẨU TẠM THỜI */
+    .alert-security-box {
+        display: none;
+        background: #F9FAFB;
+        border: 1px solid #111827;
+        border-radius: 4px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+
+    .temp-password-display {
+        font-family: monospace;
+        font-size: 16px;
+        font-weight: 700;
+        color: #111827;
+        background: #E5E7EB;
+        padding: 6px 12px;
+        border-radius: 2px;
+        display: inline-block;
+        margin-top: 6px;
+        border: 1px dashed #9CA3AF;
+    }
+
+    .btn-secondary-action {
+        background: #FFFFFF;
+        border: 1px solid #D1D5DB;
+        color: #374151;
+        width: 100%;
+        height: 38px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .btn-secondary-action:hover {
+            background: #F9FAFB;
+            border-color: #9CA3AF;
+        }
+</style>
+
+<div style="margin-bottom: 24px;">
+    <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+        <i class="fas fa-arrow-left" style="font-size: 11px; color: #6B7280;"></i> Quay lại danh sách khách hàng
+    </a>
+    <h2 style="font-weight: 800; color: #111827; margin: 8px 0 0 0; letter-spacing: -0.5px;">Hồ sơ khách hàng: @Model.FullName</h2>
+</div>
+
+<div class="alert-security-box" id="securityAlertContainer">
+    <div style="font-size: 13px; font-weight: 700; color: #111827; text-transform: uppercase;">Cấp lại mật khẩu thành công</div>
+    <p style="margin: 4px 0 0 0; color: #4B5563; font-size: 13px;">Hãy sao chép chuỗi mật khẩu bảo mật tạm thời dưới đây và cung cấp cho chủ tài khoản để thực hiện đăng nhập vào hệ thống:</p>
+    <div class="temp-password-display" id="tempPasswordText"></div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 40px;">
+
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+
+        <div class="admin-card" style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; border-radius: 4px;">
+            <div class="section-headline">1. Hồ sơ thông tin cá nhân</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                <div><div class="meta-label">Họ và tên</div><div class="meta-value">@Model.FullName</div></div>
+                <div><div class="meta-label">Giới tính</div><div class="meta-value">@(Model.Gender ?? "Chưa thiết lập")</div></div>
+                <div><div class="meta-label">Ngày sinh</div><div class="meta-value">@(Model.BirthDate?.ToString("dd/MM/yyyy") ?? "Chưa thiết lập")</div></div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; border-top: 1px dashed #F3F4F6; padding-top: 16px;">
+                <div><div class="meta-label">Địa chỉ Email</div><div class="meta-value">@Model.Account.Email</div></div>
+                <div><div class="meta-label">Số điện thoại hồ sơ</div><div class="meta-value" style="font-family: monospace;">@(Model.Phone ?? "Chưa thiết lập")</div></div>
+                <div><div class="meta-label">Ngày gia nhập</div><div class="meta-value">@Model.Account.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</div></div>
+            </div>
+        </div>
+
+        <div class="admin-card" style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; border-radius: 4px;">
+            <div class="section-headline">2. Sổ địa chỉ giao nhận của khách hàng (@Model.Address.Count)</div>
+            @if (!Model.Address.Any())
+            {
+                <div style="color: #9CA3AF; font-size: 13px; padding: 10px 0;">Khách hàng này chưa khởi tạo sổ địa chỉ giao hàng.</div>
+            }
+            @foreach (var addr in Model.Address)
+            {
+                var cardClass = (addr.IsDefault == true) ? "address-card default" : "address-card";
+                <div class="@cardClass">
+                    @if (addr.IsDefault == true)
+                    {
+                        <span class="badge-default">Mặc định</span>
+                    }
+                    <div style="font-size: 14px; font-weight: 600; color: #111827;">@Model.FullName</div>
+                    <div style="font-size: 13px; color: #4B5563; margin-top: 4px; line-height: 1.5;">
+                        @addr.Street, @addr.District, @addr.City, @addr.Country
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+
+        <div class="admin-card" style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; border-radius: 4px;">
+            <div class="section-headline">Bảo mật tài khoản</div>
+
+            <div style="margin-bottom: 14px;">
+                <div class="meta-label">Tài khoản đăng nhập (Email)</div>
+                <div class="meta-value" style="font-size: 13px; color: #4B5563;">@Model.Account.Email</div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <div class="meta-label">Số điện thoại xác thực tài khoản</div>
+                <div class="meta-value" style="font-family: monospace; font-size: 13px; color: #4B5563;">
+                    @(Model.Account.Phone ?? "Chưa liên kết hotline bảo mật")
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <div class="meta-label">Vai trò hệ thống</div>
+                <div class="meta-value"><span style="background: #F3F4F6; padding: 2px 6px; border-radius: 2px; font-size: 12px; font-weight: 600;">@Model.Account.Role</span></div>
+            </div>
+
+            <button onclick="triggerResetPassword()" class="btn-secondary-action" style="border-color: #111827; color: #111827;">
+                CẤP LẠI MẬT KHẨU TẠM THỜI
+            </button>
+        </div>
+
+        <div class="admin-card" style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; border-radius: 4px;">
+            <div class="section-headline">Điều hành phân khúc</div>
+
+            <div style="margin-bottom: 16px;">
+                <label class="meta-label" style="display: block; margin-bottom: 6px;">Hạng thành viên hệ thống</label>
+                <select id="select-customer-tier" class="form-control" style="font-size: 13px; height: 38px; font-weight: 600; border-radius: 4px; cursor: pointer;">
+                    <option value="Newbie" selected="@(Model.CustomerType == "Newbie")">Newbie (Mặc định)</option>
+                    <option value="Bạc" selected="@(Model.CustomerType == "Bạc")">Thành viên Bạc</option>
+                    <option value="Vàng" selected="@(Model.CustomerType == "Vàng")">Thành viên Vàng</option>
+                    <option value="Kim Cương" selected="@(Model.CustomerType == "Kim Cương")">Thành viên Kim Cương</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 20px; background: #F9FAFB; padding: 12px; border-radius: 4px; border: 1px solid #E5E7EB;">
+                <div class="meta-label">Điểm thưởng tích lũy (Reward Points)</div>
+                <div style="font-size: 20px; font-weight: 800; color: #111827; margin-top: 4px; font-family: monospace;">
+                    @Model.RewardPoints <span style="font-size: 12px; font-weight: 500; color: #6B7280; font-family: sans-serif;">điểm</span>
+                </div>
+            </div>
+
+            <button onclick="saveTierConfiguration()" class="btn-dark" style="width: 100%; height: 38px; font-size: 13px; font-weight: 600; border-radius: 4px;">
+                CẬP NHẬT PHÂN HẠNG
+            </button>
+        </div>
+
+        <div class="admin-card" style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; border-radius: 4px;">
+            <div class="section-headline">Chỉ số mua sắm</div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <div class="meta-label">Tổng đơn phát sinh</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #111827; margin-top: 2px;">@ViewBag.TotalOrders đơn hàng</div>
+                </div>
+                <div style="border-top: 1px dashed #F3F4F6; padding-top: 12px;">
+                    <div class="meta-label">Giá trị chi tiêu thực tế</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #111827; margin-top: 2px; font-family: monospace;">
+                        @string.Format("{0:N0}", ViewBag.TotalSpent) đ
+                    </div>
+                    <small style="color: #9CA3AF; font-size: 11px;">(Hóa đơn trạng thái 'Hoàn thành')</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // 1. GỌI API AJAX: Kích hoạt luồng quên mật khẩu và cấp lại mật khẩu tạm thời
+        function triggerResetPassword() {
+            if (!confirm("Xác nhận hành động? Hệ thống sẽ ghi đè mật khẩu hiện tại của khách hàng bằng mật khẩu bảo mật tạm thời.")) return;
+
+            const formData = new FormData();
+            formData.append("accountId", @Model.AccountId);
+
+            fetch('/Admin/Customer/ResetCustomerPassword', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const alertBox = document.getElementById('securityAlertContainer');
+                    const passText = document.getElementById('tempPasswordText');
+
+                    passText.innerText = data.tempPassword;
+                    alertBox.style.display = "block";
+
+                    // Cuộn màn hình lên trên cùng mượt mà để nhân viên dễ thấy thông tin mật khẩu tạm thời
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    alert("Lỗi hệ thống: " + data.message);
+                }
+            })
+            .catch(err => alert("Lỗi kết nối máy chủ quản trị."));
+        }
+
+        // 2. GỌI API AJAX: Lưu cấu hình phân hạng thành viên
+        function saveTierConfiguration() {
+            const selectTier = document.getElementById('select-customer-tier');
+            const newTier = selectTier.value;
+
+            const formData = new FormData();
+            formData.append("customerId", @Model.CustomerId);
+            formData.append("newTier", newTier);
+
+            fetch('/Admin/Customer/UpdateTierFromDetails', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert("Đã cập nhật phân hạng thành viên thành công!");
+                } else {
+                    alert("Lỗi: " + data.message);
+                }
+            })
+            .catch(err => alert("Lỗi kết nối hệ thống."));
+        }
+    </script>
+}

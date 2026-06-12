@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Folder Include="Data\" />
+    <Folder Include="wwwroot\uploads\banners\" />
   </ItemGroup>
 
   <ItemGroup>

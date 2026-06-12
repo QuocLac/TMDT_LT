@@ -1,0 +1,160 @@
+﻿/* HEADER THƯƠNG MẠI CHUẨN SÀN */
+.site-header {
+    background-color: var(--white);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+}
+
+.brand-logo {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--navy-deep);
+    text-decoration: none;
+    letter-spacing: -1px;
+}
+
+/* THANH TÌM KIẾM ĐA CHIỀU */
+.search-bar-form {
+    flex: 1;
+    max-width: 500px;
+    position: relative;
+}
+
+.search-input-group {
+    display: flex;
+    border: 1px solid var(--navy-deep);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+    .search-input-group input {
+        width: 100%;
+        padding: 10px 16px;
+        border: none;
+        outline: none;
+        font-size: 13px;
+        color: var(--navy-deep);
+    }
+
+.search-submit-btn {
+    background: var(--navy-deep);
+    color: var(--white);
+    border: none;
+    padding: 0 20px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+    .search-submit-btn:hover {
+        opacity: 0.9;
+    }
+
+/* MENU ĐIỀU HƯỚNG VÀ ICON ACTION */
+.nav-menu {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.nav-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy-medium);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+    .nav-link:hover {
+        color: var(--navy-deep);
+    }
+
+.action-menu {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.action-item {
+    position: relative;
+    color: var(--navy-deep);
+    text-decoration: none;
+    font-size: 18px;
+    transition: opacity 0.2s;
+}
+
+    .action-item:hover {
+        opacity: 0.7;
+    }
+
+.cart-badge {
+    position: absolute;
+    top: -6px;
+    right: -10px;
+    background: var(--navy-deep);
+    color: var(--white);
+    font-size: 10px;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
+}
+
+/* FOOTER NÂNG CẤP TONE NAVY ĐẬM SANG TRỌNG */
+.main-footer {
+    background-color: var(--navy-deep);
+    padding: 60px 20px;
+    margin-top: 60px;
+    border-top: 1px solid var(--navy-medium);
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+    font-size: 13px;
+    color: #94A3B8; /* Màu chữ phụ tone xám bạc thanh lịch trên nền tối */
+}
+
+    /* Ép buộc tiêu đề h4 chuyển sang màu trắng để nổi bật trên nền tối */
+    .footer-container h4 {
+        color: var(--white) !important;
+        margin: 0 0 16px 0;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .footer-container p {
+        line-height: 1.6;
+        margin: 0;
+    }
+
+/* Sửa lại lớp hotline trong tệp store-layout.css */
+.footer-hotline {
+    font-weight: 700;
+    color: #FFFFFF !important; /* Đảm bảo màu trắng */
+    font-size: 15px;
+    margin-top: 4px;
+    font-family: monospace;
+    display: block; /* Đảm bảo hiển thị dạng khối */
+}

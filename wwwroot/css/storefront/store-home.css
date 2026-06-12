@@ -1,0 +1,391 @@
+﻿/* EFFECT LAYER 1: ANIMATED GRADIENT BACKDROP TRẮNG - XANH NAVY */
+.hero-marketing-wrapper {
+    position: relative;
+    background: linear-gradient(-45deg, #0F172A, #1E293B, #FFFFFF, #E2E8F0);
+    background-size: 400% 400%;
+    animation: gradientSweep 12s ease infinite;
+    padding: 60px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+@keyframes gradientSweep {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* EFFECT LAYER 2: TOP CONTENT CONTAINER */
+.hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 1fr 450px;
+    gap: 40px;
+    align-items: center;
+}
+
+.hero-cta-block h2 {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--navy-deep);
+    line-height: 1.1;
+    margin: 0 0 16px 0;
+    letter-spacing: -1.5px;
+}
+
+.hero-cta-block p {
+    font-size: 15px;
+    color: var(--navy-medium);
+    margin: 0 0 24px 0;
+    line-height: 1.6;
+}
+
+/* =========================================================
+   CAROUSEL BANNER MARKETING CHUYỂN ĐỘNG NGANG (MỚI)
+========================================================= */
+.slider-viewport {
+    width: 100%;
+    height: 320px;
+    background: var(--navy-light);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
+    position: relative;
+    overflow: hidden; /* Cắt bỏ phần ảnh thừa */
+}
+
+.slider-track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); /* Chuyển động lướt mượt */
+}
+
+.slide-item {
+    flex: 0 0 100%; /* Mỗi banner chiếm đúng 100% khung nhìn */
+    height: 100%;
+    position: relative;
+    display: block;
+}
+
+    .slide-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Đảm bảo ảnh phủ kín không bị méo tỷ lệ */
+    }
+
+/* Các chấm tròn định vị Slider */
+.slider-dots-container {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.slider-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+    .slider-dot.active {
+        background: #FFFFFF;
+        width: 24px; /* Kéo dài chấm tròn active tạo thiết kế hiện đại */
+        border-radius: 4px;
+    }
+
+/* =========================================================
+   KHỐI SẢN PHẨM TIẾP THỊ (CARD CRO)
+========================================================= */
+.section-wrapper {
+    max-width: 1200px;
+    margin: 60px auto 0 auto;
+    padding: 0 20px;
+}
+
+.section-header-title {
+    font-size: 18px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 24px;
+    border-left: 4px solid var(--navy-deep);
+    padding-left: 12px;
+}
+
+.product-grid-market {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 24px;
+}
+
+.market-product-card {
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+}
+
+    .market-product-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+        border-color: var(--navy-deep);
+    }
+
+.product-card-img {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+    margin-bottom: 16px;
+    background: var(--navy-light);
+    border-radius: 2px;
+}
+
+.product-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy-deep);
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    height: 40px;
+}
+
+.price-group-market {
+    margin-top: auto;
+}
+
+.price-market-current {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy-deep);
+    font-family: monospace;
+}
+
+.price-market-old {
+    font-size: 12px;
+    color: #9CA3AF;
+    text-decoration: line-through;
+    font-family: monospace;
+    margin-left: 6px;
+}
+/* =========================================================
+   HỆ THỐNG LƯỚI TRƯỢT NGANG (HORIZONTAL SCROLL GRID)
+========================================================= */
+.product-scroll-container {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding: 8px 4px 24px 4px;
+    scrollbar-width: none; /* Ẩn thanh cuộn trên Firefox */
+    scroll-snap-type: x mandatory; /* Tạo điểm dừng khi vuốt trên mobile */
+}
+
+    .product-scroll-container::-webkit-scrollbar {
+        display: none; /* Ẩn thanh cuộn trên Chrome/Safari/Edge */
+    }
+
+    /* Đóng băng kích thước thẻ sản phẩm khi nằm trong hàng trượt */
+    .product-scroll-container .market-product-card {
+        flex: 0 0 235px; /* Giữ kích thước cố định không cho co giãn */
+        scroll-snap-align: start;
+    }
+
+/* THỂ TÁC VỤ "XEM THÊM" ĐẶT CUỐI DÒNG CUỘN VÙNG KHÁCH KHÁO */
+.view-more-scroll-card {
+    flex: 0 0 180px;
+    background: var(--navy-light);
+    border: 1px dashed var(--border-color);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-decoration: none;
+    color: var(--navy-deep);
+    transition: all 0.2s ease;
+    scroll-snap-align: start;
+    cursor: pointer;
+}
+
+    .view-more-scroll-card:hover {
+        border-color: var(--navy-deep);
+        background: #F1F5F9;
+    }
+
+    .view-more-scroll-card .icon-circle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--white);
+        border: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 12px;
+        color: var(--navy-medium);
+        transition: all 0.3s ease;
+    }
+
+    .view-more-scroll-card:hover .icon-circle {
+        background: var(--navy-deep);
+        color: var(--white);
+        transform: translateX(4px);
+    }
+
+    .view-more-scroll-card span {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+/* BỘ LỌC NHANH CHO PHÂN MỤC BÁN CHẠY (MINIMALIST TABS) */
+.quick-filter-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.quick-filter-tabs {
+    display: flex;
+    gap: 8px;
+}
+
+.filter-tab-btn {
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 20px;
+    cursor: pointer;
+    color: var(--navy-medium);
+    transition: all 0.2s ease;
+}
+
+    .filter-tab-btn.active, .filter-tab-btn:hover {
+        background: var(--navy-deep);
+        border-color: var(--navy-deep);
+        color: var(--white);
+    }
+/* =========================================================
+   CSS CHUNG CHO CARD SẢN PHẨM (Áp dụng toàn hệ thống)
+========================================================= */
+
+/* Ép khuôn thẻ Card và tạo không gian thở bên trong */
+.market-product-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    background: #FFFFFF;
+    padding: 16px; /* Tạo viền an toàn bên trong Card */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1; /* Lớp hiển thị mặc định */
+}
+
+    /* Hiệu ứng nổi bọt khi đưa chuột vào */
+    .market-product-card:hover {
+        border-color: var(--navy-deep);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); /* Bóng đổ sâu hơn tạo cảm giác 3D */
+        transform: translateY(-6px); /* Nhấc thẻ lên cao 6px */
+        z-index: 10; /* QUAN TRỌNG: Đẩy thẻ này lên lớp trên cùng để không bị các thẻ hàng dưới đè lên */
+    }
+
+    /* Đẩy khoảng cách giữa Ảnh, Tên máy và Giá tiền bên trong Card */
+    .market-product-card > a {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        gap: 12px; /* Tăng khoảng cách dòng bên trong thẻ */
+    }
+/* CSS NÚT YÊU THÍCH (HEART ICON) */
+.btn-favorite {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    color: #9CA3AF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    padding: 0;
+}
+
+    .btn-favorite:hover {
+        color: var(--accent-red, #DC2626);
+        border-color: var(--accent-red, #DC2626);
+        transform: scale(1.1);
+    }
+
+    .btn-favorite.active {
+        color: var(--accent-red, #DC2626);
+        border-color: var(--accent-red, #DC2626);
+    }
+
+/* CSS NÚT THÊM VÀO GIỎ HÀNG NHANH */
+.btn-home-cart {
+    width: 100%;
+    padding: 10px 0;
+    background: #F8FAFC;
+    color: var(--navy-deep);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+    .btn-home-cart:hover:not(:disabled) {
+        background: var(--navy-deep);
+        color: #FFFFFF;
+        border-color: var(--navy-deep);
+    }
+
+    .btn-home-cart:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #F1F5F9;
+        color: #9CA3AF;
+    }

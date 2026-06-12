@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.IO;
 using System.Linq;
@@ -14,7 +15,13 @@ namespace TMDT_LT.Areas.Admin.Controllers
     public class OrderController : Controller
     {
         private readonly ApplicationDbContext _context;
-        public OrderController(ApplicationDbContext context) => _context = context;
+        private readonly IConfiguration _config;
+
+        public OrderController(ApplicationDbContext context, IConfiguration config)
+        {
+            _context = context;
+            _config = config;
+        }
 
         public async Task<IActionResult> Index(string searchKeyword, string status, DateTime? fromDate, DateTime? toDate)
         {
@@ -82,9 +89,11 @@ namespace TMDT_LT.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(int orderId, string newStatus, string? note)
         {
+            // Bổ sung Include(o => o.Customer) để lấy được thông tin khách hàng phục vụ tự động hóa
             var order = await _context.Orders
                 .Include(o => o.OrderDetails).ThenInclude(d => d.Variant).ThenInclude(v => v.Product)
                 .Include(o => o.Shipping)
+                .Include(o => o.Customer)
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
             if (order == null) return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
@@ -94,7 +103,6 @@ namespace TMDT_LT.Areas.Admin.Controllers
             {
                 if (newStatus == "Đang xử lý" && order.Status == "Chờ xác nhận")
                 {
-                    // 1. Kiểm tra tồn kho hệ thống
                     foreach (var detail in order.OrderDetails)
                     {
                         if (detail.Variant != null)
@@ -106,27 +114,30 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         }
                     }
 
-                    // 2. TRỤC API ĐỘNG: Tìm đối tác vận chuyển đang kích hoạt trong hệ thống
-                    var activeCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive == true);
-                    if (activeCarrier == null)
+                    var defaultCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
+                    if (defaultCarrier == null)
                     {
-                        return Json(new { success = false, message = "Lỗi vận hành: Chưa cấu hình hoặc bật cổng vận chuyển bên thứ 3 nào." });
+                        return Json(new { success = false, message = "Lỗi vận hành: Chưa cấu hình đơn vị vận chuyển mặc định." });
                     }
 
-                    // 3. GIẢ LẬP GIAO TIẾP MẠNG HTTP CLIENT ĐẨY ĐƠN SANG SERVER ĐỐI TÁC (GHTK/GHN)
-                    // Trong thực tế, đoạn này sẽ thiết lập HttpClient để POST dữ liệu JSON sang activeCarrier.ApiUrl
-                    // sử dụng Header mã hóa chứa activeCarrier.ApiToken.
+                    string apiToken = _config[$"ShippingAPI:{defaultCarrier.CarrierCode}:Token"] ?? "";
+                    string baseUrl = _config[$"ShippingAPI:{defaultCarrier.CarrierCode}:BaseUrl"] ?? "";
 
-                    bool apiCallSuccess = true; // Giả lập phản hồi kết nối Gateway thành công
-                    string returnedTrackingNumber = "3PL" + activeCarrier.CarrierName.Substring(0, 2).ToUpper() + DateTime.Now.Ticks.ToString().Substring(11);
+                    if (string.IsNullOrEmpty(apiToken))
+                    {
+                        return Json(new { success = false, message = $"Chưa cấu hình Token bảo mật cho hãng {defaultCarrier.CarrierCode}." });
+                    }
+
+                    bool apiCallSuccess = true;
+                    string returnedTrackingNumber = "3PL" + defaultCarrier.CarrierCode + DateTime.Now.Ticks.ToString().Substring(11);
 
                     if (apiCallSuccess)
                     {
                         var shipInfo = order.Shipping?.FirstOrDefault();
                         if (shipInfo != null)
                         {
-                            shipInfo.TrackingNumber = returnedTrackingNumber; // Ghi nhận mã vận đơn do API bên thứ 3 trả về
-                            shipInfo.Carrier = activeCarrier.CarrierName;     // Ghi nhận tên hãng vận chuyển cấu hình
+                            shipInfo.TrackingNumber = returnedTrackingNumber;
+                            shipInfo.Carrier = defaultCarrier.CarrierName;
                         }
                     }
                     else
@@ -139,6 +150,43 @@ namespace TMDT_LT.Areas.Admin.Controllers
                     foreach (var detail in order.OrderDetails)
                     {
                         if (detail.Variant != null) detail.Variant.Stock += detail.Quantity;
+                    }
+                }
+                // LUỒNG TỰ ĐỘNG HÓA KHI ĐƠN HÀNG HOÀN THÀNH KHI ĐỐI SOÁT GIAO THÀNH CÔNG
+                else if (newStatus == "Hoàn thành" && order.Status == "Đang giao")
+                {
+                    if (order.Customer != null)
+                    {
+                        // Thuật toán: Cứ 100.000 đ tổng hóa đơn đơn hàng = Tích lũy 1 điểm thưởng vào tài khoản
+                        decimal totalAmount = order.TotalAmount ?? 0;
+                        int pointsEarned = (int)(totalAmount / 100000);
+
+                        if (pointsEarned > 0)
+                        {
+                            order.Customer.RewardPoints += pointsEarned;
+
+                            // Tự động rẽ nhánh thăng hạng dựa theo mốc tích lũy RewardPoints mới
+                            int currentPoints = order.Customer.RewardPoints;
+                            if (currentPoints >= 600)
+                            {
+                                order.Customer.CustomerType = "Kim Cương";
+                            }
+                            else if (currentPoints >= 300)
+                            {
+                                order.Customer.CustomerType = "Vàng";
+                            }
+                            else if (currentPoints >= 100)
+                            {
+                                order.Customer.CustomerType = "Bạc";
+                            }
+                            else
+                            {
+                                order.Customer.CustomerType = "Newbie";
+                            }
+
+                            // Bổ sung ghi chú tự động vào hành trình đơn hàng để Admin tiện theo dõi
+                            note = (note ?? "") + $" [Hệ thống: Tích lũy +{pointsEarned} điểm thành viên. Cập nhật hạng hiện tại: {order.Customer.CustomerType}].";
+                        }
                     }
                 }
 
@@ -229,11 +277,14 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         }
                         order.Status = "Đang xử lý";
 
+                        var defaultCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
+                        string assignedCarrier = defaultCarrier != null ? defaultCarrier.CarrierName : "Hệ thống vận chuyển nội bộ";
+
                         var shipInfo = order.Shipping?.FirstOrDefault();
                         if (shipInfo != null)
                         {
                             shipInfo.TrackingNumber = "VNDON" + DateTime.Now.Ticks.ToString().Substring(10);
-                            shipInfo.Carrier = "Giao Hàng Tiết Kiệm (GHTK)";
+                            shipInfo.Carrier = assignedCarrier;
                         }
                     }
 

@@ -1,0 +1,454 @@
+﻿@model IEnumerable<TMDT_LT.Models.CampaignBanners>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Chiến dịch Tiếp thị";
+}
+
+<style>
+    /* BỐ CỤC CHUNG & TÌM KIẾM */
+    .top-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 12px;
+    }
+
+    /* GIAO DIỆN BẢNG TỐI GIẢN (MINIMALIST GRID) */
+    .table-row-banner {
+        border-bottom: 1px solid #E5E7EB;
+        transition: background 0.2s;
+    }
+
+        .table-row-banner:hover {
+            background: #F9FAFB;
+        }
+
+    .status-badge {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-upcoming {
+        background: #FFFFFF;
+        color: #111827;
+        border: 1px solid #111827;
+    }
+
+    .status-running {
+        background: #111827;
+        color: #FFFFFF;
+    }
+
+    .status-ended {
+        background: #F3F4F6;
+        color: #9CA3AF;
+    }
+
+    /* HỆ THỐNG MODAL TẬP TRUNG (SLIDE/MODAL) */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(17, 24, 39, 0.4);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(2px);
+    }
+
+    .modal-content {
+        background: #FFFFFF;
+        width: 650px;
+        max-width: 95%;
+        border-radius: 4px;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+    }
+
+    .modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #E5E7EB;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+    }
+
+    .modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #E5E7EB;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        background: #F9FAFB;
+    }
+
+    /* FORM ELEMENT PHẲNG */
+    .form-group-flat {
+        margin-bottom: 20px;
+    }
+
+    .form-label-flat {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: #4B5563;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+
+    .form-control-flat {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #E5E7EB;
+        border-radius: 4px;
+        font-size: 13px;
+        color: #111827;
+        background: #FFFFFF;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+
+        .form-control-flat:focus {
+            outline: none;
+            border-color: #111827;
+        }
+
+    .image-preview-box {
+        width: 100%;
+        height: 160px;
+        border: 1px dashed #D1D5DB;
+        border-radius: 4px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #F9FAFB;
+        overflow: hidden;
+        margin-top: 8px;
+        position: relative;
+    }
+
+        .image-preview-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+    .slider-flat {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #E5E7EB;
+        transition: .3s;
+        border-radius: 24px;
+    }
+
+        .slider-flat:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+    input:checked + .slider-flat {
+        background-color: #111827;
+    }
+
+        input:checked + .slider-flat:before {
+            transform: translateX(20px);
+        }
+</style>
+
+<div class="top-toolbar">
+    <div>
+        <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;">Trung tâm Chiến dịch</h1>
+        <p style="color: #6B7280; font-size: 13px; margin-top: 4px;">Quản lý và điều phối các sự kiện truyền thông tự động trên mặt tiền cửa hàng.</p>
+    </div>
+    <div class="filter-group">
+        <form method="get" style="display: flex; gap: 8px;">
+            <select name="status" class="form-control" style="font-size: 13px; height: 38px;">
+                <option value="">Tất cả trạng thái</option>
+                <option value="Upcoming" selected="@(ViewBag.SelectedStatus == "Upcoming")">Sắp diễn ra</option>
+                <option value="Running" selected="@(ViewBag.SelectedStatus == "Running")">Đang hoạt động</option>
+                <option value="Ended" selected="@(ViewBag.SelectedStatus == "Ended")">Đã kết thúc</option>
+            </select>
+            <input type="text" name="searchKeyword" value="@ViewBag.SearchKeyword" class="form-control" style="font-size: 13px; height: 38px; width: 220px;" placeholder="Tìm tên sự kiện..." />
+            <button type="submit" class="btn-outline" style="height: 38px; font-weight: 600;">LỌC</button>
+        </form>
+        <button onclick="openModal()" class="btn-dark" style="height: 38px; font-weight: 600;">+ THÊM SỰ KIỆN</button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div style="background: #111827; color: #FFFFFF; padding: 12px 16px; border-radius: 4px; font-size: 13px; font-weight: 500; margin-bottom: 20px;">
+        @TempData["Success"]
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div style="background: #FEE2E2; color: #DC2626; padding: 12px 16px; border-radius: 4px; font-size: 13px; font-weight: 500; margin-bottom: 20px;">
+        @TempData["Error"]
+    </div>
+}
+
+<div class="admin-card" style="padding: 0; overflow: hidden; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 4px;">
+    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 1px solid #E5E7EB; background: #F9FAFB;">
+                <th style="padding: 16px; text-align: left; font-size: 11px; text-transform: uppercase; color: #4B5563; width: 50%;">Thông tin sự kiện</th>
+                <th style="padding: 16px; text-align: center; font-size: 11px; text-transform: uppercase; color: #4B5563; width: 30%;">Tiến độ tự động</th>
+                <th style="padding: 16px; text-align: right; font-size: 11px; text-transform: uppercase; color: #4B5563; width: 20%;">Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr><td colspan="3" style="padding: 40px; text-align: center; color: #9CA3AF; font-size: 13px;">Không có chiến dịch nào thỏa mãn điều kiện lọc.</td></tr>
+            }
+            @foreach (var item in Model)
+            {
+                var now = DateTime.Now;
+                string statusClass = "status-ended";
+                string statusText = "Đã kết thúc";
+
+                if (item.StartDate > now) { statusClass = "status-upcoming"; statusText = "Sắp diễn ra"; }
+                else if (item.StartDate <= now && item.EndDate >= now) { statusClass = "status-running"; statusText = "Đang chạy"; }
+
+                // Trường hợp Admin đóng băng khẩn cấp
+                if (!item.IsActive) { statusClass = "status-ended"; statusText = "Tạm ngưng"; }
+
+                <tr class="table-row-banner">
+                    <td style="padding: 16px;">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <img src="@item.ImageUrl" style="width: 80px; height: 45px; object-fit: cover; border-radius: 2px; border: 1px solid #E5E7EB;" onerror="this.src='https://via.placeholder.com/80x45?text=Lỗi+Ảnh'" />
+                            <div>
+                                <strong style="color: #111827; font-size: 14px; display: block; margin-bottom: 4px;">@item.Title</strong>
+                                <span style="font-size: 11px; color: #9CA3AF; font-family: monospace;">#CPN-@item.BannerId | Ưu tiên: @item.DisplayOrder</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding: 16px; text-align: center;">
+                        <span class="status-badge @statusClass">@statusText</span>
+                        <div style="font-size: 11px; color: #6B7280; margin-top: 6px;">@item.StartDate.ToString("dd/MM") - @item.EndDate.ToString("dd/MM")</div>
+                    </td>
+                    <td style="padding: 16px; text-align: right;">
+                        <button onclick="openModal(@item.BannerId)" class="btn-outline" style="font-size: 12px; padding: 6px 16px; font-weight: 600;">QUẢN LÝ</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="modal-overlay" id="campaignModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle" style="margin: 0; font-size: 16px; font-weight: 800; color: #111827;">Thêm chiến dịch mới</h3>
+            <button onclick="closeModal()" style="background: none; border: none; font-size: 20px; color: #9CA3AF; cursor: pointer;">&times;</button>
+        </div>
+
+        <form action="/Admin/Campaign/Save" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+
+            <div class="modal-body">
+                <input type="hidden" name="BannerId" id="inputBannerId" value="0" />
+                <input type="hidden" name="ImageUrl" id="inputOldImage" value="" />
+
+                <div class="form-group-flat">
+                    <label class="form-label-flat">Tên chiến dịch truyền thông (*)</label>
+                    <input type="text" name="Title" id="inputTitle" class="form-control-flat" required placeholder="VD: Khuyến mãi xả kho tháng 10" />
+                </div>
+
+                <div class="form-group-flat">
+                    <label class="form-label-flat">Tài nguyên Hình ảnh (Tỷ lệ 3:1)</label>
+                    <input type="file" name="uploadImage" id="inputUpload" accept="image/*" class="form-control-flat" onchange="previewImage(event)" />
+                    <div class="image-preview-box">
+                        <span id="previewText" style="font-size: 12px; color: #9CA3AF;">Chưa có ảnh tải lên</span>
+                        <img id="previewImg" src="" style="display: none;" />
+                    </div>
+                </div>
+
+                <div class="form-group-flat">
+                    <label class="form-label-flat">Đường dẫn đích đến - Target URL (Tùy chọn)</label>
+                    <input type="text" name="TargetUrl" id="inputTarget" class="form-control-flat" placeholder="VD: /Home/Search?keyword=samsung" />
+                    <div style="font-size: 11px; color: #6B7280; margin-top: 4px;">Khách hàng sẽ được chuyển hướng tới trang này khi bấm vào Banner.</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group-flat">
+                        <label class="form-label-flat">Giờ kích hoạt (*)</label>
+                        <input type="datetime-local" name="StartDate" id="inputStart" class="form-control-flat" required />
+                    </div>
+                    <div class="form-group-flat">
+                        <label class="form-label-flat">Giờ kết thúc (*)</label>
+                        <input type="datetime-local" name="EndDate" id="inputEnd" class="form-control-flat" required />
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px;">
+                    <div class="form-group-flat">
+                        <label class="form-label-flat">Thứ tự ưu tiên (Nhỏ xếp trước)</label>
+                        <input type="number" name="DisplayOrder" id="inputOrder" class="form-control-flat" value="0" />
+                    </div>
+                    <div class="form-group-flat" style="display: flex; flex-direction: column; justify-content: center;">
+                        <label class="form-label-flat">Trạng thái Kích hoạt</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="IsActive" id="inputActive" value="true" checked>
+                            <span class="slider-flat"></span>
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeModal()" class="btn-outline" style="height: 38px; font-weight: 600; padding: 0 20px;">HỦY BỎ</button>
+                <button type="submit" class="btn-dark" style="height: 38px; font-weight: 600; padding: 0 24px;">LƯU CHIẾN DỊCH</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const modal = document.getElementById('campaignModal');
+        const previewImg = document.getElementById('previewImg');
+        const previewText = document.getElementById('previewText');
+
+        // Hàm Reset Form sạch sẽ khi ấn Tạo mới
+        function resetForm() {
+            document.getElementById('modalTitle').innerText = "Thêm chiến dịch mới";
+            document.getElementById('inputBannerId').value = "0";
+            document.getElementById('inputOldImage').value = "";
+            document.getElementById('inputTitle').value = "";
+            document.getElementById('inputUpload').value = "";
+            document.getElementById('inputTarget').value = "";
+            document.getElementById('inputOrder').value = "0";
+            document.getElementById('inputActive').checked = true;
+
+            // Set giờ mặc định là hôm nay và 7 ngày sau
+            const now = new Date();
+            const nextWeek = new Date(); nextWeek.setDate(now.getDate() + 7);
+
+            // Format chuẩn ISO cho the datetime-local HTML5
+            const formatForInput = (d) => {
+                return d.getFullYear() + '-' +
+                       String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                       String(d.getDate()).padStart(2, '0') + 'T' +
+                       String(d.getHours()).padStart(2, '0') + ':' +
+                       String(d.getMinutes()).padStart(2, '0');
+            };
+
+            document.getElementById('inputStart').value = formatForInput(now);
+            document.getElementById('inputEnd').value = formatForInput(nextWeek);
+
+            previewImg.style.display = "none";
+            previewImg.src = "";
+            previewText.style.display = "block";
+        }
+
+        // Mở Modal: Nếu truyền ID thì gọi AJAX lấy dữ liệu (Chế độ Sửa), ngược lại là Thêm mới
+        async function openModal(id = 0) {
+            resetForm();
+            if (id === 0) {
+                modal.style.display = "flex";
+            } else {
+                document.getElementById('modalTitle').innerText = "Đang tải dữ liệu...";
+                modal.style.display = "flex";
+
+                try {
+                    const res = await fetch(`/Admin/Campaign/GetDetail/${id}`);
+                    const data = await res.json();
+
+                    if(data.success) {
+                        document.getElementById('modalTitle').innerText = `Quản lý: ${data.title}`;
+                        document.getElementById('inputBannerId').value = data.bannerId;
+                        document.getElementById('inputOldImage').value = data.imageUrl;
+                        document.getElementById('inputTitle').value = data.title;
+                        document.getElementById('inputTarget').value = data.targetUrl;
+                        document.getElementById('inputStart').value = data.startDate;
+                        document.getElementById('inputEnd').value = data.endDate;
+                        document.getElementById('inputOrder').value = data.displayOrder;
+                        document.getElementById('inputActive').checked = data.isActive;
+
+                        if (data.imageUrl) {
+                            previewImg.src = data.imageUrl;
+                            previewImg.style.display = "block";
+                            previewText.style.display = "none";
+                        }
+                    } else {
+                        alert("Không tìm thấy dữ liệu.");
+                        closeModal();
+                    }
+                } catch(e) {
+                    alert("Lỗi kết nối máy chủ");
+                    closeModal();
+                }
+            }
+        }
+
+        function closeModal() {
+            modal.style.display = "none";
+        }
+
+        // Hiển thị ảnh Live Preview khi Admin chọn file
+        function previewImage(event) {
+            const input = event.target;
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = "block";
+                    previewText.style.display = "none";
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Tắt Modal khi bấm ra không gian viền xám bên ngoài
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+}

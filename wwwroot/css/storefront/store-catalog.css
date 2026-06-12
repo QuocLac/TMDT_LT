@@ -1,0 +1,212 @@
+﻿/* BỐ CỤC CHÍNH BỘ LỌC 2 CỘT KHÔNG ĐỐI XỨNG */
+.catalog-layout-grid {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 40px;
+    align-items: start;
+}
+
+/* SIDEBAR BỘ LỌC (LEFT SIDEBAR) */
+.catalog-sidebar {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 24px;
+}
+
+.filter-group-box {
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+    .filter-group-box:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+.filter-title-flat {
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--navy-deep);
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+}
+
+/* LƯỚI CHECKBOX TỐI GIẢN */
+.filter-list-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.checkbox-label-flat {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy-medium);
+    cursor: pointer;
+    user-select: none;
+}
+
+    .checkbox-label-flat input[type="checkbox"] {
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        outline: none;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s;
+        background: #FFFFFF;
+    }
+
+        .checkbox-label-flat input[type="checkbox"]:checked {
+            background: var(--navy-deep);
+            border-color: var(--navy-deep);
+        }
+
+            .checkbox-label-flat input[type="checkbox"]:checked::after {
+                content: "\f00c";
+                font-family: "Font Awesome 5 Free";
+                font-weight: 900;
+                font-size: 10px;
+                color: #FFFFFF;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+
+/* Ô NHẬP KHOẢNG GIÁ ĐƠN SẮC */
+.price-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+    .price-range-inputs input {
+        width: 100%;
+        height: 36px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 700;
+        font-family: monospace;
+        color: var(--navy-deep);
+        outline: none;
+    }
+
+/* TOOLBAR ĐIỀU PHỐI PHÍA TRÊN */
+.catalog-toolbar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 30px;
+}
+
+.result-counter-txt {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy-medium);
+}
+
+.select-sort-flat {
+    height: 38px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy-deep);
+    outline: none;
+    background: #FFFFFF;
+    cursor: pointer;
+}
+
+/* LƯỚI SẢN PHẨM CATALOG (MẶT TIỀN) */
+.catalog-products-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 cột chuẩn tỉ lệ khi có sidebar */
+    gap: 44px;
+}
+
+/* Nhãn hiển thị điểm tìm kiếm fuzzy ngầm cho lập trình viên kiểm tra */
+.score-badge-dev {
+    font-size: 10px;
+    color: #94A3B8;
+    margin-top: 6px;
+    text-align: right;
+    font-family: monospace;
+}
+
+/* =========================================================
+   ĐIỀU HƯỚNG PHÂN TRANG (PAGINATION)
+========================================================= */
+.catalog-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 50px;
+    padding-top: 30px;
+    border-top: 1px solid var(--border-color);
+}
+
+.page-btn {
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    background: #FFFFFF;
+    color: var(--navy-medium);
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+    .page-btn:hover:not(:disabled):not(.active) {
+        border-color: var(--navy-deep);
+        color: var(--navy-deep);
+    }
+
+    .page-btn.active {
+        background: var(--navy-deep);
+        border-color: var(--navy-deep);
+        color: #FFFFFF;
+        cursor: default;
+    }
+
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #F8FAFC;
+    }
+
+.page-dots {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 4px;
+    padding-bottom: 6px;
+    color: var(--navy-medium);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    user-select: none;
+}

@@ -59,8 +59,13 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<Suppliers> Suppliers { get; set; }
     
     public virtual DbSet<ProductImages> ProductImages { get; set; }
+
     public virtual DbSet<OrderHistory> OrderHistories { get; set; }
+
     public virtual DbSet<ShippingCarriers> ShippingCarriers { get; set; }
+
+    public virtual DbSet<CampaignBanners> CampaignBanners { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

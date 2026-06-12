@@ -1,0 +1,39 @@
+﻿/* COLOR PALETTE & VARIABLES: TONE TRẮNG & XANH NAVY */
+:root {
+    --navy-deep: #0F172A; /* Xanh Navy đậm - Sang trọng */
+    --navy-medium: #1E293B; /* Xanh Navy trung tính */
+    --navy-light: #F8FAFC; /* Trắng tuyết pha xanh cực nhẹ */
+    --border-color: #E2E8F0; /* Màu đường viền mảnh */
+    --white: #FFFFFF;
+    --accent-red: #DC2626; /* Đỏ dùng cho khuyến mãi/giá cũ */
+    --success-green: #059669; /* Xanh lá cho trạng thái tốt */
+}
+
+/* GLOBAL RESETS */
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--white);
+    color: var(--navy-deep);
+    overflow-x: hidden;
+}
+
+/* COMMON COMPONENTS */
+.btn-dark {
+    background: var(--navy-deep);
+    color: var(--white);
+    border: 1px solid var(--navy-deep);
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .btn-dark:hover {
+        background: var(--navy-medium);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+    }
