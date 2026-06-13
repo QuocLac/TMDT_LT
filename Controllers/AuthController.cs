@@ -45,11 +45,38 @@ namespace TMDT_LT.Controllers
                 .Include(a => a.Customer)
                 .FirstOrDefaultAsync(a => a.Email == email && a.IsActive == true);
 
-            if (account == null || !BCryptNet.Verify(password, account.Password))
+            // ==========================================
+            // FIX: XỬ LÝ LỖI MẬT KHẨU CŨ CHƯA ĐƯỢC HASH
+            // ==========================================
+            bool isPasswordValid = false;
+
+            if (account != null)
+            {
+                // Mật khẩu hash bằng BCrypt luôn bắt đầu bằng "$2" (VD: $2a$, $2b$, $2y$)
+                if (account.Password.StartsWith("$2"))
+                {
+                    try
+                    {
+                        isPasswordValid = BCryptNet.Verify(password, account.Password);
+                    }
+                    catch (BCrypt.Net.SaltParseException)
+                    {
+                        isPasswordValid = false;
+                    }
+                }
+                else
+                {
+                    // Fallback: Dành cho các tài khoản cũ lưu bằng Plain Text (VD: "user789")
+                    isPasswordValid = (password == account.Password);
+                }
+            }
+
+            if (account == null || !isPasswordValid)
             {
                 ModelState.AddModelError("", "Email hoặc mật khẩu không đúng.");
                 return View();
             }
+            // ==========================================
 
             var customerId = account.Customer.FirstOrDefault()?.CustomerId.ToString() ?? "";
 
@@ -130,16 +157,15 @@ namespace TMDT_LT.Controllers
                 return View();
             }
         }
-        // Trong AuthController, sau khi sign in
+
         private async Task MergeCartAfterLogin(int customerId)
         {
             var sessionCart = HttpContext.Session.Get<List<CartItemSession>>("PhoneStore_Cart");
             if (sessionCart != null && sessionCart.Any())
             {
-                // Xóa cart cũ của customer
                 var existing = _context.CartItems.Where(c => c.CustomerId == customerId);
                 _context.CartItems.RemoveRange(existing);
-                // Thêm mới
+
                 foreach (var item in sessionCart)
                 {
                     _context.CartItems.Add(new CartItems
@@ -151,10 +177,10 @@ namespace TMDT_LT.Controllers
                     });
                 }
                 await _context.SaveChangesAsync();
-                // Xóa session cart
                 HttpContext.Session.Remove("PhoneStore_Cart");
             }
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()

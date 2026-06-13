@@ -1,0 +1,324 @@
+﻿@model List<TMDT_LT.Models.FavoriteDetails>
+@{
+    ViewData["Title"] = "Sản phẩm yêu thích";
+    Layout = "_Layout";
+}
+
+@section Styles {
+    <style>
+        .favorites-container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 16px;
+            min-height: 50vh;
+        }
+
+        .favorites-title {
+            font-size: 24px;
+            color: var(--navy-deep);
+            margin-bottom: 24px;
+            border-left: 4px solid var(--accent-red);
+            padding-left: 12px;
+        }
+
+        .favorites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .empty-favorites {
+            text-align: center;
+            padding: 60px 20px;
+            background: #F8FAFC;
+            border-radius: 8px;
+            color: #64748B;
+            border: 1px dashed var(--border-color);
+        }
+
+            .empty-favorites i {
+                font-size: 48px;
+                color: #CBD5E1;
+                margin-bottom: 16px;
+            }
+
+        .market-product-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            transition: transform 0.2s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+            .market-product-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            }
+
+        .product-card-img {
+            width: 100%;
+            height: 200px;
+            object-fit: contain;
+            margin-bottom: 12px;
+        }
+
+        .product-card-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--navy-deep);
+            margin-bottom: 8px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .variant-info {
+            font-size: 11px;
+            color: #64748B;
+            margin-bottom: 12px;
+            background: #F1F5F9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .price-market-current {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-red);
+        }
+
+        .price-market-old {
+            font-size: 12px;
+            text-decoration: line-through;
+            color: #9CA3AF;
+            margin-left: 8px;
+        }
+
+        /* CSS Nút Xóa */
+        .btn-remove-fav {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #FEE2E2;
+            color: #EF4444;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+            .btn-remove-fav:hover {
+                background: #EF4444;
+                color: #fff;
+                transform: scale(1.1);
+            }
+
+        /* CSS Nút Giỏ hàng */
+        .btn-home-cart {
+            width: 100%;
+            padding: 10px 0;
+            background: #F8FAFC;
+            color: var(--navy-deep);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+            .btn-home-cart:hover:not(:disabled) {
+                background: var(--navy-deep);
+                color: #FFFFFF;
+                border-color: var(--navy-deep);
+            }
+
+            .btn-home-cart:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                background: #F1F5F9;
+                color: #9CA3AF;
+            }
+    </style>
+}
+
+<div class="favorites-container">
+    <h1 class="favorites-title">Danh sách yêu thích của tôi</h1>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="empty-favorites">
+            <i class="far fa-heart"></i>
+            <h3>Chưa có sản phẩm nào</h3>
+            <p style="margin-top: 8px; margin-bottom: 24px;">Hãy thêm các sản phẩm bạn yêu thích để dễ dàng mua sắm sau nhé.</p>
+            <a href="/Store" class="btn-dark" style="padding: 10px 24px; text-decoration: none; border-radius: 4px; font-weight: 600; display: inline-block;">ĐẾN CỬA HÀNG</a>
+        </div>
+    }
+    else
+    {
+        <div class="favorites-grid">
+            @foreach (var item in Model)
+            {
+                var variant = item.Variant;
+
+                <div class="market-product-card" id="fav-item-@variant.VariantId">
+                    <button type="button" class="btn-remove-fav" onclick="removeFromFavorites(event, @variant.VariantId)" title="Xóa khỏi yêu thích">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+
+                    <a href="/Store/Product/@variant.ProductId" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; flex: 1; margin-bottom: 16px;">
+                        <img src="@(string.IsNullOrEmpty(variant.ImageUrl) ? variant.Product.MainImage : variant.ImageUrl)" alt="@variant.Product.Name" class="product-card-img" onerror="this.src='https://via.placeholder.com/200?text=No+Image'" />
+
+                        <div class="product-card-name">@variant.Product.Name</div>
+
+                        <div>
+                            <span class="variant-info">@variant.Color | @variant.Ram | @variant.Storage</span>
+                        </div>
+
+                        <div>
+                            @if (variant.DiscountPrice != null && variant.DiscountPrice > 0)
+                            {
+                                <span class="price-market-current">@string.Format("{0:N0}", variant.DiscountPrice) đ</span>
+                                <span class="price-market-old">@string.Format("{0:N0}", variant.Price) đ</span>
+                            }
+                            else
+                            {
+                                <span class="price-market-current">@string.Format("{0:N0}", variant.Price) đ</span>
+                            }
+                        </div>
+                    </a>
+
+                    <form action="/Cart/AddToCart" method="post" class="ajax-cart-form" style="margin: 0; width: 100%;">
+                        <input type="hidden" name="variantId" value="@variant.VariantId" />
+                        <input type="hidden" name="quantity" value="1" />
+
+                        @if (variant.Stock > 0)
+                        {
+                            <button type="submit" class="btn-home-cart">
+                                <i class="fas fa-shopping-cart"></i> THÊM VÀO GIỎ
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn-home-cart" disabled>
+                                <i class="fas fa-box-open"></i> HẾT HÀNG
+                            </button>
+                        }
+                    </form>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // 1. TÍNH NĂNG XÓA YÊU THÍCH (TÁI SỬ DỤNG HÀM TOGGLE CỦA BẠN)
+        window.removeFromFavorites = async function (event, variantId) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (!confirm("Xóa sản phẩm này khỏi danh sách yêu thích?")) return;
+
+            try {
+                const formData = new FormData();
+                formData.append('variantId', variantId);
+
+                // Gọi vào hàm Toggle, nếu truyền mã đang có sẵn nó sẽ tự Xóa
+                const response = await fetch('/Favorite/Toggle', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    window.showToast("Đã xóa khỏi danh sách.", "success");
+
+                    // Hiệu ứng xóa mờ dần thẻ HTML
+                    const card = document.getElementById(`fav-item-${variantId}`);
+                    if (card) {
+                        card.style.transition = "all 0.3s ease";
+                        card.style.opacity = "0";
+                        card.style.transform = "scale(0.9)";
+
+                        setTimeout(() => {
+                            card.remove();
+                            // Nếu xóa hết sạch sản phẩm, reload trang để hiện màn hình "Trống"
+                            if (document.querySelectorAll('.market-product-card').length === 0) {
+                                window.location.reload();
+                            }
+                        }, 300);
+                    }
+                } else {
+                    window.showToast(data.message, "error");
+                }
+            } catch (e) {
+                window.showToast("Lỗi kết nối máy chủ.", "error");
+            }
+        };
+
+        // 2. TÍNH NĂNG THÊM GIỎ HÀNG KHÔNG RELOAD TRANG
+        document.querySelectorAll('.ajax-cart-form').forEach(form => {
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                const btnSubmit = this.querySelector('.btn-home-cart');
+                if (btnSubmit.disabled) return;
+
+                const originalContent = btnSubmit.innerHTML;
+                btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ĐANG XỬ LÝ';
+                btnSubmit.disabled = true;
+
+                try {
+                    const formData = new FormData(this);
+                    const url = this.action;
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    if (response.ok || response.redirected) {
+                        window.showToast("Đã thêm sản phẩm vào giỏ hàng!", "success");
+
+                        // Cộng dồn số lượng trên icon Header
+                        const cartBadge = document.getElementById('header-cart-badge');
+                        if (cartBadge) {
+                            let currentQty = parseInt(cartBadge.innerText) || 0;
+                            let qtyToAdd = parseInt(formData.get('quantity')) || 1;
+                            cartBadge.innerText = currentQty + qtyToAdd;
+                            cartBadge.classList.add('has-items');
+                        }
+                    } else {
+                        window.showToast("Không thể thêm vào giỏ hàng lúc này.", "error");
+                    }
+                } catch (error) {
+                    window.showToast("Lỗi kết nối đến máy chủ.", "error");
+                } finally {
+                    btnSubmit.innerHTML = originalContent;
+                    btnSubmit.disabled = false;
+                }
+            });
+        });
+    </script>
+}
