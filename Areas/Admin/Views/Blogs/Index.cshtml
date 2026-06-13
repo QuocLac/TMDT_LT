@@ -1,0 +1,99 @@
+﻿@model IEnumerable<TMDT_LT.Models.Blog>
+@{
+    ViewData["Title"] = "Quản lý bài viết Công nghệ";
+    Layout = "~/Areas/Admin/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin/admin-blog.css" asp-append-version="true" />
+}
+
+<div class="admin-card">
+    <div class="blog-header-actions">
+        <h6 class="blog-title-main">Danh sách bài viết Showcase</h6>
+        <a asp-action="Create" class="btn-dark">Viết bài mới</a>
+    </div>
+
+    <table class="data-table" id="dataTable">
+        <thead>
+            <tr>
+                <th style="width: 50px;">ID</th>
+                <th style="width: 100px;">Ảnh bìa</th>
+                <th>Tiêu đề bài viết</th>
+                <th style="width: 150px;">Ngày tạo</th>
+                <th style="width: 120px;">Trạng thái</th>
+                <th style="width: 100px;">Lượt xem</th>
+                <th style="width: 160px;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                foreach (var item in Model)
+                {
+                    <tr id="blog-row-@item.BlogId">
+                        <td>@item.BlogId</td>
+                        <td>
+                            <img src="@(string.IsNullOrEmpty(item.Thumbnail) ? "https://via.placeholder.com/80x45/F8FAFC/9CA3AF?text=No+Image" : item.Thumbnail)" class="blog-table-img" alt="Thumbnail" />
+                        </td>
+                        <td>
+                            <strong style="color: #111827; display: block; margin-bottom: 4px;">@item.Title</strong>
+                            <span style="font-size: 12px; color: #6B7280;">Slug: @item.Slug</span>
+                        </td>
+                        <td style="color: #4B5563;">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>
+                            @if (item.IsActive)
+                            {
+                                <span class="status-badge status-active">Hiển thị</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge status-draft">Bản nháp</span>
+                            }
+                        </td>
+                        <td style="color: #6B7280; font-weight: 600;">@item.ViewCount</td>
+                        <td>
+                            <div class="action-btn-group">
+                                <a asp-action="Edit" asp-route-id="@item.BlogId" class="btn-outline">Chỉnh sửa</a>
+                                <button type="button" class="btn-danger" onclick="confirmDeleteBlog(@item.BlogId)">Xóa</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #9CA3AF;">Chưa có bài viết nào trong hệ thống.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        async function confirmDeleteBlog(blogId) {
+            if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa bài viết này?")) {
+                try {
+                    const response = await fetch(`/Admin/Blogs/Delete/${blogId}`, {
+                        method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        const row = document.getElementById(`blog-row-${blogId}`);
+                        if (row) {
+                            row.style.transition = "all 0.5s ease";
+                            row.style.opacity = "0";
+                            setTimeout(() => row.remove(), 500);
+                        }
+                    } else {
+                        alert(data.message);
+                    }
+                } catch (error) {
+                    alert("Lỗi kết nối xóa dữ liệu.");
+                }
+            }
+        }
+    </script>
+}

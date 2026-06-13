@@ -66,6 +66,16 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<CampaignBanners> CampaignBanners { get; set; }
 
+    public virtual DbSet<Promotions> Promotions { get; set; }
+
+    public virtual DbSet<PromotionRules> PromotionRules { get; set; }
+
+    public virtual DbSet<CustomerWallet> CustomerWallet { get; set; }
+
+    public virtual DbSet<Blog> Blogs { get; set; }
+
+    public virtual DbSet<BlogMedia> BlogMedias { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

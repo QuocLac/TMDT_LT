@@ -1,0 +1,50 @@
+﻿@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Đăng nhập";
+}
+
+<h2 style="font-size: 28px; margin-bottom: 8px;">Chào mừng trở lại</h2>
+<p style="color: var(--auth-text-muted); margin-bottom: 28px;">Đăng nhập để trải nghiệm ưu đãi độc quyền</p>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-error">@TempData["Error"]</div>
+}
+
+<form method="post" asp-action="Login">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+
+    <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" placeholder="name@example.com" required autofocus />
+    </div>
+    <div class="form-group">
+        <label class="form-label">Mật khẩu</label>
+        <input type="password" name="password" class="form-control" placeholder="••••••••" required />
+    </div>
+
+    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0)
+    {
+        <div class="alert alert-error">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <span>@error.ErrorMessage</span>
+        
+                <br />
+            }
+        </div>
+    }
+
+    <button type="submit" class="btn-auth btn-primary">Đăng nhập</button>
+
+    <div class="auth-links" style="margin-top: 20px;">
+        <a href="/Auth/ForgotPassword">Quên mật khẩu?</a>
+        <span style="margin: 0 8px;">•</span>
+        <a href="/Auth/Register">Tạo tài khoản mới</a>
+    </div>
+</form>

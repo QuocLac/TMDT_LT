@@ -158,3 +158,27 @@
     font-family: monospace;
     display: block; /* Đảm bảo hiển thị dạng khối */
 }
+/* Trạng thái mặc định khi giỏ trống */
+.cart-badge {
+    transition: all 0.3s ease;
+}
+
+    /* Hiệu ứng nảy (bounce) và đổi màu khi có đồ trong giỏ */
+    .cart-badge.has-items {
+        background-color: var(--accent-red); /* Chuyển sang màu đỏ báo hiệu */
+        animation: popBadge 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+@keyframes popBadge {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.4);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}

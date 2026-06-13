@@ -45,15 +45,20 @@ namespace TMDT_LT.Controllers
 
             var scoredResults = new List<SearchResultItemVM>();
 
-            // 2. TẦNG LỌC 1: THUẬT TOÁN FUZZY SEARCH (Nếu có từ khóa)
+            // 2. TẦNG LỌC 1: THUẬT TOÁN FUZZY SEARCH KẾT HỢP BIẾN THỂ (SMART ENGINE)
             if (!string.IsNullOrWhiteSpace(keyword))
             {
                 string kw = keyword.Trim().ToLower();
                 string kwNoMark = StringHelper.RemoveDiacritics(kw);
 
+                // Tách từ khóa thành các mảng từ rời để tìm kiếm chéo (VD: "iphone 256gb đỏ")
+                var kwParts = kwNoMark.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
                 scoredResults = rawProducts.Select(p =>
                 {
                     int score = 0;
+
+                    // Lấy dữ liệu cơ bản
                     string pName = (p.Name ?? "").ToLower();
                     string pNameNoMark = StringHelper.RemoveDiacritics(pName);
                     string cName = (p.Category?.CategoryName ?? "").ToLower();
@@ -63,6 +68,18 @@ namespace TMDT_LT.Controllers
                     string chip = (p.Chipset ?? "").ToLower();
                     string chipNoMark = StringHelper.RemoveDiacritics(chip);
 
+                    // ========================================================
+                    // BƯỚC 1: QUÉT THÔNG SỐ TỪ DANH SÁCH BIẾN THỂ (VARIANTS)
+                    // ========================================================
+                    var activeVariants = p.ProductVariants.Where(v => v.IsActive == true).ToList();
+
+                    // Gom tất cả Màu, RAM, ROM của máy này thành 1 chuỗi dài
+                    string variantData = string.Join(" ", activeVariants.Select(v => $"{v.Color} {v.Ram} {v.Storage}")).ToLower();
+                    string variantDataNoMark = StringHelper.RemoveDiacritics(variantData);
+
+                    // ========================================================
+                    // BƯỚC 2: CHẤM ĐIỂM TÌM KIẾM NGUYÊN CỤM
+                    // ========================================================
                     if (pName.Contains(kw)) score += 100;
                     else if (pNameNoMark.Contains(kwNoMark)) score += 70;
 
@@ -74,6 +91,41 @@ namespace TMDT_LT.Controllers
 
                     if (chip.Contains(kw)) score += 20;
                     else if (chipNoMark.Contains(kwNoMark)) score += 10;
+
+                    // Điểm cho Màu, RAM, Bộ nhớ nếu gõ chính xác nguyên cụm
+                    if (variantData.Contains(kw)) score += 40;
+                    else if (variantDataNoMark.Contains(kwNoMark)) score += 20;
+
+                    // ========================================================
+                    // BƯỚC 3: CHẤM ĐIỂM CHÉO TỪ KHÓA (CROSS-MATCHING TOKENIZER)
+                    // ========================================================
+                    // Giải quyết bài toán gõ: "tên máy + thông số" (Vd: "Samsung 512GB")
+                    if (kwParts.Length > 1)
+                    {
+                        // Tạo một "hồ chứa" toàn bộ văn bản của sản phẩm này
+                        string fullProductText = $"{pNameNoMark} {cNameNoMark} {bNameNoMark} {chipNoMark} {variantDataNoMark}";
+                        int matchCount = 0;
+
+                        // Kiểm tra xem hồ chứa có chứa ĐỦ các từ khóa khách gõ không
+                        foreach (var part in kwParts)
+                        {
+                            if (fullProductText.Contains(part))
+                            {
+                                matchCount++;
+                            }
+                        }
+
+                        // Nếu khớp TẤT CẢ các từ (Vd: Vừa có chữ samsung, vừa có chữ 512gb) -> Đẩy lên top
+                        if (matchCount == kwParts.Length)
+                        {
+                            score += 85;
+                        }
+                        // Nếu khớp một phần, cộng điểm khuyến khích
+                        else if (matchCount > 0)
+                        {
+                            score += (matchCount * 5);
+                        }
+                    }
 
                     return new SearchResultItemVM { Product = p, RelevanceScore = score };
                 })
@@ -97,14 +149,21 @@ namespace TMDT_LT.Controllers
                 scoredResults = scoredResults.Where(x => categoryIds.Contains(x.Product.CategoryId)).ToList();
             }
 
-            if (minPrice.HasValue)
+            if (minPrice.HasValue || maxPrice.HasValue)
             {
-                scoredResults = scoredResults.Where(x => x.Product.ProductVariants.Any(v => v.IsActive == true && (v.DiscountPrice > 0 ? v.DiscountPrice : v.Price) >= minPrice.Value)).ToList();
-            }
+                scoredResults = scoredResults.Where(x =>
+                {
+                    var activeVariants = x.Product.ProductVariants.Where(v => v.IsActive == true);
+                    if (!activeVariants.Any()) return false;
 
-            if (maxPrice.HasValue)
-            {
-                scoredResults = scoredResults.Where(x => x.Product.ProductVariants.Any(v => v.IsActive == true && (v.DiscountPrice > 0 ? v.DiscountPrice : v.Price) <= maxPrice.Value)).ToList();
+                    // Tìm giá biến thể rẻ nhất (chính là giá hiển thị trên card)
+                    var minVariantPrice = activeVariants.Min(v => v.DiscountPrice > 0 ? v.DiscountPrice : v.Price);
+
+                    bool matchMin = !minPrice.HasValue || minVariantPrice >= minPrice.Value;
+                    bool matchMax = !maxPrice.HasValue || minVariantPrice <= maxPrice.Value;
+
+                    return matchMin && matchMax;
+                }).ToList();
             }
 
             // 4. TẦNG LỌC 3: SẮP XẾP KẾT QUẢ
@@ -133,7 +192,7 @@ namespace TMDT_LT.Controllers
             }
 
             // 5. TẦNG LỌC 4: THUẬT TOÁN PHÂN TRANG (PAGINATION)
-            int pageSize = 1; // Số sản phẩm trên 1 trang (12 chia hết cho 3 và 4, rất đẹp)
+            int pageSize = 12; // Số sản phẩm trên 1 trang (12 chia hết cho 3 và 4, rất đẹp)
             int totalItems = scoredResults.Count;
             int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 

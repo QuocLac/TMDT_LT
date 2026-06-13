@@ -1,0 +1,297 @@
+﻿@model TMDT_LT.Models.ViewModels.Admin.PromotionCreateVM
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Khởi tạo khuyến mãi";
+}
+
+<div style="margin-bottom: 35px;">
+    <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 4px;">
+        <i class="fas fa-arrow-left" style="font-size: 11px;"></i> Quay lại danh sách chiến dịch
+    </a>
+    <h2 style="margin-top: 12px; font-weight: 800; letter-spacing: -0.5px;">Thiết lập cấu hình chiến dịch mới</h2>
+</div>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+
+    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0)
+    {
+        <div style="background: #FEE2E2; color: #DC2626; padding: 15px; border-radius: 6px; margin-bottom: 25px; font-size: 14px;">
+            <div asp-validation-summary="All"></div>
+        </div>
+    }
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+
+            <div class="admin-card">
+                <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; color: #6B7280; letter-spacing: 0.5px; text-transform: uppercase;">1. Thông tin cốt lõi chiến dịch</h3>
+
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <label class="form-label">Tên chiến dịch tiếp thị (*)</label>
+                    <input asp-for="Name" class="form-control" placeholder="Ví dụ: Tri ân khách hàng tháng 6, Siêu sale ngày đôi..." required />
+                </div>
+
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <label class="form-label">Mã Voucher công khai (Code) (*)</label>
+                    <input asp-for="Code" class="form-control" style="text-transform: uppercase; font-weight: 700; color: #DC2626; letter-spacing: 1px;" placeholder="Ví dụ: PHONE66, APPLERED" required />
+                    <span style="font-size: 11px; color: #94A3B8; margin-top: 4px; display: block;">Hệ thống tự động chuyển thành chữ in hoa và loại bỏ khoảng trắng khi lưu trữ.</span>
+                </div>
+
+                <div class="form-row" style="margin: 0;">
+                    <label class="form-label">Ghi chú điều khoản</label>
+                    <textarea asp-for="Description" class="form-control" rows="3" placeholder="Điều kiện áp dụng cụ thể của mã giảm giá..." style="resize: none;"></textarea>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; color: #6B7280; letter-spacing: 0.5px; text-transform: uppercase;">2. Thiết lập động cơ điều kiện & Phần thưởng</h3>
+
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <label class="form-label">Giá trị đơn hàng tối thiểu (VNĐ) (*)</label>
+                    <input asp-for="MinOrderValue" type="number" class="form-control" placeholder="0" min="0" required />
+                    <span style="font-size: 11px; color: #94A3B8; margin-top: 4px; display: block;">Khách hàng phải đạt ngưỡng tạm tính này ngoài giỏ hàng để kích hoạt Voucher.</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 16px;">
+                    <div class="form-row" style="margin: 0;">
+                        <label class="form-label">Cơ chế khấu trừ giá</label>
+                        <select asp-for="DiscountType" id="ddlDiscountType" class="form-control" onchange="syncDiscountTypeEngine()">
+                            <option value="1">Khấu trừ tiền mặt trực tiếp (VNĐ)</option>
+                            <option value="0">Khấu trừ theo tỷ lệ phần trăm (%)</option>
+                        </select>
+                    </div>
+                    <div class="form-row" style="margin: 0;">
+                        <label class="form-label" id="lblDiscountValueTitle">Mức tiền khấu trừ (*)</label>
+                        <input asp-for="DiscountValue" type="number" class="form-control" placeholder="Nhập giá trị..." min="0" required />
+                    </div>
+                </div>
+
+                <div class="form-row" id="divMaxDiscountWrapper" style="display: none; margin: 0; background: #FFF7ED; border: 1px dashed #F97316; padding: 16px; border-radius: 6px;">
+                    <label class="form-label" style="color: #C2410C; font-weight: 700;">Hạn mức giảm tối đa trên một đơn hàng (VNĐ)</label>
+                    <input asp-for="MaxDiscountAmount" type="number" class="form-control" placeholder="Nhập trần giảm giá..." min="0" />
+                    <span style="font-size: 11px; color: #9A3412; margin-top: 6px; display: block;">Ví dụ giảm 10% nhưng tối đa không quá 500,000 đ để tránh rủi ro khi giá trị đơn hàng quá lớn.</span>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; color: #6B7280; letter-spacing: 0.5px; text-transform: uppercase;">3. Phân khúc khách hàng & Động cơ Airdrop</h3>
+
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <label class="form-label">Phương thức phân phối quà tặng (*)</label>
+                    <select asp-for="TargetAudience" id="ddlTargetAudience" class="form-control" onchange="syncAudienceEngine()">
+                        <option value="0">Công khai hoàn toàn (Hiển thị trang chủ, khách tự thu thập)</option>
+                        <option value="1">Tặng đại trà toàn sàn (Tự động nạp thẳng vào ví tất cả hội viên)</option>
+                        <option value="2">Tặng theo phân khúc / Hạng thành viên thiết lập</option>
+                        <option value="3">Tặng đích danh (Tri ân đặc biệt / Đền bù khiếu nại)</option>
+                    </select>
+                </div>
+
+                <div class="form-row" id="divTargetRank" style="display: none; margin: 0; background: #F3F4F6; padding: 16px; border-radius: 6px; margin-bottom: 16px;">
+                    <label class="form-label">Chọn Hạng thành viên được thụ hưởng quà tặng</label>
+                    <select asp-for="TargetCustomerType" class="form-control">
+                        <option value="">-- Chọn phân hạng hội viên --</option>
+                        <option value="Newbie">Thành viên Mới (Newbie)</option>
+                        <option value="Silver">Thành viên Bạc (Silver)</option>
+                        <option value="Gold">Thành viên Vàng (Gold)</option>
+                        <option value="Diamond">Thành viên Kim Cương (Diamond)</option>
+                    </select>
+                </div>
+
+                <div class="form-row" id="divTargetEmails" style="display: none; margin: 0; background: #F3F4F6; padding: 16px; border-radius: 6px;">
+                    <label class="form-label">Tài khoản đích danh nhận Voucher</label>
+
+                    <input type="hidden" asp-for="TargetEmails" id="hiddenTargetEmails" />
+
+                    <div style="position: relative;">
+                        <div id="emailTagsContainer" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px; border: 1px solid var(--admin-border); border-radius: 4px; background: white; min-height: 44px; align-items: center; cursor: text;" onclick="document.getElementById('emailSearchInput').focus();">
+                            <input type="text" id="emailSearchInput" placeholder="Gõ email khách hàng..." style="border: none; outline: none; flex: 1; min-width: 180px; background: transparent; font-size: 13px;" autocomplete="off" />
+                        </div>
+
+                        <ul id="emailSuggestions" style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid var(--admin-border); border-radius: 4px; list-style: none; padding: 0; margin: 4px 0 0 0; width: 100%; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+                        </ul>
+                    </div>
+                    <span style="font-size: 11px; color: #6B7280; margin-top: 8px; display: block;">Hệ thống sẽ gợi ý tài khoản có sẵn. Bạn cũng có thể gõ Email và bấm <strong>Enter</strong> để nhập thủ công.</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            <div class="admin-card">
+                <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; color: #6B7280; letter-spacing: 0.5px; text-transform: uppercase;">4. Quy mô & Thời hạn</h3>
+
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <label class="form-label">Thời điểm kích hoạt (*)</label>
+                    <input asp-for="StartDate" type="datetime-local" class="form-control" required />
+                </div>
+
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <label class="form-label">Thời điểm kết thúc (*)</label>
+                    <input asp-for="EndDate" type="datetime-local" class="form-control" required />
+                </div>
+
+                <div class="form-row" style="margin: 0; padding-top: 16px; border-top: 1px dashed var(--admin-border);">
+                    <label class="form-label">Tổng lượt phát hành trên hệ thống (*)</label>
+                    <input asp-for="UsageLimit" type="number" min="1" class="form-control" placeholder="100" required />
+                    <span style="font-size: 11px; color: #94A3B8; margin-top: 4px; display: block;">Chiến dịch tự động đóng hoàn toàn khi số lượng đơn áp dụng thành công đạt giới hạn này.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 30px; margin-bottom: 50px;">
+        <a asp-action="Index" class="btn-outline" style="padding: 12px 30px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px;">Hủy bỏ tác vụ</a>
+        <button type="submit" class="btn-dark" style="padding: 12px 40px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Khởi tạo chiến dịch</button>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        // 1. ĐIỀU PHỐI ẨN/HIỆN TRẦN GIẢM GIÁ THEO LOẠI % HỢP ĐỒNG
+        function syncDiscountTypeEngine() {
+            const type = document.getElementById("ddlDiscountType").value;
+            const lblTitle = document.getElementById("lblDiscountValueTitle");
+            const divMaxWrapper = document.getElementById("divMaxDiscountWrapper");
+
+            if (type === "0") {
+                lblTitle.innerText = "Mức tỷ lệ khấu trừ (%) (*)";
+                divMaxWrapper.style.display = "block";
+            } else {
+                lblTitle.innerText = "Mức tiền khấu trừ (VNĐ) (*)";
+                divMaxWrapper.style.display = "none";
+                document.getElementById("MaxDiscountAmount").value = "";
+            }
+        }
+
+        // 2. ĐIỀU PHỐI ẨN/HIỆN PHÂN ĐOẠN ĐỐI TƯỢNG NHẬN VOUCHER (AIRDROP)
+        function syncAudienceEngine() {
+            const audienceType = document.getElementById("ddlTargetAudience").value;
+            const divRank = document.getElementById("divTargetRank");
+            const divEmails = document.getElementById("divTargetEmails");
+
+            divRank.style.display = "none";
+            divEmails.style.display = "none";
+
+            if (audienceType === "2") {
+                divRank.style.display = "block";
+            } else if (audienceType === "3") {
+                divEmails.style.display = "block";
+            }
+        }
+
+        // Ép viết hoa mã Code và xóa dấu khoảng trắng real-time khi gõ
+        document.getElementById("Code")?.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/\s/g, '');
+        });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            syncDiscountTypeEngine();
+            syncAudienceEngine();
+        });
+
+        // =======================================================
+        // ĐỘNG CƠ TÌM KIẾM EMAIL GỢI Ý VÀ QUẢN LÝ TAGS ĐÍCH DANH
+        // =======================================================
+        let selectedEmails = [];
+        const searchInput = document.getElementById('emailSearchInput');
+        const suggestionsBox = document.getElementById('emailSuggestions');
+        const tagsContainer = document.getElementById('emailTagsContainer');
+        const hiddenInput = document.getElementById('hiddenTargetEmails');
+
+        // Hàm vẽ giao diện các khối Tag Email
+        function renderTags() {
+            document.querySelectorAll('.email-tag').forEach(e => e.remove());
+
+            selectedEmails.forEach(email => {
+                const tag = document.createElement('span');
+                tag.className = 'email-tag';
+                tag.style.cssText = "background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #C7D2FE;";
+                tag.innerHTML = `${email} <i class="fas fa-times" style="cursor: pointer; font-size: 10px; color: #818CF8;" onclick="removeEmail('${email}')"></i>`;
+                tagsContainer.insertBefore(tag, searchInput);
+            });
+
+            hiddenInput.value = selectedEmails.join(',');
+        }
+
+        // Xóa một Tag
+        window.removeEmail = function(email) {
+            selectedEmails = selectedEmails.filter(e => e !== email);
+            renderTags();
+        };
+
+        // Thêm một Tag mới
+        function addEmail(email) {
+            email = email.trim().toLowerCase();
+            if (email && !selectedEmails.includes(email)) {
+                selectedEmails.push(email);
+                renderTags();
+            }
+            searchInput.value = '';
+            suggestionsBox.style.display = 'none';
+            searchInput.focus();
+        }
+
+        // Bắt sự kiện gõ phím để gọi API (Kỹ thuật Debounce chống quá tải Server)
+        let debounceTimer;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const term = this.value.trim();
+
+            if(term.length < 2) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/Admin/Promotions/SearchCustomerEmails?term=${encodeURIComponent(term)}`);
+                    const emails = await res.json();
+
+                    suggestionsBox.innerHTML = '';
+                    if(emails.length > 0) {
+                        emails.forEach(e => {
+                            const li = document.createElement('li');
+                            li.style.cssText = "padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #F3F4F6; font-size: 13px; color: var(--navy-deep); transition: background 0.2s;";
+                            li.innerHTML = `<i class="fas fa-user-circle" style="color: #9CA3AF; margin-right: 8px;"></i> ${e}`;
+
+                            // Hiệu ứng Hover
+                            li.onmouseover = () => li.style.background = "#F9FAFB";
+                            li.onmouseout = () => li.style.background = "transparent";
+
+                            // Sự kiện Click chọn gợi ý
+                            li.onmousedown = (event) => {
+                                event.preventDefault(); // Ngăn ô input mất focus
+                                addEmail(e);
+                            };
+                            suggestionsBox.appendChild(li);
+                        });
+                        suggestionsBox.style.display = 'block';
+                    } else {
+                        suggestionsBox.style.display = 'none';
+                    }
+                } catch(e) {
+                    console.error("Lỗi truy xuất dữ liệu Email", e);
+                }
+            }, 350); // Chờ 350ms sau khi ngừng gõ mới gọi API
+        });
+
+        // Bắt sự kiện Enter để thêm thủ công nếu email khách chưa có trong DB
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.value.trim() !== '') addEmail(this.value);
+            } else if (e.key === 'Backspace' && this.value === '' && selectedEmails.length > 0) {
+                // Cho phép dùng nút Xóa để gỡ Tag cuối cùng
+                removeEmail(selectedEmails[selectedEmails.length - 1]);
+            }
+        });
+
+        // Ẩn Dropdown khi click chuột ra chỗ khác ngoài mặt phẳng
+        document.addEventListener('mousedown', function(e) {
+            if(!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                suggestionsBox.style.display = 'none';
+            }
+        });
+    </script>
+}

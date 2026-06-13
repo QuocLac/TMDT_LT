@@ -1,0 +1,270 @@
+﻿/* ==========================================================================
+   PHONE.ST - PHÂN HỆ QUẢN LÝ VOUCHER & VÍ ĐIỆN TỬ KHÁCH HÀNG (STOREFRONT)
+   ========================================================================== */
+
+/* 1. KHUNG BỐ CỤC CHUNG (LAYOUT WRAPPERS) */
+.wallet-container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 30px;
+}
+
+.voucher-hub-container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.hub-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.hub-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--navy-deep);
+    margin-bottom: 12px;
+}
+
+.hub-subtitle {
+    color: #6B7280;
+    font-size: 15px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* 2. SIDEBAR DIỀU HƯỚNG TÀI KHOẢN (ACCOUNT SIDEBAR) */
+.account-sidebar-flat {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px 0;
+    height: fit-content;
+}
+
+.sidebar-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: var(--navy-deep);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+    .sidebar-menu-item:hover, .sidebar-menu-item.active {
+        background: #F3F4F6;
+        color: var(--accent-red);
+    }
+
+        .sidebar-menu-item:hover i, .sidebar-menu-item.active i {
+            color: var(--accent-red);
+        }
+
+/* 3. HỆ THỐNG ĐIỀU KHIỂN TABS CHUYỂN TRẠNG THÁI VÍ */
+.wallet-main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.wallet-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--border-color);
+    background: #fff;
+    border-radius: 8px 8px 0 0;
+}
+
+.wallet-tab-btn {
+    flex: 1;
+    text-align: center;
+    padding: 16px 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #6B7280;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+    .wallet-tab-btn.active {
+        color: var(--accent-red);
+    }
+
+        .wallet-tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent-red);
+        }
+
+/* 4. ĐỘNG CƠ LƯỚI VÀ KIẾN TRÚC VÉ RĂNG CƯA (VOUCHER TICKET MATRIX) */
+.voucher-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+}
+
+.wallet-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.voucher-ticket, .wallet-ticket {
+    display: flex;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+    .voucher-ticket:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+    }
+
+    /* Cấu hình màu sắc theo trạng thái Vé */
+    .voucher-ticket .voucher-left, .wallet-ticket.status-0 .ticket-left {
+        background: linear-gradient(135deg, var(--accent-red, #DC2626), #F43F5E);
+        color: white;
+    }
+
+    .wallet-ticket.status-1, .wallet-ticket.status-2 {
+        opacity: 0.6;
+    }
+
+        .wallet-ticket.status-1 .ticket-left, .wallet-ticket.status-2 .ticket-left {
+            background: #9CA3AF !important;
+            color: #fff;
+        }
+
+/* Thiết kế phần răng cưa trái / phải */
+.voucher-left, .ticket-left {
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 110px;
+    border-right: 2px dashed var(--border-color, #E5E7EB);
+    position: relative;
+    text-align: center;
+}
+
+    .voucher-left::before, .voucher-left::after,
+    .ticket-left::before, .ticket-left::after {
+        content: '';
+        position: absolute;
+        right: -9px;
+        width: 16px;
+        height: 16px;
+        background: #FAFAFA; /* Khớp màu với nền background body của hệ thống */
+        border-radius: 50%;
+        z-index: 2;
+    }
+
+    .voucher-left::before, .ticket-left::before {
+        top: -8px;
+    }
+
+    .voucher-left::after, .ticket-left::after {
+        bottom: -8px;
+    }
+
+.voucher-right, .ticket-right {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.ticket-right {
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+}
+
+/* 5. CÁC NÚT THAO TÁC VÀ BADGES TRẠNG THÁI */
+.btn-save-voucher {
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+    .btn-save-voucher.save-mode {
+        background: var(--navy-deep);
+        color: #fff;
+    }
+
+        .btn-save-voucher.save-mode:hover {
+            background: #111827;
+        }
+
+    .btn-save-voucher.saved-mode {
+        background: #10B981;
+        color: #fff;
+        cursor: default;
+    }
+
+.btn-use-now {
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--accent-red);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+    .btn-use-now:hover {
+        background: #B91C1C;
+    }
+
+.watermark-badge {
+    font-size: 12px;
+    font-weight: 800;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* 6. THANH TIẾN TRÌNH MINI TIÊU THỤ VOUCHER */
+.progress-mini {
+    width: 100%;
+    height: 4px;
+    background: #E5E7EB;
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.progress-mini-fill {
+    height: 100%;
+    background: var(--accent-red);
+    border-radius: 2px;
+}

@@ -1,4 +1,4 @@
-﻿namespace TMDT_LT.Models.ViewModels
+﻿namespace TMDT_LT.Models.ViewModels.Storefront
 {
     public class CartItemSession
     {

@@ -1,0 +1,145 @@
+﻿@model IEnumerable<TMDT_LT.Models.Promotions>
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Kho Voucher Siêu Ưu Đãi";
+    var savedIds = ViewBag.SavedVoucherIds as List<int> ?? new List<int>();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/storefront/store-wallet.css" asp-append-version="true" />
+}
+
+<div class="voucher-hub-container">
+    <div class="hub-header">
+        <h1 class="hub-title">TRUNG TÂM ƯU ĐÃI</h1>
+        <p class="hub-subtitle">Thu thập ngay các mã giảm giá đặc quyền để tiết kiệm tối đa cho đơn hàng công nghệ của bạn. Số lượng mã có hạn, lưu ngay kẻo lỡ!</p>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="voucher-grid">
+            @foreach (var v in Model)
+            {
+                var rule = v.PromotionRules?.FirstOrDefault();
+                if (rule == null) continue;
+
+                string discountText = rule.DiscountType == 1 ? string.Format("{0:N0}đ", rule.DiscountValue) : $"{rule.DiscountValue}%";
+                bool isSaved = savedIds.Contains(v.PromotionId);
+                double usedPercent = v.UsageLimit > 0 ? ((double)v.UsedCount / v.UsageLimit) * 100 : 0;
+
+                <div class="voucher-ticket">
+                    <div class="voucher-left">
+                        <span style="font-size: 12px; font-weight: 600; text-transform: uppercase;">Giảm</span>
+                        <strong style="font-size: 24px; line-height: 1.2;">@discountText</strong>
+                    </div>
+
+                    <div class="voucher-right">
+                        <div>
+                            <div style="font-size: 16px; font-weight: 700; color: var(--navy-deep); margin-bottom: 6px;">@v.Name</div>
+                            <div style="font-size: 13px; color: #6B7280; margin-bottom: 10px;">Đơn tối thiểu @string.Format("{0:N0}", rule.MinOrderValue)đ</div>
+
+                            <div style="font-size: 11px; color: #9CA3AF; display: flex; justify-content: space-between;">
+                                <span>Đã dùng @usedPercent.ToString("0")%</span>
+                                <span>HSD: @v.EndDate.ToString("dd/MM/yyyy")</span>
+                            </div>
+                            <div class="progress-mini">
+                                <div class="progress-mini-fill" style="width: @usedPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;"></div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px;">
+                            <span style="font-size: 12px; font-weight: 700; color: var(--accent-red);">Mã: @v.Code</span>
+
+                            @if (isSaved)
+                            {
+                                <button type="button" class="btn-save-voucher saved-mode" disabled>
+                                    <i class="fas fa-check"></i> ĐÃ LƯU
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn-save-voucher save-mode auto-save-btn" data-id="@v.PromotionId">
+                                    LƯU MÃ
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div style="text-align: center; padding: 80px 20px; background: #F8FAFC; border-radius: 8px; border: 1px dashed var(--border-color);">
+            <i class="fas fa-ticket-alt" style="font-size: 48px; color: #CBD5E1; margin-bottom: 16px;"></i>
+            <h3 style="color: var(--navy-deep); font-size: 18px; margin-bottom: 8px;">Hiện tại chưa có ưu đãi mới</h3>
+            <p style="color: #6B7280; font-size: 14px;">Các chương trình khuyến mãi sẽ sớm được cập nhật. Bạn vui lòng quay lại sau nhé!</p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // XỬ LÝ LƯU VOUCHER TRONG KHO CÔNG KHAI
+        document.querySelectorAll('.auto-save-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+
+                // Rào chắn 1: Kiểm tra đăng nhập ngay tại Client
+                @if (User.Identity == null || !User.Identity.IsAuthenticated)
+                {
+                        <text>
+                        if (confirm("Bạn cần đăng nhập tài khoản để thu thập mã ưu đãi này. Đến trang đăng nhập ngay?")) {
+                            // Trả về đúng link của Kho Voucher
+                            window.location.href = '/Account/Login?returnUrl=/CustomerWallet/Public';
+                        }
+                        return; // Ngắt luồng
+                        </text>
+                }
+
+                const promoId = this.getAttribute('data-id');
+                const originalText = this.innerHTML;
+
+                this.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+                this.disabled = true;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('promotionId', promoId);
+
+                    const res = await fetch('/CustomerWallet/SaveVoucher', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await res.json();
+
+                    if (data.success) {
+                        this.innerHTML = '<i class="fas fa-check"></i> ĐÃ LƯU';
+                        this.classList.remove('save-mode');
+                        this.classList.add('saved-mode');
+
+                        if (typeof showShopeeToast === "function") {
+                            showShopeeToast("Đã lưu mã vào ví thành công!");
+                        } else {
+                            alert(data.message);
+                        }
+                    } else {
+                        if (data.requireLogin) {
+                            window.location.href = '/Account/Login?returnUrl=/CustomerWallet/Public';
+                        } else {
+                            alert(data.message);
+                            this.innerHTML = 'HẾT LƯỢT';
+                            this.classList.remove('save-mode');
+                            this.style.background = '#E5E7EB';
+                            this.style.color = '#9CA3AF';
+                        }
+                    }
+                } catch (e) {
+                    alert('Lỗi kết nối đến máy chủ.');
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }
+            });
+        });
+    </script>
+}

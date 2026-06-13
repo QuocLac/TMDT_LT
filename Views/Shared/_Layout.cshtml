@@ -1,4 +1,9 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.AspNetCore.Http
+@using System.Text.Json
+@using TMDT_LT.Models.ViewModels.Storefront
+@inject IHttpContextAccessor HttpContextAccessor
+
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="utf-8" />
@@ -13,13 +18,112 @@
     <link rel="stylesheet" href="~/css/storefront/store-root.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/storefront/store-layout.css" asp-append-version="true" />
 
+    <style>
+        .user-menu-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* Vùng đệm ẩn giúp chuột không bị trượt khi di chuyển từ icon xuống menu */
+        .user-menu-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 15px;
+        }
+
+        .user-menu-wrapper:hover .user-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            width: 240px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+            padding: 8px 0;
+            border: 1px solid var(--border-color);
+
+        }
+
+        .dropdown-header-user {
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            color: var(--navy-deep);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+            cursor: pointer;
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: left;
+            box-sizing: border-box;
+        }
+
+        .dropdown-item i {
+            font-size: 14px;
+            width: 18px;
+            text-align: center;
+            color: #9CA3AF;
+            transition: color 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: #F3F4F6;
+            color: var(--accent-red);
+        }
+
+        .dropdown-item:hover i {
+            color: var(--accent-red);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 6px 0;
+        }
+    </style>
+
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
+    @{
+        // ĐẾM SỐ LƯỢNG VẬT PHẨM TRONG GIỎ HÀNG
+        int totalCartItems = 0;
+        var cartSession = HttpContextAccessor.HttpContext?.Session.GetString("PhoneStCartSession");
+        if (!string.IsNullOrEmpty(cartSession))
+        {
+            var cart = JsonSerializer.Deserialize<List<CartItemVM>>(cartSession);
+            totalCartItems = cart?.Sum(x => x.Quantity) ?? 0;
+        }
+    }
 
     <header class="site-header">
         <div class="header-container">
-            <a href="/" class="brand-logo">PHONE.ST</a>
+            <a href="/" class="brand-logo">KingPhone</a>
 
             <form action="/Store" method="get" class="search-bar-form">
                 <div class="search-input-group">
@@ -34,17 +138,63 @@
                 <a href="/" class="nav-link">Trang chủ</a>
                 <a href="/Store" class="nav-link">Sản phẩm</a>
                 <a href="/Blog" class="nav-link">Tin công nghệ</a>
-                <a href="/About" class="nav-link">Giới thiệu</a>
+                <a href="/Home/About" class="nav-link">Giới thiệu</a>
             </nav>
 
             <div class="action-menu">
                 <a href="/Cart" class="action-item" title="Giỏ hàng cá nhân">
                     <i class="fas fa-shopping-bag"></i>
-                    <span class="cart-badge">0</span>
+                    <span class="cart-badge @(totalCartItems > 0 ? "has-items" : "")">@totalCartItems</span>
                 </a>
-                <a href="/Account/Profile" class="action-item" title="Trung tâm tài khoản">
-                    <i class="fas fa-user"></i>
-                </a>
+
+                @if (User.Identity != null && User.Identity.IsAuthenticated)
+                {
+                    <div class="user-menu-wrapper">
+                        <a href="/Account/Profile" class="action-item" title="Trung tâm tài khoản">
+                            <i class="fas fa-user-circle" style="color: var(--navy-deep);"></i>
+                        </a>
+                        
+                        <div class="user-dropdown">
+                            <div class="dropdown-header-user">
+                                <strong style="font-size: 14px; color: var(--navy-deep);">@User.Identity.Name</strong>
+                                <span style="font-size: 11px; color: #10B981; font-weight: 700;"><i class="fas fa-shield-check"></i> Đã xác thực</span>
+                            </div>
+                            
+                            <div class="dropdown-divider"></div>
+                            
+                            <a href="/Auth/Profile" class="dropdown-item">
+                                <i class="fas fa-id-card"></i> Thông tin tài khoản
+                            </a>
+                            <a href="/CustomerWallet" class="dropdown-item">
+                                <i class="fas fa-ticket-alt"></i> Ví Voucher của tôi
+                            </a>
+                            <a href="/Account/Orders" class="dropdown-item">
+                                <i class="fas fa-box-open"></i> Quản lý đơn hàng
+                            </a>
+                            <a href="/Account/Favorites" class="dropdown-item">
+                                <i class="fas fa-heart"></i> Sản phẩm yêu thích
+                            </a>
+                            <a href="/Account/Notifications" class="dropdown-item">
+                                <i class="fas fa-bell"></i> Thông báo hệ thống
+                            </a>
+                            
+                            <div class="dropdown-divider"></div>
+
+                            <form action="/Auth/Logout" method="post" style="margin: 0;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="dropdown-item">
+                                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <a href="/Auth/Login" class="action-item" title="Đăng nhập / Đăng ký">
+                        <i class="fas fa-user"></i>
+                    </a>
+                }
             </div>
         </div>
     </header>

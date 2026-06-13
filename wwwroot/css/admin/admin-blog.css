@@ -1,0 +1,101 @@
+﻿/* ==========================================================================
+   PHONE.ST - AREA ADMIN - QUẢN LÝ BLOG SHOWCASE
+   ========================================================================== */
+
+.blog-header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--admin-border, #E5E7EB);
+}
+
+.blog-title-main {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0F172A; /* navy-deep */
+    margin: 0;
+}
+
+.blog-table-img {
+    width: 80px;
+    height: 45px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--admin-border, #E5E7EB);
+    background: #F8FAFC;
+}
+
+.status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-active {
+    background-color: #ECFDF5;
+    color: #047857;
+    border: 1px solid #10B981;
+}
+
+.status-draft {
+    background-color: #FEF2F2;
+    color: #B91C1C;
+    border: 1px solid #EF4444;
+}
+
+.custom-css-editor {
+    font-family: monospace;
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
+    line-height: 1.6;
+    border: none;
+}
+
+.action-btn-group {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-danger {
+    background: #EF4444;
+    color: #FFFFFF;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+    .btn-danger:hover {
+        background: #DC2626;
+    }
+
+/* Lưới định dạng Form */
+.blog-form-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    align-items: start;
+}
+
+.blog-side-panel {
+    background: #F8FAFC;
+    border: 1px solid var(--admin-border, #E5E7EB);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.blog-form-hint {
+    font-size: 11px;
+    color: #6B7280;
+    margin-top: 6px;
+    display: block;
+}

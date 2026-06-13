@@ -121,6 +121,92 @@ namespace TMDT_LT.Migrations
                     b.ToTable("ADDRESS", (string)null);
                 });
 
+            modelBuilder.Entity("TMDT_LT.Models.Blog", b =>
+                {
+                    b.Property<int>("BlogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BlogId"));
+
+                    b.Property<string>("BackgroundImage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CustomCss")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HtmlContent")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ShortDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Thumbnail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ViewCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("BlogId");
+
+                    b.ToTable("Blogs");
+                });
+
+            modelBuilder.Entity("TMDT_LT.Models.BlogMedia", b =>
+                {
+                    b.Property<int>("MediaId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MediaId"));
+
+                    b.Property<string>("AltText")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("BlogId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MediaType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MediaUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("MediaId");
+
+                    b.HasIndex("BlogId");
+
+                    b.ToTable("BlogMedias");
+                });
+
             modelBuilder.Entity("TMDT_LT.Models.Brands", b =>
                 {
                     b.Property<int>("BrandId")
@@ -292,6 +378,38 @@ namespace TMDT_LT.Migrations
                     b.HasIndex("AccountId");
 
                     b.ToTable("CUSTOMER", (string)null);
+                });
+
+            modelBuilder.Entity("TMDT_LT.Models.CustomerWallet", b =>
+                {
+                    b.Property<int>("WalletId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WalletId"));
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PromotionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SavedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("WalletId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("PromotionId");
+
+                    b.ToTable("CustomerWallet");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.FavoriteDetails", b =>
@@ -748,6 +866,86 @@ namespace TMDT_LT.Migrations
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("TMDT_LT.Models.PromotionRules", b =>
+                {
+                    b.Property<int>("RuleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RuleId"));
+
+                    b.Property<int>("DiscountType")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("MaxDiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MinOrderValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PromotionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RequiredBrandId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RequiredCategoryId")
+                        .HasColumnType("int");
+
+                    b.HasKey("RuleId");
+
+                    b.HasIndex("PromotionId");
+
+                    b.ToTable("PromotionRules");
+                });
+
+            modelBuilder.Entity("TMDT_LT.Models.Promotions", b =>
+                {
+                    b.Property<int>("PromotionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PromotionId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TargetAudience")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UsageLimit")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UsedCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("PromotionId");
+
+                    b.ToTable("Promotions");
+                });
+
             modelBuilder.Entity("TMDT_LT.Models.PurchaseOrderDetails", b =>
                 {
                     b.Property<int>("PodetailId")
@@ -1055,6 +1253,17 @@ namespace TMDT_LT.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("TMDT_LT.Models.BlogMedia", b =>
+                {
+                    b.HasOne("TMDT_LT.Models.Blog", "Blog")
+                        .WithMany("BlogMedias")
+                        .HasForeignKey("BlogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Blog");
+                });
+
             modelBuilder.Entity("TMDT_LT.Models.CartItems", b =>
                 {
                     b.HasOne("TMDT_LT.Models.Customer", "Customer")
@@ -1084,6 +1293,25 @@ namespace TMDT_LT.Migrations
                         .HasConstraintName("FK__CUSTOMER__Accoun__47DBAE45");
 
                     b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("TMDT_LT.Models.CustomerWallet", b =>
+                {
+                    b.HasOne("TMDT_LT.Models.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TMDT_LT.Models.Promotions", "Promotion")
+                        .WithMany("CustomerWallets")
+                        .HasForeignKey("PromotionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Promotion");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.FavoriteDetails", b =>
@@ -1238,6 +1466,17 @@ namespace TMDT_LT.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("TMDT_LT.Models.PromotionRules", b =>
+                {
+                    b.HasOne("TMDT_LT.Models.Promotions", "Promotion")
+                        .WithMany("PromotionRules")
+                        .HasForeignKey("PromotionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Promotion");
+                });
+
             modelBuilder.Entity("TMDT_LT.Models.PurchaseOrderDetails", b =>
                 {
                     b.HasOne("TMDT_LT.Models.PurchaseOrders", "Po")
@@ -1341,6 +1580,11 @@ namespace TMDT_LT.Migrations
                     b.Navigation("PurchaseOrders");
                 });
 
+            modelBuilder.Entity("TMDT_LT.Models.Blog", b =>
+                {
+                    b.Navigation("BlogMedias");
+                });
+
             modelBuilder.Entity("TMDT_LT.Models.Brands", b =>
                 {
                     b.Navigation("Products");
@@ -1400,6 +1644,13 @@ namespace TMDT_LT.Migrations
                     b.Navigation("ProductImages");
 
                     b.Navigation("ProductVariants");
+                });
+
+            modelBuilder.Entity("TMDT_LT.Models.Promotions", b =>
+                {
+                    b.Navigation("CustomerWallets");
+
+                    b.Navigation("PromotionRules");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.PurchaseOrders", b =>
