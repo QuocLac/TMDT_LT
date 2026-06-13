@@ -1,171 +1,226 @@
-﻿@model List<TMDT_LT.Models.ViewModels.CartItemSession>
+﻿@model List<TMDT_LT.Models.ViewModels.Storefront.CartItemVM>
+@using TMDT_LT.Models.ViewModels.Storefront
 @{
+    Layout = "_Layout";
     ViewData["Title"] = "Giỏ hàng của bạn";
-    decimal cartTotal = Model.Sum(x => x.TotalPrice);
+
+    var voucherStates = ViewBag.VoucherStates as List<CartVoucherStateVM>;
+    var bestVoucher = voucherStates?.FirstOrDefault();
+    decimal currentSubtotal = ViewBag.Subtotal ?? 0;
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/cart.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/storefront/store-home.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/storefront/store-cart.css" asp-append-version="true" />
 }
 
-<div style="max-width: 1000px; margin: 0 auto;">
-    <h2 style="font-weight: 800; text-transform: uppercase; font-size: 22px; margin-bottom: 20px;">
-        Giỏ hàng (<span id="global-cart-count">@Model.Sum(x => x.Quantity)</span> sản phẩm)
-    </h2>
+<div class="cart-layout-grid">
+    <div class="cart-items-container">
+        <h2 class="cart-title-main">Giỏ hàng của bạn (@Model.Count() sản phẩm)</h2>
 
-    <div id="empty-cart-msg" style="display: @(!Model.Any() ? "block" : "none"); text-align: center; padding: 60px 20px; background: var(--neutral-white); border-radius: var(--radius-lg); border: 1px solid var(--border-gray);">
-        <h3 style="margin-bottom: 15px;">Giỏ hàng của bạn đang trống</h3>
-        <p style="color: var(--text-gray); margin-bottom: 20px;">Hãy chọn thêm sản phẩm công nghệ để mua sắm nhé!</p>
-        <a asp-controller="Home" asp-action="Index" class="btn-checkout" style="max-width: 250px; margin: 0 auto;">Quay lại mua sắm</a>
+        @if (Model != null && Model.Any())
+        {
+            foreach (var item in Model)
+            {
+                <div class="cart-item-row" id="item-row-@item.VariantId">
+                    <img src="@item.ImageUrl" alt="@item.ProductName" class="cart-item-img" />
+
+                    <div>
+                        <a href="/Store/Product/@item.VariantId" class="cart-item-title">@item.ProductName</a>
+                        <div class="cart-item-variant">Phân loại: @item.Storage - @item.Color</div>
+                        @if (item.Stock < 5)
+                        {
+                            <div class="cart-stock-warning">Chỉ còn @item.Stock sản phẩm</div>
+                        }
+                    </div>
+
+                    <div class="qty-control">
+                        <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, -1)">-</button>
+                        <input type="number" id="qty-@item.VariantId" class="qty-input" value="@item.Quantity" readonly />
+                        <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, 1)">+</button>
+                    </div>
+
+                    <div class="cart-item-price" id="price-@item.VariantId">
+                        @string.Format("{0:N0}", item.TotalPrice) đ
+                    </div>
+
+                    <form action="/Cart/RemoveItem" method="post" class="cart-remove-form">
+                        <input type="hidden" name="variantId" value="@item.VariantId" />
+                        <button type="submit" class="cart-remove-btn" title="Xoá khỏi giỏ">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="cart-empty-wrapper">
+                <i class="fas fa-shopping-basket" class="cart-empty-icon"></i>
+                <h3 class="cart-empty-title">Giỏ hàng trống</h3>
+                <p class="cart-empty-text">Hãy quay lại cửa hàng để chọn cho mình những sản phẩm ưng ý nhé.</p>
+                <a href="/Store" class="btn-dark cart-empty-link">TIẾP TỤC MUA SẮM</a>
+            </div>
+        }
     </div>
 
-    @if (Model.Any())
+    @if (Model != null && Model.Any())
     {
-        <div class="cart-layout" id="main-cart-layout">
-            <div class="cart-items-section">
-                @foreach (var item in Model)
-                {
-                    <div class="cart-item-row" id="row-@item.VariantId">
-                        <img src="@item.ImageUrl" alt="@item.ProductName" class="cart-item-img" onerror="this.src='/images/default-phone.jpg';" />
+        <div class="cart-summary-box">
 
-                        <div class="cart-item-info">
-                            <a asp-controller="Home" asp-action="Detail" asp-route-id="@item.ProductId" class="cart-item-name">
-                                @item.ProductName
-                            </a>
-                            <div class="cart-item-variant">
-                                Màu @item.Color | @item.Storage - @item.RAM
-                            </div>
+            <div class="smart-voucher-box" id="smartVoucherContainer" style="@(bestVoucher == null ? "display:none;" : "")">
+                <div class="voucher-header">
+                    <i class="fas fa-ticket-alt"></i> Ưu đãi từ PHONE.ST
+                </div>
 
-                            <div class="action-group">
-                                <div class="qty-control">
-                                    <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, -1)" @(item.Quantity <= 1 ? "disabled" : "")>−</button>
-                                    <input type="text" id="qty-val-@item.VariantId" value="@item.Quantity" class="qty-input" />
-                                    <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, 1)" @(item.Quantity >= item.MaxStock ? "disabled" : "")>+</button>
-                                </div>
-                                <button type="button" class="btn-remove" onclick="removeCartItem(@item.VariantId)">
-                                    🗑 Xóa
-                                </button>
-                            </div>
-                            <div style="font-size: 12px; color: #d70018; margin-top: 5px; display: none;" id="err-@item.VariantId"></div>
-                        </div>
+                <div id="voucherHintText" class="voucher-hint">
+                    @if (bestVoucher != null)
+                    {
+                        if (bestVoucher.IsEligible)
+                        {
+                            <text>Tuyệt vời! Bạn đã đủ điều kiện sử dụng mã <strong>@bestVoucher.Code</strong>.</text>
+                        }
+                        else
+                        {
+                            string discountDisplay = bestVoucher.DiscountType == 1 ? $"{string.Format("{0:N0}", bestVoucher.DiscountValue)} đ" : $"{bestVoucher.DiscountValue}%";
+                            <text>Mua thêm <strong id="gapAmountDisplay">@string.Format("{0:N0}", bestVoucher.GapAmount) đ</strong> để áp dụng mã <strong>@bestVoucher.Code</strong> (Giảm @discountDisplay).</text>
+                        }
+                    }
+                </div>
 
-                        <div style="text-align: right; min-width: 130px;">
-                            <div style="font-weight: 800; font-size: 16px; color: #d70018;" id="item-total-@item.VariantId">
-                                @string.Format("{0:N0}", item.TotalPrice) đ
-                            </div>
-                            <div style="font-size: 12px; color: var(--text-gray); text-decoration: line-through; margin-top: 4px;">
-                                @string.Format("{0:N0}", item.UnitPrice) đ
-                            </div>
-                        </div>
-                    </div>
-                }
+                <div class="progress-bar-bg">
+                    @{
+                        double initialPercent = 0;
+                        if (bestVoucher != null && bestVoucher.MinOrderValue > 0)
+                        {
+                            initialPercent = bestVoucher.IsEligible ? 100 : (double)(currentSubtotal / bestVoucher.MinOrderValue) * 100;
+                        }
+                    }
+                    <div id="voucherProgressBar" class="progress-bar-fill" style="width: @initialPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;"></div>
+                </div>
             </div>
 
-            <div class="cart-summary-section">
-                <h3 class="summary-title">Thông tin thanh toán</h3>
+            @{
+                decimal discountAmount = (bestVoucher != null && bestVoucher.IsEligible) ? bestVoucher.EstimatedDiscountAmount : 0;
+                decimal finalTotal = currentSubtotal - discountAmount;
+                if (finalTotal < 0) finalTotal = 0;
+            }
 
-                <div class="summary-line">
-                    <span>Tổng tiền hàng</span>
-                    <span style="font-weight: 600;" id="summary-subtotal">@string.Format("{0:N0}", cartTotal) đ</span>
-                </div>
-                <div class="summary-line">
-                    <span>Phí vận chuyển</span>
-                    <span>Miễn phí</span>
-                </div>
-
-                <div class="summary-total">
-                    <span>TỔNG CỘNG</span>
-                    <span class="total-price-text" id="summary-total">@string.Format("{0:N0}", cartTotal) đ</span>
-                </div>
-
-                <a asp-controller="Order" asp-action="Checkout" class="btn-checkout">XÁC NHẬN ĐẶT HÀNG</a>
+            <div class="summary-row">
+                <span>Tạm tính</span>
+                <strong class="summary-val-dark" id="summarySubtotal">@string.Format("{0:N0}", currentSubtotal) đ</strong>
             </div>
+
+            <div class="summary-row">
+                <span>Giảm giá khuyến mãi</span>
+                <span class="summary-val-discount" id="summaryDiscount" style="@(discountAmount > 0 ? "color:#DC2626; font-weight:700;" : "")">
+                    @(discountAmount > 0 ? "- " + string.Format("{0:N0}", discountAmount) + " đ" : "Chưa tính")
+                </span>
+            </div>
+
+            <div class="summary-total">
+                <span>Tổng cộng</span>
+                <span id="summaryTotal">@string.Format("{0:N0}", finalTotal) đ</span>
+            </div>
+
+            <a href="/Cart/Checkout" class="btn-dark btn-checkout-flat">
+                Tiến hành thanh toán
+            </a>
         </div>
     }
 </div>
 
 @section Scripts {
     <script>
-        const formatter = new Intl.NumberFormat('vi-VN');
+        function updateQty(variantId, change) {
+            const input = document.getElementById(`qty-${variantId}`);
+            let newQty = parseInt(input.value) + change;
+            if (newQty < 1) newQty = 1;
 
-        async function updateQty(variantId, change) {
-            const row = document.getElementById(`row-${variantId}`);
-            const input = document.getElementById(`qty-val-${variantId}`);
-            const errorDiv = document.getElementById(`err-${variantId}`);
+            const formData = new FormData();
+            formData.append('variantId', variantId);
+            formData.append('quantity', newQty);
 
-            let currentQty = parseInt(input.value);
-            let newQty = currentQty + change;
-
-            // Chặn UI tránh spam click
-            row.classList.add('is-loading');
-            errorDiv.style.display = 'none';
-
-            try {
-                const response = await fetch('/Cart/UpdateQuantityAjax', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ variantId: variantId, quantity: newQty })
-                });
-
-                const data = await response.json();
-
+            fetch('/Cart/UpdateQuantity', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
                 if (data.success) {
-                    // Update UI Thành công
                     input.value = newQty;
-                    document.getElementById(`item-total-${variantId}`).innerText = formatter.format(data.itemTotal) + ' đ';
-                    document.getElementById('summary-subtotal').innerText = formatter.format(data.cartTotal) + ' đ';
-                    document.getElementById('summary-total').innerText = formatter.format(data.cartTotal) + ' đ';
-                    document.getElementById('global-cart-count').innerText = data.totalItems;
+                    document.getElementById(`price-${variantId}`).innerText = data.itemTotalPrice;
+                    document.getElementById('summarySubtotal').innerText = data.subtotal;
 
-                    // Cập nhật trạng thái disable của nút bấm
-                    const buttons = row.querySelectorAll('.qty-btn');
-                    buttons[0].disabled = (newQty <= 1); // Nút trừ
-                    buttons[1].disabled = false; // Phải gọi API để biết có max chưa, nhưng tạm mở. Sẽ bị chặn ở backend nếu vượt quá.
+                    // Gọi hàm cập nhật Giao diện Khuyến mãi + Tổng tiền
+                    updateSmartVoucherUI(data.vouchers, data.subtotal);
                 } else {
-                    // Hiển thị lỗi (Ví dụ: Vượt quá tồn kho)
-                    errorDiv.innerText = data.message;
-                    errorDiv.style.display = 'block';
-                    const buttons = row.querySelectorAll('.qty-btn');
-                    if (change > 0) buttons[1].disabled = true; // Khóa nút cộng
+                    alert(data.message);
                 }
-            } catch (err) {
-                console.error(err);
-                alert('Có lỗi kết nối, vui lòng thử lại.');
-            } finally {
-                row.classList.remove('is-loading');
-            }
+            })
+            .catch(error => console.error('Lỗi kết nối API:', error));
         }
 
-        async function removeCartItem(variantId) {
-            if (!confirm('Bạn có chắc chắn muốn bỏ sản phẩm này?')) return;
+        function updateSmartVoucherUI(vouchers, rawSubtotalStr) {
+            const container = document.getElementById('smartVoucherContainer');
+            const hintText = document.getElementById('voucherHintText');
+            const progressBar = document.getElementById('voucherProgressBar');
 
-            const row = document.getElementById(`row-${variantId}`);
-            row.classList.add('is-loading');
+            const discountElement = document.getElementById('summaryDiscount');
+            const totalElement = document.getElementById('summaryTotal');
 
-            try {
-                const response = await fetch('/Cart/RemoveAjax', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ variantId: variantId, quantity: 0 })
-                });
+            const currentSubtotal = parseInt(rawSubtotalStr.replace(/[^0-9]/g, ''));
 
-                const data = await response.json();
-
-                if (data.success) {
-                    row.remove(); // Xóa HTML row
-                    if (data.isEmpty) {
-                        document.getElementById('main-cart-layout').style.display = 'none';
-                        document.getElementById('empty-cart-msg').style.display = 'block';
-                    } else {
-                        document.getElementById('summary-subtotal').innerText = formatter.format(data.cartTotal) + ' đ';
-                        document.getElementById('summary-total').innerText = formatter.format(data.cartTotal) + ' đ';
-                        document.getElementById('global-cart-count').innerText = data.totalItems;
-                    }
-                }
-            } catch (err) {
-                row.classList.remove('is-loading');
-                alert('Có lỗi khi xóa sản phẩm.');
+            if (!vouchers || vouchers.length === 0) {
+                container.style.display = 'none';
+                discountElement.innerText = "Chưa tính";
+                discountElement.style.color = "";
+                discountElement.style.fontWeight = "normal";
+                totalElement.innerText = new Intl.NumberFormat('vi-VN').format(currentSubtotal) + " đ";
+                return;
             }
+
+            container.style.display = 'block';
+            const bestVoucher = vouchers[0];
+            let discountAmount = 0;
+
+            if (bestVoucher.isEligible) {
+                progressBar.style.width = '100%';
+                progressBar.style.background = '#10B981';
+                hintText.innerHTML = `Tuyệt vời! Bạn đã đủ điều kiện sử dụng mã <strong>${bestVoucher.code}</strong>.`;
+
+                // Lấy trực tiếp số tiền giảm từ thuật toán Backend trả về! Không cần tự tính JS nữa.
+                discountAmount = bestVoucher.estimatedDiscountAmount;
+            } else {
+                let percent = (currentSubtotal / bestVoucher.minOrderValue) * 100;
+                if (percent > 100) percent = 100;
+
+                progressBar.style.width = percent + '%';
+                progressBar.style.background = '#EA580C';
+
+                const formatGap = new Intl.NumberFormat('vi-VN').format(bestVoucher.gapAmount);
+                const discountDisplay = bestVoucher.discountType === 1
+                    ? new Intl.NumberFormat('vi-VN').format(bestVoucher.discountValue) + " đ"
+                    : bestVoucher.discountValue + "%";
+
+                hintText.innerHTML = `Mua thêm <strong>${formatGap} đ</strong> để áp dụng mã <strong>${bestVoucher.code}</strong> (Giảm ${discountDisplay}).`;
+            }
+
+            // Cập nhật text tiền giảm giá
+            if (discountAmount > 0) {
+                discountElement.innerText = "- " + new Intl.NumberFormat('vi-VN').format(discountAmount) + " đ";
+                discountElement.style.color = "#DC2626";
+                discountElement.style.fontWeight = "700";
+            } else {
+                discountElement.innerText = "Chưa tính";
+                discountElement.style.color = "";
+                discountElement.style.fontWeight = "normal";
+            }
+
+            // Cập nhật text Tiền tổng cộng
+            let finalTotal = currentSubtotal - discountAmount;
+            if (finalTotal < 0) finalTotal = 0;
+            totalElement.innerText = new Intl.NumberFormat('vi-VN').format(finalTotal) + " đ";
         }
     </script>
 }

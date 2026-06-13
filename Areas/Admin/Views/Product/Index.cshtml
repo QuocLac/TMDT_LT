@@ -1,4 +1,5 @@
 ﻿@model IEnumerable<TMDT_LT.Models.Products>
+@using System.Text.Encodings.Web
 @{
     Layout = "_LayoutAdmin";
     ViewData["Title"] = "Quản lý Sản phẩm";
@@ -10,11 +11,11 @@
         <p style="color: #6B7280; font-size: 14px;">Quản trị dữ liệu thiết bị, phân loại biến thể và thông số kỹ thuật.</p>
     </div>
     <div style="display: flex; gap: 10px;">
-        <a asp-action="Promotions" class="btn-outline" style="color: #DC2626; border-color: #DC2626;">
+        <a asp-action="Promotions" class="btn-outline" style="color: #DC2626; border-color: #DC2626; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; border-radius: 4px; font-size: 14px; font-weight: 500;">
             Chiến dịch Khuyến mãi
         </a>
-        <a asp-action="Create" class="btn-dark" style="display: inline-flex; align-items: center; gap: 6px;">
-            <svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <a asp-action="Create" class="btn-dark" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             Thêm sản phẩm mới
         </a>
     </div>
@@ -43,8 +44,8 @@
             </select>
         </div>
         <div>
-            <button type="submit" class="btn-dark">Lọc dữ liệu</button>
-            <a asp-action="Index" class="btn-outline" style="margin-left: 5px;">Xóa lọc</a>
+            <button type="submit" class="btn-dark" style="height: 38px;">Lọc dữ liệu</button>
+            <a asp-action="Index" class="btn-outline" style="margin-left: 5px; text-decoration: none; display: inline-flex; align-items: center; height: 38px; padding: 0 15px; box-sizing: border-box; vertical-align: top;">Xóa lọc</a>
         </div>
     </form>
 </div>
@@ -69,94 +70,112 @@
             </tr>
         </thead>
         <tbody>
-            @if (!Model.Any())
+            @if (Model == null || !Model.Any())
             {
                 <tr><td colspan="6" style="text-align:center; padding: 40px; color: #9CA3AF;">Không có dữ liệu phù hợp với bộ lọc.</td></tr>
             }
-            @foreach (var item in Model)
+            else
             {
-                int totalStock = item.ProductVariants.Sum(v => v.Stock ?? 0);
+                foreach (var item in Model)
+                {
+                    int totalStock = item.ProductVariants?.Sum(v => v.Stock ?? 0) ?? 0;
 
-                <tr class="master-row" id="row-@item.ProductId" onclick="toggleDetail(@item.ProductId)" style="opacity: @(item.IsActive == true ? "1" : "0.5");">
-                    <td style="text-align: center; color: #9CA3AF;" id="icon-@item.ProductId">▶</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <img src="@item.MainImage" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; border: 1px solid #E5E7EB;" onerror="this.src='/images/default-phone.jpg';" />
-                            <div>
-                                <strong style="color: var(--admin-text-dark); font-size: 14px;">@item.Name</strong>
-                                @if (item.IsActive == false)
-                                {
-                                    <span style="background: #FEE2E2; color: #DC2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">ĐÃ ẨN</span>
-                                }
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <span style="font-weight: 600;">@item.Brand?.BrandName</span>
-                        <div style="font-size: 12px; color: #6B7280;">@item.Category?.CategoryName</div>
-                    </td>
-                    <td style="text-align: center;"><span style="background: #E5E7EB; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">@item.ProductVariants.Count() bản</span></td>
-                    <td style="text-align: center; font-weight: 700; font-family: monospace;">@totalStock</td>
-                    <td style="text-align: center;" onclick="event.stopPropagation()">
-                        <a href="/Admin/Product/Edit/@item.ProductId" class="btn-outline" style="padding: 4px 8px; font-size: 12px;">Sửa</a>
-                        <button onclick="deleteSoft(@item.ProductId)" class="btn-outline" style="padding: 4px 8px; font-size: 12px; color: #DC2626; border-color: #FEE2E2; background: #FEF2F2; margin-left: 4px;">Khoá</button>
-                    </td>
-                </tr>
-
-                <tr class="detail-row" id="detail-@item.ProductId">
-                    <td colspan="6" style="padding: 0;">
-                        <div class="variant-panel" style="padding: 20px 40px; background-color: #F9FAFB; border-bottom: 1px solid var(--admin-border);">
-                            <h4 style="font-size: 13px; color: #6B7280; margin-bottom: 12px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Danh sách SKU trực thuộc:</h4>
-
-                            <table class="variant-table" style="width: 100%; background: #FFFFFF; border: 1px solid var(--admin-border); border-radius: 8px; overflow: hidden; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="background: #F3F4F6;">
-                                        <th style="width: 10%; font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 10px 15px; text-align: left;">ID</th>
-                                        <th style="width: 30%; font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 10px 15px; text-align: left;">Thuộc tính (RAM/ROM - Màu)</th>
-                                        <th style="width: 30%; font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 10px 15px; text-align: right;">Giá niêm yết</th>
-                                        <th style="width: 30%; font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 10px 15px; text-align: center;">Kho khả dụng</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var v in item.ProductVariants)
+                    <tr class="master-row" id="row-@item.ProductId" onclick="toggleDetail(@item.ProductId)" style="opacity: @(item.IsActive == true ? "1" : "0.5"); cursor: pointer;">
+                        <td style="text-align: center; color: #9CA3AF;" id="icon-@item.ProductId">▶</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <img src="@item.MainImage" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; border: 1px solid #E5E7EB;" onerror="this.src='https://via.placeholder.com/400x400?text=No+Image';" />
+                                <div>
+                                    <strong style="color: var(--admin-text-dark); font-size: 14px;">@item.Name</strong>
+                                    @if (item.IsActive == false)
                                     {
-                                        <tr>
-                                            <td style="color: #9CA3AF; font-family: monospace; padding: 12px 15px; border-bottom: 1px solid #F3F4F6; font-size: 13px;">#@v.VariantId</td>
-                                            <td style="font-weight: 600; color: var(--admin-text-dark); padding: 12px 15px; border-bottom: 1px solid #F3F4F6; font-size: 13px;">Bản @v.Storage @v.Ram - Màu @v.Color</td>
-                                            <td style="text-align: right; color: #059669; font-weight: 700; padding: 12px 15px; border-bottom: 1px solid #F3F4F6; font-size: 13px;">@string.Format("{0:N0}", v.Price) đ</td>
-                                            <td style="text-align: center; padding: 12px 15px; border-bottom: 1px solid #F3F4F6; font-size: 13px;">
-                                                @if (v.Stock > 0)
-                                                {
-                                                    <span>@v.Stock máy</span>
-                                                }
-                                                else
-                                                {
-
-                                                    <span style="color: #DC2626; font-weight: 600;">Hết hàng</span>
-                                                }
-                                            </td>
-                                        </tr>
+                                        <span style="background: #FEE2E2; color: #DC2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">ĐÃ ẨN</span>
                                     }
-                                </tbody>
-                            </table>
-
-                            <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
-                                <button type="button" onclick="openAddVariantModal(@item.ProductId, '@item.Name')" class="btn-outline" style="font-size: 12px; padding: 6px 14px; border-color: #111827; color: #111827; background: white; font-weight: 600; border-radius: 4px; cursor: pointer;">
-                                    + Thêm biến thể mới
-                                </button>
+                                </div>
                             </div>
-                        </div>
-                    </td>
-                </tr>
+                        </td>
+                        <td>
+                            <span style="font-weight: 600;">@item.Brand?.BrandName</span>
+                            <div style="font-size: 12px; color: #6B7280;">@item.Category?.CategoryName</div>
+                        </td>
+                        <td style="text-align: center;">
+                            <span style="background: #E5E7EB; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">@(item.ProductVariants?.Count ?? 0) bản</span>
+                        </td>
+                        <td style="text-align: center; font-weight: 700; font-family: monospace;">@totalStock</td>
+                        <td style="text-align: center;" onclick="event.stopPropagation()">
+                            <a href="/Admin/Product/Edit/@item.ProductId" class="btn-outline" style="padding: 4px 8px; font-size: 12px; text-decoration: none;">Sửa</a>
+                            <button onclick="deleteSoft(@item.ProductId)" class="btn-outline" style="padding: 4px 8px; font-size: 12px; color: #DC2626; border-color: #FEE2E2; background: #FEF2F2; margin-left: 4px; cursor: pointer;">Khóa</button>
+                        </td>
+                    </tr>
+
+                    <tr class="detail-row" id="detail-@item.ProductId" style="display: none;">
+                        <td colspan="6" style="padding: 0;">
+                            <div class="variant-panel" style="padding: 20px 40px; background-color: #F9FAFB; border-bottom: 1px solid var(--admin-border);">
+                                <h4 style="font-size: 13px; color: #6B7280; margin-bottom: 12px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Danh sách SKU trực thuộc:</h4>
+
+                                <table class="variant-table" style="width: 100%; background: #FFFFFF; border: 1px solid var(--admin-border); border-radius: 8px; overflow: hidden; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #F3F4F6; border-bottom: 1px solid var(--admin-border);">
+                                            <th style="width: 10%; font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 10px 15px; text-align: left;">ID</th>
+                                            <th style="width: 40%; font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 10px 15px; text-align: left;">Thuộc tính (RAM/ROM - Màu)</th>
+                                            <th style="width: 25%; font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 10px 15px; text-align: right;">Giá niêm yết</th>
+                                            <th style="width: 25%; font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 10px 15px; text-align: center;">Kho khả dụng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (item.ProductVariants != null && item.ProductVariants.Any())
+                                        {
+                                            foreach (var v in item.ProductVariants)
+                                            {
+                                                <tr>
+                                                    <td style="color: #9CA3AF; font-family: monospace; padding: 12px 15px; border-bottom: 1px solid #F3F4F6; font-size: 13px;">#@v.VariantId</td>
+                                                    <td style="font-weight: 600; color: var(--admin-text-dark); padding: 12px 15px; border-bottom: 1px solid #F3F4F6; font-size: 13px;">
+                                                        Bản @v.Storage @(!string.IsNullOrEmpty(v.Ram) ? $"/ {v.Ram}" : "") - Màu @v.Color
+                                                    </td>
+                                                    <td style="text-align: right; color: #059669; font-weight: 700; padding: 12px 15px; border-bottom: 1px solid #F3F4F6; font-size: 13px;">
+                                                        @string.Format("{0:N0}", v.Price) đ
+                                                    </td>
+                                                    <td style="text-align: center; padding: 12px 15px; border-bottom: 1px solid #F3F4F6; font-size: 13px;">
+                                                        @if (v.Stock > 0)
+                                                        {
+                                                            <span>@v.Stock máy</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span style="color: #DC2626; font-weight: 600;">Hết hàng</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr><td colspan="4" style="text-align: center; padding: 15px; color: #9CA3AF; font-size: 13px;">Chưa khởi tạo phiên bản nào cho dòng sản phẩm này.</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+
+                                <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                                    <button type="button" onclick="openAddVariantModal(@item.ProductId, '@JavaScriptEncoder.Default.Encode(item.Name)')" class="btn-outline" style="font-size: 12px; padding: 6px 14px; border-color: #111827; color: #111827; background: white; font-weight: 600; border-radius: 4px; cursor: pointer;">
+                                        + Thêm biến thể mới
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
             }
         </tbody>
     </table>
 </div>
+
+@Html.AntiForgeryToken()
+
 <div id="quickVariantModal" class="modal-overlay" onclick="closeQuickVariantModal(event)" style="display: none;">
     <div class="modal-content" style="max-width: 460px;" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h3 class="modal-title">Bổ sung phiên bản hệ thống</h3>
-            <button onclick="closeQuickVariantModal()" class="btn-close">✖</button>
+            <button onclick="closeQuickVariantModal()" class="btn-close" style="cursor: pointer;">✖</button>
         </div>
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
             <div style="background: #F3F4F6; padding: 12px; border-radius: 6px;">
@@ -168,19 +187,19 @@
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Màu sắc (*)</label>
+                    <label class="form-label">Màu sắc thuộc tính (*)</label>
                     <input type="text" id="vModalColor" class="form-control" placeholder="VD: Titan Sa Mạc" required />
                 </div>
                 <div class="form-row" style="margin: 0;">
                     <label class="form-label">Bộ nhớ trong (ROM) (*)</label>
-                    <input type="text" id="vModalStorage" class="form-control" placeholder="VD: 512GB" required />
+                    <input type="text" id="vModalStorage" class="form-control" placeholder="VD: 256GB" required />
                 </div>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-row" style="margin: 0;">
                     <label class="form-label">Bộ nhớ RAM (Nếu có)</label>
-                    <input type="text" id="vModalRam" class="form-control" placeholder="VD: 12GB" />
+                    <input type="text" id="vModalRam" class="form-control" placeholder="VD: 8GB" />
                 </div>
                 <div class="form-row" style="margin: 0;">
                     <label class="form-label">Giá niêm yết (VNĐ) (*)</label>
@@ -194,118 +213,114 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button onclick="closeQuickVariantModal()" class="btn-outline">Hủy bỏ</button>
-            <button onclick="submitNewVariantAjax()" class="btn-dark">XÁC NHẬN TẠO BIẾN THỂ</button>
+            <button onclick="closeQuickVariantModal()" class="btn-outline" style="cursor: pointer;">Hủy bỏ</button>
+            <button onclick="submitNewVariantAjax()" class="btn-dark" style="cursor: pointer;">XÁC NHẬN TẠO BIẾN THỂ</button>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        // Xử lý hiệu ứng Toggle Accordion cho bảng Master-Detail
+        // 1. XỬ LÝ HIỆU ỨNG TOGGLE ACCORDION CHỮA BẢNG CHA CON
         function toggleDetail(productId) {
             const row = document.getElementById(`row-${productId}`);
             const detail = document.getElementById(`detail-${productId}`);
             const icon = document.getElementById(`icon-${productId}`);
 
-            if (detail.classList.contains('open')) {
-                detail.classList.remove('open');
+            if (detail.style.display === "table-row") {
+                detail.style.display = "none";
                 row.classList.remove('expanded');
                 icon.innerText = "▶";
             } else {
-                // Tùy chọn: Đóng các dòng khác đang mở trước khi mở dòng này
-                document.querySelectorAll('.detail-row.open').forEach(el => el.classList.remove('open'));
-                document.querySelectorAll('.master-row.expanded').forEach(el => {
-                    el.classList.remove('expanded');
-                    document.getElementById(`icon-${el.id.split('-')[1]}`).innerText = "▶";
-                });
-
-                detail.classList.add('open');
+                detail.style.display = "table-row";
                 row.classList.add('expanded');
                 icon.innerText = "▼";
             }
         }
 
-                // --- LOGIC XỬ LÝ MODAL THÊM BIẾN THỂ ĐƠN LẺ ---
-                function openAddVariantModal(productId, productName) {
-                    document.getElementById('vModalProductId').value = productId;
-                    document.getElementById('vModalProductName').innerText = productName;
+        // 2. LOGIC ĐIỀU KHIỂN ĐÓNG MỞ POPUP MODAL VÀ DỌN DỮ LIỆU CŨ
+        function openAddVariantModal(productId, productName) {
+            document.getElementById('vModalProductId').value = productId;
+            document.getElementById('vModalProductName').innerText = decodeURIComponent(productName);
 
-                    // Xóa sạch dữ liệu cũ trong Form Modal
-                    document.getElementById('vModalColor').value = '';
-                    document.getElementById('vModalStorage').value = '';
-                    document.getElementById('vModalRam').value = '';
-                    document.getElementById('vModalPrice').value = '';
-                    document.getElementById('vModalImageFile').value = '';
+            document.getElementById('vModalColor').value = '';
+            document.getElementById('vModalStorage').value = '';
+            document.getElementById('vModalRam').value = '';
+            document.getElementById('vModalPrice').value = '';
+            document.getElementById('vModalImageFile').value = '';
 
-                    document.getElementById('quickVariantModal').style.display = 'flex';
+            document.getElementById('quickVariantModal').style.display = 'flex';
+        }
+
+        function closeQuickVariantModal(e) {
+            document.getElementById('quickVariantModal').style.display = 'none';
+        }
+
+        // 3. ĐỘNG CƠ AJAX CHỐNG LỖI 400 - ĐỒNG BỘ MÃ TOKEN BẢO MẬT XỊN XÒ
+        async function submitNewVariantAjax() {
+            const productId = document.getElementById('vModalProductId').value;
+            const color = document.getElementById('vModalColor').value;
+            const storage = document.getElementById('vModalStorage').value;
+            const ram = document.getElementById('vModalRam').value;
+            const price = document.getElementById('vModalPrice').value;
+            const imageFile = document.getElementById('vModalImageFile').files[0];
+
+            if (!color || !storage || !price) {
+                alert("Vui lòng điền đầy đủ các thông tin có dấu sao (*).");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("productId", productId);
+            formData.append("color", color.trim());
+            formData.append("storage", storage.trim());
+            formData.append("ram", ram ? ram.trim() : "");
+            formData.append("price", price);
+
+            if (imageFile) {
+                formData.append("variantImageFile", imageFile);
+            }
+
+            // Truy tìm thẻ Input sinh tự động từ @Html.AntiForgeryToken() nhét vào Body
+            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (tokenElement) {
+                formData.append("__RequestVerificationToken", tokenElement.value);
+            }
+
+            try {
+                const res = await fetch('/Admin/Product/AddSingleVariant', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    alert("Thêm biến thể mới thành công! Hệ thống tự động làm mới danh sách.");
+                    location.reload();
+                } else {
+                    alert("Lỗi từ máy chủ: " + data.message);
                 }
+            } catch (e) {
+                alert("Không thể kết nối đến hệ thống máy chủ dữ liệu.");
+            }
+        }
 
-                function closeQuickVariantModal(e) {
-                    document.getElementById('quickVariantModal').style.display = 'none';
+        // 4. ĐIỀU PHỐI EVENT KHÓA/MỞ KINH DOANH SẢN PHẨM (SOFT TOGGLE)
+        async function deleteSoft(productId) {
+            if (!confirm("Xác nhận thay đổi trạng thái kinh doanh của sản phẩm này?")) return;
+
+            try {
+                const res = await fetch(`/Admin/Product/ToggleStatus/${productId}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message);
                 }
-
-                async function submitNewVariantAjax() {
-                    const productId = document.getElementById('vModalProductId').value;
-                    const color = document.getElementById('vModalColor').value;
-                    const storage = document.getElementById('vModalStorage').value;
-                    const ram = document.getElementById('vModalRam').value;
-                    const price = document.getElementById('vModalPrice').value;
-                    const imageFile = document.getElementById('vModalImageFile').files[0];
-
-                    if (!color || !storage || !price) {
-                        alert("Vui lòng điền đầy đủ các thông tin có dấu sao (*).");
-                        return;
-                    }
-
-                    // Đóng gói mảng dữ liệu đặc biệt chứa File nhị phân bằng FormData
-                    const formData = new FormData();
-                    formData.append("productId", productId);
-                    formData.append("color", color);
-                    formData.append("storage", storage);
-                    formData.append("ram", ram);
-                    formData.append("price", price);
-                    if (imageFile) {
-                        formData.append("variantImageFile", imageFile);
-                    }
-
-                    // Gửi Token bảo mật của hệ thống chống tấn công giả mạo (CSRF)
-                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-
-                    try {
-                        const res = await fetch('/Admin/Product/AddSingleVariant', {
-                            method: 'POST',
-                            headers: {
-                                'RequestVerificationToken': token
-                            },
-                            body: formData
-                        });
-                        const data = await res.json();
-
-                        if (data.success) {
-                            alert("Thêm biến thể mới thành công! Hệ thống tự động làm mới danh sách.");
-                            location.reload(); // Reload trang để hiển thị biến thể mới trong bảng lồng cha con
-                        } else {
-                            alert("Lỗi: " + data.message);
-                        }
-                    } catch (e) {
-                        alert("Không thể kết nối đến hệ thống máy chủ dữ liệu.");
-                    }
-                }
-
-        // Logic Xóa mềm (Sẽ viết API ở Giai đoạn 4)
-                async function deleteSoft(productId) {
-    if (!confirm("Xác nhận thay đổi trạng thái kinh doanh của sản phẩm này?")) return;
-
-    const res = await fetch(`/Admin/Product/ToggleStatus/${productId}`, { method: 'POST' });
-    const data = await res.json();
-
-    if (data.success) {
-        // Reload lại trang hoặc cập nhật DOM trực tiếp
-        location.reload(); 
-    } else {
-        alert(data.message);
-    }
-}
+            } catch (e) {
+                alert("Không thể kết nối đến hệ thống máy chủ dữ liệu.");
+            }
+        }
     </script>
 }

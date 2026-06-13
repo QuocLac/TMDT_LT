@@ -1,0 +1,94 @@
+﻿@{
+    ViewData["Title"] = "Về KingPhone";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/storefront/store-about.css" asp-append-version="true" />
+}
+
+<section class="about-hero-wrapper">
+    <div class="about-hero-content scroll-reveal active">
+        <h1 class="about-hero-title">Định Nghĩa Lại Trải Nghiệm Công Nghệ</h1>
+        <p>
+            Tại KingPhone, chúng tôi không chỉ bán một chiếc điện thoại. <br />
+            Chúng tôi trao cho bạn chiếc chìa khóa để bước vào kỷ nguyên kết nối không giới hạn.
+        </p>
+    </div>
+</section>
+
+<section class="about-section">
+    <div class="about-grid-2">
+        <div class="about-text-block scroll-reveal">
+            <h3>Câu Chuyện Của Chúng Tôi</h3>
+            <p>
+                Lấy cảm hứng từ khát vọng mang lại niềm vui giản dị cho mọi gia đình, <strong>KingPhone</strong> bắt đầu hành trình của mình không chỉ như một hệ thống bán lẻ thiết bị di động, mà là một "điểm đến của sự kết nối".
+            </p>
+            <p>
+                Chúng tôi hiểu rằng, đằng sau mỗi chiếc điện thoại được bán ra là khao khát được gọi về cho người thân, là niềm vui khi bắt trọn nụ cười của con trẻ, hay sự hào hứng khi chia sẻ một khoảnh khắc tuyệt vời với thế giới. Vì thế, tiêu chuẩn phục vụ tại KingPhone luôn xoay quanh <strong>sự tận tâm, thân thiện và nụ cười rạng rỡ</strong> – đảm bảo mỗi khách hàng bước vào đều cảm thấy ấm áp như trở về nhà.
+            </p>
+            <p>
+                Với cam kết cung cấp những siêu phẩm công nghệ chính hãng cùng trải nghiệm dịch vụ chuẩn mực nhất, KingPhone mong muốn được tiếp tục đồng hành và lan tỏa hạnh phúc đến hàng triệu người dùng Việt Nam.
+            </p>
+        </div>
+
+        <div class="about-image-showcase scroll-reveal delay-2">
+            <img src="~/images/kingphone-store.png" alt="Trải nghiệm nụ cười tại KingPhone">
+        </div>
+    </div>
+</section>
+
+<section class="about-section scroll-reveal">
+    <div style="text-align: center; max-width: 600px; margin: 0 auto;">
+        <h3 style="font-size: 28px; font-weight: 800; color: var(--navy-deep); margin-bottom: 12px;">Ghé Thăm KingPhone Nhé!</h3>
+        <p style="color: #6B7280;">Dù bạn cần tư vấn lên đời máy hay chỉ đơn giản là muốn ghé qua trải nghiệm công nghệ mới, cửa hàng của chúng tôi luôn rộng cửa chào đón bạn.</p>
+    </div>
+
+    <div class="contact-bento-grid">
+        <div class="contact-card scroll-reveal delay-1">
+            <i class="fas fa-map-marker-alt contact-icon"></i>
+            <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Showroom Trực Tiếp</h4>
+            <p style="font-size: 14px; color: #475569; margin: 0; margin-bottom: 16px;">Số 123 Đường Công Nghệ, Quận 1<br />TP. Hồ Chí Minh, Việt Nam</p>
+
+            <a href="https://maps.google.com/?q=123+Đường+Công+Nghệ,+Quận+1,+TP.HCM" target="_blank" style="display: inline-block; font-size: 12px; font-weight: 700; color: #3B82F6; text-decoration: none; border: 1px solid #3B82F6; padding: 6px 16px; border-radius: 20px; transition: all 0.2s;" onmouseover="this.style.background='#3B82F6'; this.style.color='#FFFFFF'" onmouseout="this.style.background='transparent'; this.style.color='#3B82F6'">
+                <i class="fas fa-directions"></i> Chỉ đường Google Maps
+            </a>
+        </div>
+
+        <div class="contact-card scroll-reveal delay-2">
+            <i class="fas fa-envelope-open-text contact-icon"></i>
+            <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Email Hỗ Trợ</h4>
+            <p style="font-size: 14px; color: #475569; margin: 0;">support@kingphone.vn<br />Gửi phản hồi 24/7</p>
+        </div>
+
+        <div class="contact-card scroll-reveal delay-3">
+            <i class="fas fa-headset contact-icon"></i>
+            <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Hotline Tư Vấn</h4>
+            <p style="font-size: 14px; color: #475569; margin: 0; font-family: monospace; font-size: 18px; font-weight: 800; color: var(--navy-deep); margin-top: 4px;">1900 8888</p>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Bộ theo dõi cuộn trang
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15 // Kích hoạt khi cuộn được 15% khối
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.scroll-reveal');
+            revealElements.forEach(el => observer.observe(el));
+        });
+    </script>
+}

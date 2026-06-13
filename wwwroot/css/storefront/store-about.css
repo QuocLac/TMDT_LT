@@ -1,0 +1,176 @@
+﻿/* ==========================================================================
+   KINGPHONE - TRANG GIỚI THIỆU (ABOUT US)
+   ĐỒNG BỘ 100% HIỆU ỨNG QUÉT SÁNG CỦA TRANG CHỦ
+   ========================================================================== */
+
+/* 1. HIỆU ỨNG NỀN ĐỘNG GIỐNG Y CHANG TRANG CHỦ */
+.about-hero-wrapper {
+    position: relative;
+    /* Gradient 4 màu y hệt hero-marketing-wrapper */
+    background: linear-gradient(-45deg, #0F172A, #1E293B, #FFFFFF, #E2E8F0);
+    background-size: 400% 400%;
+    animation: gradientSweep 12s ease infinite;
+    padding: 100px 20px;
+    text-align: center;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-color);
+}
+
+@keyframes gradientSweep {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.about-hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+    /* HIỆU ỨNG QUÉT SÁNG DÀNH CHUNG CHO TIÊU ĐỀ VÀ NỘI DUNG */
+    .about-hero-title, .about-hero-content p {
+        background: linear-gradient(90deg, #E2E8F0 0%, #0F172A 50%, #E2E8F0 100%);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: textShimmer 6s infinite linear;
+    }
+
+@keyframes textShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Tinh chỉnh riêng cho tiêu đề */
+.about-hero-title {
+    font-size: 48px;
+    font-weight: 800;
+    margin-bottom: 16px;
+    letter-spacing: -1.5px;
+}
+
+/* Tinh chỉnh riêng cho đoạn văn để nó quét "đuổi theo" tiêu đề */
+.about-hero-content p {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 20px;
+    animation-delay: 0.5s; /* Độ trễ 0.5s tạo hiệu ứng sóng cuộn */
+}
+/* 2. CÁC PHẦN NỘI DUNG BÊN DƯỚI (GIỮ NGUYÊN LƯỚI) */
+.about-section {
+    max-width: 1200px;
+    margin: 80px auto;
+    padding: 0 20px;
+}
+
+.about-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+}
+
+.about-text-block h3 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--navy-deep);
+    margin-bottom: 24px;
+}
+
+.about-text-block p {
+    font-size: 16px;
+    color: #475569;
+    line-height: 1.8;
+    margin-bottom: 16px;
+}
+
+.about-image-showcase {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
+}
+
+    .about-image-showcase img {
+        width: 100%;
+        height: auto;
+        display: block;
+        transition: transform 0.5s ease;
+    }
+
+    .about-image-showcase:hover img {
+        transform: scale(1.02);
+    }
+
+/* 3. BENTO GRID LIÊN HỆ */
+.contact-bento-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 40px;
+}
+
+.contact-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    padding: 30px;
+    border-radius: 8px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+    .contact-card:hover {
+        border-color: var(--navy-deep);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    }
+
+.contact-icon {
+    font-size: 32px;
+    color: var(--accent-red);
+    margin-bottom: 16px;
+}
+
+/* 4. ANIMATION CUỘN CHUỘT */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+}
+
+    .scroll-reveal.active {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+/* 5. RESPONSIVE */
+@media (max-width: 992px) {
+    .about-grid-2 {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+
+    .about-image-showcase {
+        order: 2;
+    }
+
+    .contact-bento-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}

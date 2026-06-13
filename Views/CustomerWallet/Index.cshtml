@@ -1,0 +1,171 @@
+﻿@model IEnumerable<TMDT_LT.Models.CustomerWallet>
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Ví Voucher Của Tôi";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/storefront/store-wallet.css" asp-append-version="true" />
+}
+
+<div class="wallet-container">
+    <aside class="account-sidebar-flat">
+        <a href="/Account/Profile" class="sidebar-menu-item">
+            <i class="fas fa-id-card" style="width: 18px;"></i> Hồ sơ cá nhân
+        </a>
+        <a href="/CustomerWallet" class="sidebar-menu-item active">
+            <i class="fas fa-ticket-alt" style="width: 18px;"></i> Ví Voucher cá nhân
+        </a>
+        <a href="/Account/Orders" class="sidebar-menu-item">
+            <i class="fas fa-box-open" style="width: 18px;"></i> Đơn hàng đã mua
+        </a>
+        <a href="/Account/Favorites" class="sidebar-menu-item">
+            <i class="fas fa-heart" style="width: 18px;"></i> Sản phẩm yêu thích
+        </a>
+        <a href="/Account/Notifications" class="sidebar-menu-item">
+            <i class="fas fa-bell" style="width: 18px;"></i> Thông báo hệ thống
+        </a>
+    </aside>
+
+    <main class="wallet-main-content">
+        <div>
+            <h2 style="font-size: 22px; font-weight: 800; color: var(--navy-deep); margin-bottom: 4px;">Kho Voucher của bạn</h2>
+            <p style="color: #6B7280; font-size: 13px; margin: 0;">Lưu trữ toàn bộ các mã ưu đãi bạn đã săn được hoặc được PHONE.ST tặng riêng.</p>
+        </div>
+
+        <div class="wallet-tabs">
+            <button class="wallet-tab-btn active" onclick="switchWalletTab(0, this)">Chưa sử dụng (@Model.Count(w => w.Status == 0))</button>
+            <button class="wallet-tab-btn" onclick="switchWalletTab(1, this)">Đã sử dụng (@Model.Count(w => w.Status == 1))</button>
+            <button class="wallet-tab-btn" onclick="switchWalletTab(2, this)">Đã hết hạn (@Model.Count(w => w.Status == 2))</button>
+        </div>
+
+        <div id="wallet-list-viewport" class="wallet-grid">
+            @if (Model != null && Model.Any())
+            {
+                foreach (var item in Model)
+                {
+                    var p = item.Promotion;
+                    if (p == null) continue;
+
+                    var rule = p.PromotionRules?.FirstOrDefault();
+                    if (rule == null) continue;
+
+                    string discountText = rule.DiscountType == 1 ? string.Format("{0:N0}đ", rule.DiscountValue) : $"{rule.DiscountValue}%";
+
+                    <div class="wallet-ticket status-@item.Status" data-status="@item.Status" style="@(item.Status != 0 ? "display:none;" : "")">
+                        <div class="ticket-left">
+                            <span style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">GIẢM THẲNG</span>
+                            <strong style="font-size: 22px; margin: 4px 0;">@discountText</strong>
+                            <span style="font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 10px;">VOUCHER</span>
+                        </div>
+
+                        <div class="ticket-right">
+                            <div>
+                                <div style="font-size: 15px; font-weight: 700; color: var(--navy-deep); margin-bottom: 4px;">@p.Name</div>
+                                <div style="font-size: 12px; color: #6B7280; margin-bottom: 8px;">Đơn hàng tối thiểu: <strong style="color: #111827;">@string.Format("{0:N0}", rule.MinOrderValue) đ</strong></div>
+                                <div style="font-size: 11px; color: #9CA3AF;">
+                                    <i class="far fa-clock"></i> Có giá trị đến: @p.EndDate.ToString("dd/MM/yyyy HH:mm")
+                                </div>
+                            </div>
+
+                            <div>
+                                @if (item.Status == 0)
+                                {
+                                    <a href="/Store" class="btn-use-now">DÙNG NGAY</a>
+                                }
+                                else if (item.Status == 1)
+                                {
+                                    <span class="watermark-badge" style="background: #E1F5FE; color: #0288D1;"><i class="fas fa-check-circle"></i> Đã dùng</span>
+                                }
+                                else
+                                {
+                                    <span class="watermark-badge" style="background: #FEE2E2; color: #EF4444;"><i class="fas fa-history"></i> Hết hạn</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+
+            <div id="wallet-empty-box" style="display: none; text-align: center; padding: 50px 20px; background: #F9FAFB; border-radius: 8px; border: 1px dashed var(--border-color);">
+                <i class="fas fa-ticket-alt" style="font-size: 36px; color: #CBD5E1; margin-bottom: 12px;"></i>
+                <h4 style="color: var(--navy-deep); margin-bottom: 4px;">Không tìm thấy mã ưu đãi nào</h4>
+                <p style="color: #9CA3AF; font-size: 13px; margin: 0;">Bạn hãy tham gia các chương trình săn sale để tích lũy thêm voucher nhé.</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+@section Scripts {
+    <script>
+        function switchWalletTab(status, btnElement) {
+            document.querySelectorAll('.wallet-tab-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+
+            let visibleCount = 0;
+        // XỬ LÝ LƯU VOUCHER BẰNG AJAX (CÓ RÀO CHẮN RAZOR)
+                    document.querySelectorAll('.btn-save-voucher').forEach(btn => {
+                        btn.addEventListener('click', async function() {
+
+                            // Rào chắn 1: Kiểm tra đăng nhập ngay tại Client
+                            @if (User.Identity == null || !User.Identity.IsAuthenticated)
+                            {
+                                    <text>
+                                    if (confirm("Bạn cần đăng nhập tài khoản để thu thập mã giảm giá này. Đến trang đăng nhập ngay?")) {
+                                        window.location.href = '/Account/Login?returnUrl=/';
+                                    }
+                                    return; // Ngắt luồng, không gọi API
+                                    </text>
+                            }
+
+                            const promoId = this.getAttribute('data-id');
+                            const originalText = this.innerHTML;
+
+                            this.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+                            this.disabled = true;
+
+                            try {
+                                const formData = new FormData();
+                                formData.append('promotionId', promoId);
+
+                                const res = await fetch('/CustomerWallet/SaveVoucher', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+
+                                const data = await res.json();
+
+                                if (data.success) {
+                                    this.innerHTML = 'ĐÃ LƯU';
+                                    this.style.background = '#10B981';
+                                    this.style.color = '#fff';
+                                    alert(data.message);
+                                } else {
+                                    if (data.requireLogin) {
+                                        window.location.href = '/Account/Login?returnUrl=/';
+                                    } else {
+                                        alert(data.message);
+                                        this.innerHTML = 'HẾT LƯỢT';
+                                        this.style.background = '#E5E7EB';
+                                        this.style.color = '#9CA3AF';
+                                    }
+                                }
+                            } catch (e) {
+                                alert('Lỗi kết nối đến máy chủ.');
+                                this.innerHTML = originalText;
+                                this.disabled = false;
+                            }
+                        });
+                    });
+
+            const emptyBox = document.getElementById('wallet-empty-box');
+            if (visibleCount === 0) emptyBox.style.display = 'block';
+            else emptyBox.style.display = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const activeBtn = document.querySelector('.wallet-tab-btn.active');
+            if (activeBtn) switchWalletTab(0, activeBtn);
+        });
+    </script>
+}

@@ -1,0 +1,101 @@
+﻿@model IEnumerable<TMDT_LT.Models.Promotions>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Khuyến mãi";
+}
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div>
+        <h2 style="margin-bottom: 5px;">Quản lý Chiến dịch Khuyến mãi</h2>
+        <p style="color: #6B7280; font-size: 14px;">Thiết lập mã giảm giá, cấu hình điều kiện áp dụng và kiểm soát ngân sách voucher.</p>
+    </div>
+    <a asp-action="Create" class="btn-dark" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+        <i class="fas fa-plus"></i> Tạo chiến dịch mới
+    </a>
+</div>
+
+<div class="admin-card" style="padding: 0;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">Mã Code</th>
+                <th style="width: 25%;">Tên chương trình</th>
+                <th style="width: 20%; text-align: center;">Thời gian hiệu lực</th>
+                <th style="width: 15%; text-align: right;">Hiệu suất sử dụng</th>
+                <th style="width: 15%; text-align: center;">Trạng thái</th>
+                <th style="width: 10%; text-align: center;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model == null || !Model.Any())
+            {
+                <tr><td colspan="6" style="text-align:center; padding: 40px; color: #9CA3AF;">Hệ thống chưa ghi nhận chiến dịch khuyến mãi nào được khởi tạo.</td></tr>
+            }
+            else
+            {
+                var now = DateTime.Now;
+                foreach (var item in Model)
+                {
+                    var rule = item.PromotionRules?.FirstOrDefault();
+
+                    string statusText = "Đang chạy";
+                    string statusColor = "#10B981";
+                    string statusBg = "#D1FAE5";
+
+                    if (!item.IsActive)
+                    {
+                        statusText = "Đã tắt"; statusColor = "#6B7280"; statusBg = "#F3F4F6";
+                    }
+                    else if (item.EndDate < now)
+                    {
+                        statusText = "Hết hạn"; statusColor = "#DC2626"; statusBg = "#FEE2E2";
+                    }
+                    else if (item.StartDate > now)
+                    {
+                        statusText = "Sắp diễn ra"; statusColor = "#F59E0B"; statusBg = "#FEF3C7";
+                    }
+                    else if (item.UsedCount >= item.UsageLimit)
+                    {
+                        statusText = "Hết lượt"; statusColor = "#DC2626"; statusBg = "#FEE2E2";
+                    }
+
+                    <tr>
+                        <td>
+                            <div style="font-weight: 800; color: #DC2626; font-size: 14px; letter-spacing: 0.5px; font-family: monospace;">@item.Code</div>
+                            @if (rule != null)
+                            {
+                                <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">Đơn tối thiểu: @string.Format("{0:N0}", rule.MinOrderValue) đ</div>
+                            }
+                        </td>
+                        <td>
+                            <strong style="color: var(--admin-text-dark); font-size: 14px;">@item.Name</strong>
+                            @if (rule != null)
+                            {
+                                <div style="font-size: 12px; color: #059669; font-weight: 600; margin-top: 2px;">
+                                    Giảm @(rule.DiscountType == 1 ? string.Format("{0:N0} đ", rule.DiscountValue) : $"{rule.DiscountValue}%")
+                                </div>
+                            }
+                        </td>
+                        <td style="text-align: center; font-size: 12px;">
+                            <div>@item.StartDate.ToString("dd/MM/yyyy HH:mm")</div>
+                            <div style="color: #9CA3AF; font-size: 10px; margin: 2px 0;">đến</div>
+                            <div style="color: #6B7280; font-weight: 500;">@item.EndDate.ToString("dd/MM/yyyy HH:mm")</div>
+                        </td>
+                        <td style="text-align: right; font-size: 13px;">
+                            <span style="font-weight: 700;">@item.UsedCount</span> / @item.UsageLimit
+                            <div style="width: 100%; background: #E5E7EB; height: 4px; border-radius: 2px; margin-top: 4px; overflow: hidden;">
+                                <div style="background: #111827; height: 100%; width: @(item.UsageLimit > 0 ? (item.UsedCount * 100.0 / item.UsageLimit) : 0)%;"></div>
+                            </div>
+                        </td>
+                        <td style="text-align: center;">
+                            <span style="background: @statusBg; color: @statusColor; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-block;">@statusText</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <button class="btn-outline" style="padding: 4px 8px; font-size: 12px; opacity: 0.5; cursor: not-allowed;" disabled>Sửa</button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>

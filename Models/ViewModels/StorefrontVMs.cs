@@ -8,8 +8,11 @@ namespace TMDT_LT.Models.ViewModels.Storefront
         public List<Products> BestSellers { get; set; } = new List<Products>();
         public List<Products> Recommendations { get; set; } = new List<Products>();
 
-        // Thêm danh sách Banner tiếp thị
+        // Danh sách Banner tiếp thị
         public List<CampaignBanners> ActiveBanners { get; set; } = new List<CampaignBanners>();
+
+        // BỔ SUNG: Danh sách Voucher công khai đẩy ra trang chủ
+        public List<Promotions> TopVouchers { get; set; } = new List<Promotions>();
     }
 
     public class SearchResultItemVM

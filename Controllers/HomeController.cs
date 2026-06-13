@@ -37,7 +37,7 @@ namespace TMDT_LT.Controllers
             var categories = await _context.Categories.Take(6).ToListAsync();
             ViewBag.Categories = categories;
 
-            // 3. Tải Sản phẩm bán chạy (BestSellers) - Nạp tối đa 10 sản phẩm theo cấu trúc mới
+            // 3. Tải Sản phẩm bán chạy (BestSellers)
             var bestSellers = await _context.Products
                 .Include(p => p.ProductVariants)
                 .Where(p => p.IsActive == true)
@@ -47,7 +47,7 @@ namespace TMDT_LT.Controllers
                 .Take(10)
                 .ToListAsync();
 
-            // 4. THUẬT TOÁN TIẾP THỊ HÀNH VI: Khởi tạo danh sách gợi ý cá nhân hóa (Nạp tối đa 10 sản phẩm)
+            // 4. Khởi tạo danh sách gợi ý cá nhân hóa
             var recommendations = new List<Products>();
             string? favoriteBrandIdStr = Request.Cookies["LastViewedBrandId"];
 
@@ -76,15 +76,31 @@ namespace TMDT_LT.Controllers
                 recommendations.AddRange(fallbackProducts);
             }
 
+            // =============================================================
+            // 5. TRUY XUẤT VOUCHER CÔNG KHAI (TargetAudience = 0)
+            // =============================================================
+            var topVouchers = await _context.Promotions
+                .Include(p => p.PromotionRules)
+                .Where(p => p.IsActive
+                         && p.TargetAudience == 0
+                         && p.StartDate <= now
+                         && p.EndDate >= now
+                         && p.UsedCount < p.UsageLimit)
+                .OrderByDescending(p => p.UsedCount) // Lấy mã được dùng nhiều nhất lên trước
+                .Take(4)
+                .ToListAsync();
+
             var model = new HomeStorefrontVM
             {
                 ActiveBanners = activeBanners,
                 BestSellers = bestSellers,
-                Recommendations = recommendations
+                Recommendations = recommendations,
+                TopVouchers = topVouchers // Đẩy ra View
             };
 
             return View(model);
         }
 
+        public IActionResult About() => View();
     }
 }

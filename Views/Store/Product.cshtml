@@ -3,36 +3,32 @@
     Layout = "_Layout";
     ViewData["Title"] = Model.Product.Name;
 
-    // Lấy danh sách duy nhất của các tùy chọn
-    var uniqueStorages = Model.Product.ProductVariants
-        .Where(v => v.IsActive == true && !string.IsNullOrEmpty(v.Storage))
-        .Select(v => v.Storage)
-        .Distinct()
-        .ToList();
+    // Trích xuất các tập hợp phân loại độc lập để vẽ giao diện chọn
+    var uniqueStorages = Model.Product.ProductVariants.Where(v => v.IsActive == true && !string.IsNullOrEmpty(v.Storage)).Select(v => v.Storage).Distinct().ToList();
+    var uniqueRams = Model.Product.ProductVariants.Where(v => v.IsActive == true && !string.IsNullOrEmpty(v.Ram)).Select(v => v.Ram).Distinct().ToList();
+    var uniqueColors = Model.Product.ProductVariants.Where(v => v.IsActive == true && !string.IsNullOrEmpty(v.Color)).Select(v => v.Color).Distinct().ToList();
 
-    var uniqueColors = Model.Product.ProductVariants
-        .Where(v => v.IsActive == true && !string.IsNullOrEmpty(v.Color))
-        .Select(v => v.Color)
-        .Distinct()
-        .ToList();
-
-    // Biến thể mặc định hiển thị ban đầu
-    var defaultVariant = Model.Product.ProductVariants
-        .Where(v => v.IsActive == true)
-        .OrderBy(v => v.Price)
-        .FirstOrDefault();
-
-    // TÍNH TOÁN GIÁ THẤP NHẤT TỪ SERVER (Sửa lỗi 0đ)
-    var minPrice = Model.Product.ProductVariants
-        .Where(v => v.IsActive == true)
-        .Min(v => v.DiscountPrice > 0 ? v.DiscountPrice : v.Price);
-
+    var minPrice = Model.Product.ProductVariants.Where(v => v.IsActive == true).Min(v => v.DiscountPrice > 0 ? v.DiscountPrice : v.Price);
     string displayPrice = minPrice != null ? ((decimal)minPrice).ToString("N0", new System.Globalization.CultureInfo("vi-VN")) + " đ" : "Liên hệ";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/storefront/store-pdp.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/storefront/store-home.css" asp-append-version="true" />
+    <style>
+        /* CSS cho nút thuộc tính bị vô hiệu hóa chéo */
+        .chip-btn.disabled-chip {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: #E5E7EB;
+            background: #F9FAFB;
+            color: #9CA3AF;
+        }
+        .chip-btn.disabled-chip:hover {
+            border-color: #E5E7EB;
+            color: #9CA3AF;
+        }
+    </style>
 }
 
 <div class="pdp-grid-wrapper">
@@ -40,12 +36,10 @@
         <div class="pdp-main-viewport">
             <img id="mainPdpImage" src="@Model.Product.MainImage" alt="@Model.Product.Name" />
         </div>
-        
         <div class="pdp-thumbnail-strip">
             <div class="pdp-thumb-item active" onclick="changeGalleryImage('@Model.Product.MainImage', this)">
                 <img src="@Model.Product.MainImage" alt="Main" />
             </div>
-            
             @if (Model.Product.ProductImages != null)
             {
                 foreach (var img in Model.Product.ProductImages)
@@ -74,9 +68,20 @@
                 <div class="variant-chips-flex">
                     @foreach (var storage in uniqueStorages)
                     {
-                        <button type="button" class="chip-btn storage-chip" data-storage="@storage" onclick="selectStorage('@storage', this)">
-                            @storage
-                        </button>
+                        <button type="button" class="chip-btn attr-storage" data-val="@storage" onclick="toggleSelection('storage', '@storage', this)">@storage</button>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (uniqueRams.Any())
+        {
+            <div class="variant-selector-group" style="margin-top: 15px;">
+                <div class="variant-label">Chọn RAM</div>
+                <div class="variant-chips-flex">
+                    @foreach (var ram in uniqueRams)
+                    {
+                        <button type="button" class="chip-btn attr-ram" data-val="@ram" onclick="toggleSelection('ram', '@ram', this)">@ram</button>
                     }
                 </div>
             </div>
@@ -84,14 +89,12 @@
 
         @if (uniqueColors.Any())
         {
-            <div class="variant-selector-group" style="margin-top: 20px;">
+            <div class="variant-selector-group" style="margin-top: 15px;">
                 <div class="variant-label">Chọn Màu Sắc</div>
                 <div class="variant-chips-flex">
                     @foreach (var color in uniqueColors)
                     {
-                        <button type="button" class="chip-btn color-chip" data-color="@color" onclick="selectColor('@color', this)">
-                            @color
-                        </button>
+                        <button type="button" class="chip-btn attr-color" data-val="@color" onclick="toggleSelection('color', '@color', this)">@color</button>
                     }
                 </div>
             </div>
@@ -104,13 +107,11 @@
             
             <form action="/Cart/AddToCart" method="post" id="formAddToCart" style="display: flex; gap: 12px; align-items: stretch;">
                 <input type="hidden" name="variantId" id="hiddenVariantId" value="" />
-                
                 <input type="number" name="quantity" value="1" min="1" class="form-control" style="width: 70px; height: 50px; text-align: center; font-weight: 700; border-radius: 4px; border: 1px solid var(--border-color);" />
                 
                 <button type="submit" name="actionType" value="add" id="btnSubmitCart" disabled style="flex: 1; height: 50px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 2px solid var(--navy-deep); color: var(--navy-deep); background: white; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
                     Thêm vào giỏ
                 </button>
-                
                 <button type="submit" name="actionType" value="buy" id="btnBuyNow" disabled style="flex: 1; height: 50px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: var(--accent-red, #DC2626); color: white; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
                     Mua ngay
                 </button>
@@ -163,7 +164,9 @@
                     </div>
                 }
             </div>
-        </div> <div class="review-list">
+        </div>
+
+        <div class="review-list">
             @if (Model.ApprovedReviews != null && Model.ApprovedReviews.Any())
             {
                 foreach (var review in Model.ApprovedReviews)
@@ -186,9 +189,7 @@
                                 else { <i class="far fa-star"></i> }
                             }
                         </div>
-                        <div class="review-body">
-                            @review.Comment
-                        </div>
+                        <div class="review-body">@review.Comment</div>
                         
                         @if (!string.IsNullOrEmpty(review.AdminReply))
                         {
@@ -203,7 +204,7 @@
             else
             {
                 <div style="text-align: center; padding: 40px; color: var(--navy-medium); background: var(--navy-light); border-radius: 8px;">
-                    Chưa có đánh giá nào cho sản phẩm này. Hãy là người đầu tiên trải nghiệm và nhận xét!
+                    Chương trình chưa ghi nhận đánh giá nào cho thiết bị này.
                 </div>
             }
         </div>
@@ -240,12 +241,6 @@
                 </form>
             </div>
         }
-        else
-        {
-            <div style="margin-top: 24px; text-align: center; font-size: 14px;">
-                Vui lòng <a href="/Account/Login?returnUrl=/Store/Product/@Model.Product.ProductId" style="color: var(--navy-deep); font-weight: 700; text-decoration: underline;">Đăng nhập</a> để tham gia đánh giá sản phẩm.
-            </div>
-        }
     </div>
 </div>
 
@@ -271,143 +266,192 @@
 
 @section Scripts {
     <script>
-        // 1. Dùng Html.Raw() để đảm bảo chuỗi JSON mảng biến thể không bị dính ký tự mã hóa HTML (&quot;)
-        const variants = @Html.Raw(Json.Serialize(Model.Product.ProductVariants.Where(v => v.IsActive == true).Select(v => new {
+        // TẢI DỮ LIỆU MA TRẬN BIẾN THỂ TỪ BACKEND
+        const variantMatrix = @Html.Raw(Json.Serialize(Model.Product.ProductVariants.Where(v => v.IsActive == true).Select(v => new {
             variantId = v.VariantId,
-            color = v.Color,
-            storage = v.Storage,
+            color = v.Color ?? "",
+            ram = v.Ram ?? "",
+            storage = v.Storage ?? "",
             price = v.Price,
             discountPrice = v.DiscountPrice,
             stock = v.Stock,
             imageUrl = v.ImageUrl
         })));
 
-        // 2. VÁ LỖI CÚ PHÁP JAVASCRIPT: 
-        // Phải dùng InvariantCulture để C# bỏ dấu phẩy (,) tiếng Việt, tránh làm sập Script
         const minPriceFromServer = @((minPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        
+        let currentSelection = { storage: null, ram: null, color: null };
 
-        let selectedStorage = "";
-        let selectedColor = "";
+        // ĐỘNG CƠ KHÓA CHÉO (CROSS-LOCKING ENGINE)
+        function toggleSelection(type, value, element) {
+            if (element.classList.contains('disabled-chip')) return;
 
-        // Hàm 1: Điều hướng Hoán đổi bộ sưu tập ảnh chính
-        function changeGalleryImage(src, element) {
-            const mainImg = document.getElementById('mainPdpImage');
-            mainImg.style.opacity = 0.3; // Hiệu ứng mờ dần
-            
-            setTimeout(() => {
-                mainImg.src = src;
-                mainImg.style.opacity = 1;
-            }, 150);
+            if (currentSelection[type] === value) {
+                currentSelection[type] = null;
+                element.classList.remove('active');
+            } else {
+                currentSelection[type] = value;
+                document.querySelectorAll(`.attr-${type}`).forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+            }
 
-            document.querySelectorAll('.pdp-thumb-item').forEach(item => item.classList.remove('active'));
-            element.classList.add('active');
+            evaluateMatrix();
         }
 
-        // Hàm 2: Xử lý tác vụ khi chọn ô Dung lượng
-        function selectStorage(storage, element) {
-            selectedStorage = storage;
-            document.querySelectorAll('.storage-chip').forEach(btn => btn.classList.remove('active'));
-            element.classList.add('active');
-            matchVariantEngine();
+        function evaluateMatrix() {
+            // Quét và làm mờ các tổ hợp không tồn tại
+            document.querySelectorAll('.attr-storage').forEach(el => checkAvailability('storage', el.getAttribute('data-val'), el));
+            document.querySelectorAll('.attr-ram').forEach(el => checkAvailability('ram', el.getAttribute('data-val'), el));
+            document.querySelectorAll('.attr-color').forEach(el => checkAvailability('color', el.getAttribute('data-val'), el));
+
+            // Kiểm tra xem tổ hợp khách vừa bấm có tạo ra ID cuối cùng không
+            const exactMatch = variantMatrix.find(v => 
+                (!currentSelection.storage || v.storage === currentSelection.storage) &&
+                (!currentSelection.ram || v.ram === currentSelection.ram) &&
+                (!currentSelection.color || v.color === currentSelection.color) &&
+                (currentSelection.storage !== null || v.storage === "") &&
+                (currentSelection.ram !== null || v.ram === "") &&
+                (currentSelection.color !== null || v.color === "")
+            );
+
+            updateUIPanel(exactMatch);
         }
 
-        // Hàm 3: Xử lý tác vụ khi chọn ô Màu sắc
-        function selectColor(color, element) {
-            selectedColor = color;
-            document.querySelectorAll('.color-chip').forEach(btn => btn.classList.remove('active'));
-            element.classList.add('active');
-            matchVariantEngine();
+        function checkAvailability(typeToCheck, valueToCheck, element) {
+            let testSelection = { ...currentSelection };
+            testSelection[typeToCheck] = valueToCheck;
+
+            const isAvailable = variantMatrix.some(v => 
+                (!testSelection.storage || v.storage === testSelection.storage) &&
+                (!testSelection.ram || v.ram === testSelection.ram) &&
+                (!testSelection.color || v.color === testSelection.color)
+            );
+
+            if (isAvailable) {
+                element.classList.remove('disabled-chip');
+            } else {
+                element.classList.add('disabled-chip');
+                element.classList.remove('active');
+                if (currentSelection[typeToCheck] === valueToCheck) currentSelection[typeToCheck] = null;
+            }
         }
 
-        // Hàm 4: ĐỘNG CƠ ĐỐI SOÁT BIẾN THỂ VÀ GIÁ
-        function matchVariantEngine() {
-            // Cố gắng tìm biến thể khớp 100% với cặp thông số được chọn
-            const match = variants.find(v => v.storage === selectedStorage && v.color === selectedColor);
-
+        function updateUIPanel(match) {
             const lblPrice = document.getElementById('lblCurrentPrice');
             const lblOldPrice = document.getElementById('lblOldPrice');
             const lblStock = document.getElementById('lblStockStatus');
             const hiddenId = document.getElementById('hiddenVariantId');
-            
             const btnSubmitCart = document.getElementById('btnSubmitCart');
             const btnBuyNow = document.getElementById('btnBuyNow');
-            
             const formatVND = (num) => new Intl.NumberFormat('vi-VN').format(num) + " đ";
 
             if (match) {
-                // TRẠNG THÁI: TÌM THẤY BIẾN THỂ
                 hiddenId.value = match.variantId;
-                
                 const currentPrice = (match.discountPrice > 0) ? match.discountPrice : match.price;
-                const oldPrice = match.price;
 
-                if (!currentPrice || currentPrice <= 0) {
-                    lblPrice.innerText = "Liên hệ";
+                lblPrice.innerText = formatVND(currentPrice);
+                if (match.discountPrice > 0 && match.discountPrice < match.price) {
+                    lblOldPrice.innerText = formatVND(match.price);
+                    lblOldPrice.style.display = "inline";
+                } else {
                     lblOldPrice.style.display = "none";
-                    lblStock.innerText = "Vui lòng liên hệ để biết thêm chi tiết";
-                    
+                }
+
+                if (match.stock > 0) {
+                    lblStock.innerText = `Còn hàng (Kho: ${match.stock})`;
+                    lblStock.style.color = "var(--navy-deep)";
+                    btnSubmitCart.disabled = false;
+                    btnBuyNow.disabled = false;
+                } else {
+                    lblStock.innerText = "Phiên bản này hiện đã hết hàng";
+                    lblStock.style.color = "var(--accent-red)";
                     btnSubmitCart.disabled = true;
                     btnBuyNow.disabled = true;
-                } else {
-                    lblPrice.innerText = formatVND(currentPrice);
-                    if (match.discountPrice > 0 && match.discountPrice < match.price) {
-                        lblOldPrice.innerText = formatVND(oldPrice);
-                        lblOldPrice.style.display = "inline";
-                    } else {
-                        lblOldPrice.style.display = "none";
-                    }
-
-                    if (match.stock > 0) {
-                        lblStock.innerText = `Còn hàng (Còn ${match.stock} sản phẩm)`;
-                        lblStock.style.color = "var(--navy-deep)";
-                        
-                        btnSubmitCart.disabled = false;
-                        btnBuyNow.disabled = false;
-                    } else {
-                        lblStock.innerText = "Sản phẩm hiện đã hết hàng";
-                        lblStock.style.color = "var(--accent-red)";
-                        
-                        btnSubmitCart.disabled = true;
-                        btnBuyNow.disabled = true;
-                    }
                 }
 
-                if (match.imageUrl) {
-                    document.getElementById('mainPdpImage').src = match.imageUrl;
-                }
+                if (match.imageUrl) changeGalleryImage(match.imageUrl, document.querySelector('.pdp-thumb-item'));
             } else {
-                // TRẠNG THÁI: CHƯA CHỌN BIẾN THỂ (HOẶC KHÔNG TỒN TẠI)
-                if (minPriceFromServer > 0) {
-                    lblPrice.innerText = formatVND(minPriceFromServer);
-                } else {
-                    lblPrice.innerText = "Liên hệ";
-                }
-                
+                lblPrice.innerText = minPriceFromServer > 0 ? formatVND(minPriceFromServer) : "Liên hệ";
                 lblOldPrice.style.display = "none";
-                lblStock.innerText = "Vui lòng chọn đầy đủ cấu hình và màu sắc";
+                lblStock.innerText = "Vui lòng chọn cấu hình và màu sắc";
                 lblStock.style.color = "#94A3B8";
-                
                 btnSubmitCart.disabled = true;
                 btnBuyNow.disabled = true;
                 hiddenId.value = "";
             }
         }
 
-        // KHỞI CHẠY TỰ ĐỘNG
-        document.addEventListener('DOMContentLoaded', () => {
-            @if (defaultVariant != null)
-            {
-                <text>
-                    const defStorage = "@defaultVariant.Storage";
-                    const defColor = "@defaultVariant.Color";
-                    
-                    const storageBtn = document.querySelector(`.storage-chip[data-storage="${defStorage}"]`);
-                    const colorBtn = document.querySelector(`.color-chip[data-color="${defColor}"]`);
-                    
-                    if(storageBtn) storageBtn.click();
-                    if(colorBtn) colorBtn.click();
-                </text>
+        function changeGalleryImage(src, element) {
+            const mainImg = document.getElementById('mainPdpImage');
+            mainImg.style.opacity = 0.3;
+            setTimeout(() => { mainImg.src = src; mainImg.style.opacity = 1; }, 150);
+            if(element) {
+                document.querySelectorAll('.pdp-thumb-item').forEach(item => item.classList.remove('active'));
+                element.classList.add('active');
             }
+        }
+
+        // ĐỘNG CƠ AJAX SUBMIT CHO CẢ MUA NGAY VÀ THÊM VÀO GIỎ
+        let submitActionType = 'add';
+        document.getElementById('btnSubmitCart')?.addEventListener('click', () => submitActionType = 'add');
+        document.getElementById('btnBuyNow')?.addEventListener('click', () => submitActionType = 'buy');
+
+        document.getElementById('formAddToCart')?.addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            const formData = new FormData(this);
+            formData.set('actionType', submitActionType);
+
+            fetch(this.action, {
+                method: this.method,
+                body: formData,
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.action === 'redirect') {
+                        window.location.href = data.url;
+                    } else {
+                        updateCartBadge(data.cartCount);
+                        showShopeeToast("Sản phẩm đã được thêm vào Giỏ hàng");
+                    }
+                }
+            }).catch(err => console.error('Lỗi truyền tải AJAX:', err));
+        });
+
+        function updateCartBadge(count) {
+            const badge = document.querySelector('.cart-badge');
+            if (badge) {
+                badge.innerText = count;
+                badge.classList.add('has-items');
+                badge.style.animation = 'none';
+                badge.offsetHeight; 
+                badge.style.animation = 'popBadge 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+            }
+        }
+
+        function showShopeeToast(message) {
+            let toast = document.getElementById('shopee-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'shopee-toast';
+                toast.innerHTML = `<i class="fas fa-check-circle" style="font-size:36px; color:#10B981; margin-bottom:12px; display:block;"></i><span style="font-size:14px; font-weight:700;">${message}</span>`;
+                toast.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); color:#fff; padding:30px 40px; border-radius:8px; text-align:center; z-index:9999; opacity:0; visibility:hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
+                document.body.appendChild(toast);
+            }
+            toast.style.visibility = 'visible';
+            toast.style.opacity = '1';
+            toast.style.transform = 'translate(-50%, -50%) scale(1.05)';
+            setTimeout(() => { toast.style.transform = 'translate(-50%, -50%) scale(1)'; }, 50);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.style.visibility = 'hidden', 300);
+            }, 1800);
+        }
+
+        // Tự động kiểm tra và khóa các thuộc tính khi tải trang lần đầu
+        document.addEventListener('DOMContentLoaded', () => {
+            evaluateMatrix();
         });
     </script>
 }

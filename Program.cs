@@ -22,6 +22,18 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+builder.Services.AddDistributedMemoryCache(); // Khởi tạo bộ nhớ đệm phân tán ngầm
+builder.Services.AddSession(options => {
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Giỏ hàng tự hủy sau 30 phút rời trang
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+builder.Services.AddHttpContextAccessor();
+
+// Đăng ký dịch vụ PromotionEngine cho Giỏ hàng
+builder.Services.AddScoped<TMDT_LT.Services.PromotionEngine>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

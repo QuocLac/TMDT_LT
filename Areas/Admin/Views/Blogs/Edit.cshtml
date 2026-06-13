@@ -1,0 +1,109 @@
+﻿@model TMDT_LT.Models.Blog
+@{
+    ViewData["Title"] = "Chỉnh sửa bài viết Showcase";
+    Layout = "~/Areas/Admin/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin/admin-blog.css" asp-append-version="true" />
+}
+
+<div class="admin-card">
+    <div class="blog-header-actions">
+        <h6 class="blog-title-main">Biên tập bài viết: @Model.Title</h6>
+        <a asp-action="Index" class="btn-outline">Quay lại danh sách</a>
+    </div>
+
+    <form asp-action="Edit" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="BlogId" />
+
+        <div class="blog-form-grid">
+            <div>
+                <div class="form-row">
+                    <label asp-for="Title" class="form-label">Tiêu đề bài viết</label>
+                    <input asp-for="Title" class="form-control" id="blogTitle" onkeyup="generateSlug()" placeholder="Nhập tiêu đề..." />
+                    <span asp-validation-for="Title" style="color: #EF4444; font-size: 12px; display: block; margin-top: 4px;"></span>
+                </div>
+
+                <div class="form-row">
+                    <label asp-for="Slug" class="form-label">Đường dẫn SEO (Slug)</label>
+                    <input asp-for="Slug" class="form-control" id="blogSlug" />
+                    <span asp-validation-for="Slug" style="color: #EF4444; font-size: 12px; display: block; margin-top: 4px;"></span>
+                </div>
+
+                <div class="form-row">
+                    <label asp-for="ShortDescription" class="form-label">Mô tả ngắn</label>
+                    <textarea asp-for="ShortDescription" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <label asp-for="HtmlContent" class="form-label">Nội dung bài viết</label>
+                    <textarea asp-for="HtmlContent" id="editor" class="form-control" rows="20">@Model.HtmlContent</textarea>
+                </div>
+
+                <div class="form-row">
+                    <label asp-for="CustomCss" class="form-label" style="color: #EF4444;">Mã CSS tùy chỉnh</label>
+                    <textarea asp-for="CustomCss" class="form-control custom-css-editor" rows="6">@Model.CustomCss</textarea>
+                </div>
+            </div>
+
+            <div class="blog-side-panel">
+                <div class="form-row">
+                    <label asp-for="Thumbnail" class="form-label">Ảnh Thumbnail</label>
+                    <input asp-for="Thumbnail" class="form-control" />
+                </div>
+
+                <div class="form-row">
+                    <label asp-for="BackgroundImage" class="form-label">Ảnh Background Parallax</label>
+                    <input asp-for="BackgroundImage" class="form-control" />
+                    <span class="blog-form-hint">Nếu để trống, hệ thống sẽ tự dùng nền Xanh-Trắng quét sáng.</span>
+                </div>
+
+                <div class="form-row">
+                    <label asp-for="PublishedAt" class="form-label">Ngày xuất bản dự kiến</label>
+                    <input asp-for="PublishedAt" type="datetime-local" class="form-control" value="@(Model.PublishedAt?.ToString("yyyy-MM-ddTHH:mm"))" />
+                </div>
+
+                <div class="form-row" style="display: flex; align-items: center; gap: 10px; margin: 24px 0;">
+                    <input asp-for="IsActive" type="checkbox" style="width: 16px; height: 16px; cursor: pointer;" />
+                    <label asp-for="IsActive" style="margin: 0; font-size: 13px; font-weight: 600; cursor: pointer; color: #111827;">Cho phép hiển thị</label>
+                </div>
+
+                <button type="submit" class="btn-dark" style="width: 100%; height: 40px;">
+                    LƯU CẬP NHẬT
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        tinymce.init({
+            selector: '#editor',
+            plugins: 'advlist autolink lists link image charmap preview anchor pagebreak searchreplace wordcount visualblocks visualchars code fullscreen insertdatetime media nonbreaking table emoticons help',
+            toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist | link image media | forecolor backcolor emoticons | code fullscreen preview',
+            height: 600,
+            content_style: 'body { font-family: Plus Jakarta Sans, Helvetica, Arial, sans-serif; font-size:14px; color: #111827; }'
+        });
+
+        function generateSlug() {
+            let title = document.getElementById('blogTitle').value;
+            let slug = title.toLowerCase();
+            slug = slug.replace(/á|à|ả|ạ|ã|ă|ắ|ằ|ẳ|ẵ|ặ|â|ấ|ầ|ẩ|ẫ|ậ/gi, 'a');
+            slug = slug.replace(/é|è|ẻ|ẽ|ẹ|ê|ế|ề|ể|ễ|ệ/gi, 'e');
+            slug = slug.replace(/i|í|ì|ỉ|ĩ|ị/gi, 'i');
+            slug = slug.replace(/ó|ò|ỏ|õ|ọ|ô|ố|ồ|ổ|ỗ|ộ|ơ|ớ|ờ|ở|ỡ|ợ/gi, 'o');
+            slug = slug.replace(/ú|ù|ủ|ũ|ụ|ư|ứ|ừ|ử|ữ|ự/gi, 'u');
+            slug = slug.replace(/ý|ỳ|ỷ|ỹ|ỵ/gi, 'y');
+            slug = slug.replace(/đ/gi, 'd');
+            slug = slug.replace(/[^a-z0-9\s-]/g, '');
+            slug = slug.replace(/\s+/g, '-');
+            slug = slug.replace(/\-+/g, '-');
+            slug = slug.replace(/^\-+|\-+$/g, '');
+            document.getElementById('blogSlug').value = slug;
+        }
+    </script>
+}

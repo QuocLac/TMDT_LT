@@ -7,11 +7,98 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/storefront/store-home.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/storefront/store-catalog.css" asp-append-version="true" />
+    <style>
+        /* CSS CHO BỘ NÚT CHỌN BIẾN THỂ TRONG MODAL */
+        .chip-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            background: white;
+            color: var(--navy-deep);
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .chip-btn:hover {
+                border-color: var(--navy-deep);
+            }
+
+            .chip-btn.active {
+                border-color: var(--accent-red);
+                color: var(--accent-red);
+                background: #FEF2F2;
+            }
+
+            .chip-btn.disabled-chip {
+                opacity: 0.3;
+                cursor: not-allowed;
+                border-color: #E5E7EB;
+                background: #F9FAFB;
+                color: #9CA3AF;
+            }
+
+                .chip-btn.disabled-chip:hover {
+                    border-color: #E5E7EB;
+                    color: #9CA3AF;
+                }
+
+        /* CSS CHO MODAL QUICK ADD (SHOPEE STYLE) */
+        .qa-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+            .qa-modal-overlay.show {
+                display: flex;
+                opacity: 1;
+            }
+
+        .qa-modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 480px;
+            padding: 20px;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        .qa-modal-overlay.show .qa-modal-content {
+            transform: translateY(0);
+        }
+
+        .qa-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #9CA3AF;
+            cursor: pointer;
+        }
+
+            .qa-close-btn:hover {
+                color: var(--accent-red);
+            }
+    </style>
 }
 
 <form id="catalogMainForm" method="get" action="/Store">
     <input type="hidden" name="keyword" value="@Model.Keyword" />
-
     <input type="hidden" name="page" id="pageInput" value="@Model.CurrentPage" />
 
     <div class="catalog-layout-grid">
@@ -90,7 +177,9 @@
                     @foreach (var searchItem in Model.Products)
                     {
                         var item = searchItem.Product;
-                        var defaultVariant = item.ProductVariants?.Where(v => v.IsActive == true).OrderBy(v => v.Price).FirstOrDefault();
+                        var activeVariants = item.ProductVariants?.Where(v => v.IsActive == true).ToList() ?? new List<TMDT_LT.Models.ProductVariants>();
+                        int variantCount = activeVariants.Count;
+                        var defaultVariant = activeVariants.OrderBy(v => v.Price).FirstOrDefault();
 
                         <div class="market-product-card">
                             <button type="button" class="btn-favorite" onclick="toggleFavorite(event, @item.ProductId)" title="Thêm vào yêu thích">
@@ -117,23 +206,41 @@
                                 </div>
                             </a>
 
-                            <form action="/Cart/AddToCart" method="post" style="margin: 0; width: 100%;">
-                                <input type="hidden" name="variantId" value="@(defaultVariant?.VariantId)" />
-                                <input type="hidden" name="quantity" value="1" />
-
-                                @if (defaultVariant != null && defaultVariant.Stock > 0)
+                            @if (variantCount > 1)
+                            {
+                                // Gói toàn bộ dữ liệu biến thể thành JSON nạp vào thuộc tính Data để truyền cho Javascript
+                                var variantJson = System.Text.Json.JsonSerializer.Serialize(activeVariants.Select(v => new
                                 {
+                                    variantId = v.VariantId,
+                                    color = v.Color ?? "",
+                                    ram = v.Ram ?? "",
+                                    storage = v.Storage ?? "",
+                                    price = v.Price,
+                                    discountPrice = v.DiscountPrice,
+                                    stock = v.Stock,
+                                    imageUrl = !string.IsNullOrEmpty(v.ImageUrl) ? v.ImageUrl : item.MainImage
+                                }));
+
+                                <button type="button" class="btn-home-cart" onclick="openQuickAddModal(this)" data-name="@item.Name" data-img="@item.MainImage" data-variants="@variantJson">
+                                    <i class="fas fa-shopping-cart"></i> THÊM VÀO GIỎ
+                                </button>
+                            }
+                            else if (variantCount == 1 && defaultVariant != null && defaultVariant.Stock > 0)
+                            {
+                                <form action="/Cart/AddToCart" method="post" style="margin: 0; width: 100%;" class="ajax-cart-form">
+                                    <input type="hidden" name="variantId" value="@defaultVariant.VariantId" />
+                                    <input type="hidden" name="quantity" value="1" />
                                     <button type="submit" class="btn-home-cart">
                                         <i class="fas fa-shopping-cart"></i> THÊM VÀO GIỎ
                                     </button>
-                                }
-                                else
-                                {
-                                    <button type="button" class="btn-home-cart" disabled>
-                                        <i class="fas fa-box-open"></i> HẾT HÀNG
-                                    </button>
-                                }
-                            </form>
+                                </form>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn-home-cart" disabled style="background: #E5E7EB; color: #9CA3AF; cursor: not-allowed;">
+                                    <i class="fas fa-box-open"></i> HẾT HÀNG
+                                </button>
+                            }
 
                             @if (!string.IsNullOrWhiteSpace(Model.Keyword))
                             {
@@ -145,37 +252,29 @@
 
                 @if (Model.TotalPages > 1)
                 {
-                    // Thuật toán: Chỉ hiển thị tối đa 5 nút trang ở giữa
                     int maxPagesToShow = 3;
                     int startPage = Math.Max(1, Model.CurrentPage - maxPagesToShow / 2);
                     int endPage = Math.Min(Model.TotalPages, startPage + maxPagesToShow - 1);
-
                     if (endPage - startPage + 1 < maxPagesToShow)
                     {
                         startPage = Math.Max(1, endPage - maxPagesToShow + 1);
                     }
 
                     <div class="catalog-pagination">
-                        <button type="button" class="page-btn" onclick="goToPage(@(Model.CurrentPage - 1))" @(Model.CurrentPage == 1 ? "disabled" : "")>
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-
+                        <button type="button" class="page-btn" onclick="goToPage(@(Model.CurrentPage - 1))" @(Model.CurrentPage == 1 ? "disabled" : "")><i class="fas fa-chevron-left"></i></button>
                         @if (startPage > 1)
                         {
                             <button type="button" class="page-btn" onclick="goToPage(1)">1</button>
                             if (startPage > 2)
                             {
+
                                 <span class="page-dots">...</span>
                             }
                         }
-
                         @for (int i = startPage; i <= endPage; i++)
                         {
-                            <button type="button" class="page-btn @(i == Model.CurrentPage ? "active" : "")" onclick="goToPage(@i)">
-                                @i
-                            </button>
+                            <button type="button" class="page-btn @(i == Model.CurrentPage ? "active" : "")" onclick="goToPage(@i)">@i</button>
                         }
-
                         @if (endPage < Model.TotalPages)
                         {
                             if (endPage < Model.TotalPages - 1)
@@ -184,10 +283,7 @@
                             }
                             <button type="button" class="page-btn" onclick="goToPage(@Model.TotalPages)">@Model.TotalPages</button>
                         }
-
-                        <button type="button" class="page-btn" onclick="goToPage(@(Model.CurrentPage + 1))" @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")>
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+                        <button type="button" class="page-btn" onclick="goToPage(@(Model.CurrentPage + 1))" @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")><i class="fas fa-chevron-right"></i></button>
                     </div>
                 }
             }
@@ -203,36 +299,264 @@
     </div>
 </form>
 
+<div id="qa-modal" class="qa-modal-overlay" onclick="closeQuickAddModal()">
+    <div class="qa-modal-content" onclick="event.stopPropagation()">
+        <button class="qa-close-btn" onclick="closeQuickAddModal()">✖</button>
+
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-end;">
+            <img id="qa-image" src="" style="width: 100px; height: 100px; object-fit: contain; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px;" />
+            <div>
+                <div id="qa-price" style="color: var(--accent-red); font-weight: 700; font-size: 18px; margin-bottom: 4px;"></div>
+                <div id="qa-stock" style="font-size: 13px; color: #6B7280;">Vui lòng chọn phân loại</div>
+            </div>
+        </div>
+
+        <div id="qa-options-container" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+        </div>
+
+        <form id="qa-form" action="/Cart/AddToCart" method="post" style="display: flex; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <input type="hidden" name="variantId" id="qa-variantId" value="" />
+            <div style="display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; width: 100px;">
+                <button type="button" class="chip-btn" style="border: none; width: 30px; padding: 0;" onclick="qaChangeQty(-1)">-</button>
+                <input type="number" id="qa-qty" name="quantity" value="1" min="1" style="width: 40px; border: none; text-align: center; font-weight: 700; outline: none;" readonly />
+                <button type="button" class="chip-btn" style="border: none; width: 30px; padding: 0;" onclick="qaChangeQty(1)">+</button>
+            </div>
+            <button type="submit" id="qa-btn-submit" class="btn-dark" disabled style="flex: 1; height: 40px; font-weight: 700; border-radius: 4px;">XÁC NHẬN THÊM</button>
+        </form>
+    </div>
+</div>
+
 @section Scripts {
     <script>
-        // Kích hoạt khi khách tích chọn Checkbox hoặc Dropdown
-        function triggerSubmitForm() {
-            document.getElementById('pageInput').value = 1; // Luôn Reset về trang 1 khi lọc
-            document.getElementById('catalogMainForm').submit();
+        function triggerSubmitForm() { document.getElementById('pageInput').value = 1; document.getElementById('catalogMainForm').submit(); }
+        function goToPage(pageNum) { document.getElementById('pageInput').value = pageNum; document.getElementById('catalogMainForm').submit(); }
+
+        // =========================================================
+        // ĐỘNG CƠ XỬ LÝ GIAO DIỆN CHỌN PHÂN LOẠI NHANH (QUICK ADD)
+        // =========================================================
+        let qaVariantMatrix = [];
+        let qaCurrentSelection = { storage: null, ram: null, color: null };
+        let qaMinPrice = 0;
+
+        function openQuickAddModal(btnElement) {
+            qaVariantMatrix = JSON.parse(btnElement.getAttribute('data-variants'));
+            qaCurrentSelection = { storage: null, ram: null, color: null };
+            qaMinPrice = Math.min(...qaVariantMatrix.map(v => v.discountPrice > 0 ? v.discountPrice : v.price));
+
+            document.getElementById('qa-image').src = btnElement.getAttribute('data-img');
+            document.getElementById('qa-qty').value = 1;
+
+            // Bóc tách thuộc tính duy nhất
+            const storages = [...new Set(qaVariantMatrix.map(v => v.storage).filter(v => v !== ""))];
+            const rams = [...new Set(qaVariantMatrix.map(v => v.ram).filter(v => v !== ""))];
+            const colors = [...new Set(qaVariantMatrix.map(v => v.color).filter(v => v !== ""))];
+
+            let html = '';
+            if(storages.length > 0) {
+                html += '<div style="font-size: 13px; font-weight: 700; margin-bottom: 8px;">Dung lượng</div><div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">';
+                storages.forEach(s => html += `<button type="button" class="chip-btn attr-qa-storage" data-val="${s}" onclick="qaToggleSelection('storage', '${s}', this)">${s}</button>`);
+                html += '</div>';
+            }
+            if(rams.length > 0) {
+                html += '<div style="font-size: 13px; font-weight: 700; margin-bottom: 8px;">RAM</div><div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">';
+                rams.forEach(r => html += `<button type="button" class="chip-btn attr-qa-ram" data-val="${r}" onclick="qaToggleSelection('ram', '${r}', this)">${r}</button>`);
+                html += '</div>';
+            }
+            if(colors.length > 0) {
+                html += '<div style="font-size: 13px; font-weight: 700; margin-bottom: 8px;">Màu sắc</div><div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">';
+                colors.forEach(c => html += `<button type="button" class="chip-btn attr-qa-color" data-val="${c}" onclick="qaToggleSelection('color', '${c}', this)">${c}</button>`);
+                html += '</div>';
+            }
+
+            document.getElementById('qa-options-container').innerHTML = html;
+
+            const modal = document.getElementById('qa-modal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('show'), 10);
+
+            qaEvaluateMatrix();
         }
 
-        // Kích hoạt khi khách bấm vào các nút chuyển trang (1, 2, 3, Tiếp...)
-        function goToPage(pageNum) {
-            document.getElementById('pageInput').value = pageNum;
-            document.getElementById('catalogMainForm').submit();
+        function closeQuickAddModal() {
+            const modal = document.getElementById('qa-modal');
+            modal.classList.remove('show');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+
+        function qaToggleSelection(type, value, element) {
+            if (element.classList.contains('disabled-chip')) return;
+            if (qaCurrentSelection[type] === value) {
+                qaCurrentSelection[type] = null;
+                element.classList.remove('active');
+            } else {
+                qaCurrentSelection[type] = value;
+                document.querySelectorAll(`.attr-qa-${type}`).forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+            }
+            qaEvaluateMatrix();
+        }
+
+        function qaEvaluateMatrix() {
+            // Check mờ các nút không khả thi
+            document.querySelectorAll('.attr-qa-storage').forEach(el => qaCheckAvailability('storage', el.getAttribute('data-val'), el));
+            document.querySelectorAll('.attr-qa-ram').forEach(el => qaCheckAvailability('ram', el.getAttribute('data-val'), el));
+            document.querySelectorAll('.attr-qa-color').forEach(el => qaCheckAvailability('color', el.getAttribute('data-val'), el));
+
+            const exactMatch = qaVariantMatrix.find(v =>
+                (!qaCurrentSelection.storage || v.storage === qaCurrentSelection.storage) &&
+                (!qaCurrentSelection.ram || v.ram === qaCurrentSelection.ram) &&
+                (!qaCurrentSelection.color || v.color === qaCurrentSelection.color) &&
+                (qaCurrentSelection.storage !== null || v.storage === "") &&
+                (qaCurrentSelection.ram !== null || v.ram === "") &&
+                (qaCurrentSelection.color !== null || v.color === "")
+            );
+
+            const formatVND = (num) => new Intl.NumberFormat('vi-VN').format(num) + " đ";
+            const btnSubmit = document.getElementById('qa-btn-submit');
+
+            if (exactMatch) {
+                document.getElementById('qa-variantId').value = exactMatch.variantId;
+                const price = (exactMatch.discountPrice > 0) ? exactMatch.discountPrice : exactMatch.price;
+                document.getElementById('qa-price').innerText = formatVND(price);
+
+                if (exactMatch.stock > 0) {
+                    document.getElementById('qa-stock').innerText = `Kho: ${exactMatch.stock}`;
+                    btnSubmit.disabled = false;
+                } else {
+                    document.getElementById('qa-stock').innerText = "Hết hàng";
+                    document.getElementById('qa-stock').style.color = "var(--accent-red)";
+                    btnSubmit.disabled = true;
+                }
+
+                if (exactMatch.imageUrl) {
+                    document.getElementById('qa-image').src = exactMatch.imageUrl;
+                }
+            } else {
+                document.getElementById('qa-price').innerText = qaMinPrice > 0 ? formatVND(qaMinPrice) : "Liên hệ";
+                document.getElementById('qa-stock').innerText = "Vui lòng chọn phân loại";
+                document.getElementById('qa-stock').style.color = "#6B7280";
+                btnSubmit.disabled = true;
+                document.getElementById('qa-variantId').value = "";
+            }
+        }
+
+        function qaCheckAvailability(typeToCheck, valueToCheck, element) {
+            let testSelection = { ...qaCurrentSelection };
+            testSelection[typeToCheck] = valueToCheck;
+
+            const isAvailable = qaVariantMatrix.some(v =>
+                (!testSelection.storage || v.storage === testSelection.storage) &&
+                (!testSelection.ram || v.ram === testSelection.ram) &&
+                (!testSelection.color || v.color === testSelection.color)
+            );
+
+            if (isAvailable) {
+                element.classList.remove('disabled-chip');
+            } else {
+                element.classList.add('disabled-chip');
+                element.classList.remove('active');
+                if (qaCurrentSelection[typeToCheck] === valueToCheck) qaCurrentSelection[typeToCheck] = null;
+            }
+        }
+
+        function qaChangeQty(change) {
+            const input = document.getElementById('qa-qty');
+            let newQty = parseInt(input.value) + change;
+            if (newQty >= 1) input.value = newQty;
+        }
+
+        // ĐỘNG CƠ GỬI DỮ LIỆU TỪ MODAL QUICK ADD
+        document.getElementById('qa-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            formData.append('actionType', 'add');
+
+            const btn = document.getElementById('qa-btn-submit');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>...';
+
+            fetch(this.action, {
+                method: this.method, body: formData,
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    btn.innerHTML = 'ĐÃ THÊM';
+                    btn.style.background = '#10B981';
+                    updateCartBadge(data.cartCount);
+                    showShopeeToast("Đã thêm vào giỏ hàng");
+
+                    setTimeout(() => {
+                        closeQuickAddModal();
+                        btn.innerHTML = originalText;
+                        btn.style.background = '';
+                    }, 800);
+                }
+            }).catch(err => console.error('Lỗi kết nối API:', err));
+        });
+
+        // ĐỘNG CƠ GỬI DỮ LIỆU TỪ NÚT BẤM CỦA SẢN PHẨM CÓ 1 BIẾN THỂ (GIỮ NGUYÊN)
+        document.querySelectorAll('.ajax-cart-form:not(#qa-form)').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                formData.append('actionType', 'add');
+
+                const btn = this.querySelector('button[type="submit"]');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>...';
+
+                fetch(this.action, {
+                    method: this.method, body: formData,
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        btn.innerHTML = 'ĐÃ THÊM';
+                        btn.style.background = '#10B981';
+                        btn.style.color = 'white';
+                        updateCartBadge(data.cartCount);
+                        showShopeeToast("Sản phẩm đã được thêm vào Giỏ hàng");
+
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.style.background = '';
+                            btn.style.color = '';
+                        }, 2000);
+                    }
+                }).catch(err => console.error('Lỗi kết nối API:', err));
+            });
+        });
+
+        function updateCartBadge(count) {
+            const badge = document.querySelector('.cart-badge');
+            if (badge) {
+                badge.innerText = count; badge.classList.add('has-items'); badge.style.animation = 'none';
+                badge.offsetHeight; badge.style.animation = 'popBadge 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+            }
+        }
+
+        function showShopeeToast(message) {
+            let toast = document.getElementById('shopee-toast');
+            if (!toast) {
+                toast = document.createElement('div'); toast.id = 'shopee-toast';
+                toast.innerHTML = `<i class="fas fa-check-circle" style="font-size:36px; color:#10B981; margin-bottom:12px; display:block;"></i><span style="font-size:14px; font-weight:700;">${message}</span>`;
+                toast.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); color:#fff; padding:30px 40px; border-radius:8px; text-align:center; z-index:9999; opacity:0; visibility:hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
+                document.body.appendChild(toast);
+            }
+            toast.style.visibility = 'visible'; toast.style.opacity = '1'; toast.style.transform = 'translate(-50%, -50%) scale(1.05)';
+            setTimeout(() => { toast.style.transform = 'translate(-50%, -50%) scale(1)'; }, 50);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.style.visibility = 'hidden', 300); }, 1800);
         }
 
         window.toggleFavorite = function(event, productId) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const btn = event.currentTarget;
-            const icon = btn.querySelector('i');
-
+            event.preventDefault(); event.stopPropagation();
+            const btn = event.currentTarget; const icon = btn.querySelector('i');
             btn.classList.toggle('active');
-
-            if (btn.classList.contains('active')) {
-                icon.classList.remove('far');
-                icon.classList.add('fas');
-            } else {
-                icon.classList.remove('fas');
-                icon.classList.add('far');
-            }
+            if (btn.classList.contains('active')) { icon.classList.remove('far'); icon.classList.add('fas'); }
+            else { icon.classList.remove('fas'); icon.classList.add('far'); }
         };
     </script>
 }
