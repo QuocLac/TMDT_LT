@@ -1,0 +1,358 @@
+﻿/* ==========================================================================
+   KINGPHONE - TRANG THANH TOÁN (CHECKOUT)
+   Chế độ tối giản cao cấp: Tone màu chủ đạo Navy Deep & Trắng (Tông lạnh, không đỏ)
+   ========================================================================== */
+
+/* 1. BỐ CỤC CHÍNH ĐA CỘT */
+.checkout-grid {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 30px;
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    align-items: start;
+}
+
+/* 2. KHỐI NỘI DUNG CHUNG (CARDS) */
+.checkout-section-box {
+    background: var(--white, #FFFFFF);
+    border: 1px solid var(--border-color, #E2E8F0);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.02), 0 2px 4px -1px rgba(15, 23, 42, 0.02);
+    transition: all 0.3s ease;
+}
+
+    .checkout-section-box:hover {
+        box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.05);
+    }
+
+    .checkout-section-box.address-box {
+        padding: 0;
+        overflow: hidden;
+    }
+
+.address-content-wrap {
+    padding: 24px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy-deep, #0F172A);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--navy-light, #F8FAFC);
+    padding-bottom: 12px;
+}
+
+    .section-title i {
+        color: var(--navy-deep, #0F172A);
+        font-size: 18px;
+    }
+
+/* 3. DẢI BĂNG ĐỊA CHỈ (PREMIUM MONOCHROME STRIPE) */
+.shopee-address-border {
+    height: 4px;
+    width: 100%;
+    background-position-x: -30px;
+    background-size: 116px 4px;
+    background-image: repeating-linear-gradient(45deg, var(--navy-deep, #0F172A), var(--navy-deep, #0F172A) 33px, transparent 0, transparent 41px, #94A3B8 0, #94A3B8 74px, transparent 0, transparent 82px);
+}
+
+/* 4. TRẠNG THÁI CHƯA CÓ ĐỊA CHỈ (INFO ALERT) */
+.empty-address-alert {
+    background: var(--navy-light, #F8FAFC);
+    border: 1px dashed #94A3B8;
+    padding: 34px 20px;
+    border-radius: 8px;
+    text-align: center;
+    color: var(--navy-deep, #0F172A);
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+/* 5. NÚT BẤM (BUTTONS) - Sửa lỗi nút xấu */
+.btn-text-action {
+    background: transparent;
+    border: none;
+    color: var(--navy-deep, #0F172A);
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    letter-spacing: 0.5px;
+}
+
+    .btn-text-action:hover {
+        opacity: 0.6;
+    }
+
+.btn-outline {
+    background: var(--white, #FFFFFF);
+    color: var(--navy-deep, #0F172A);
+    border: 1px solid var(--border-color, #E2E8F0);
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+    .btn-outline:hover {
+        background: var(--navy-light, #F8FAFC);
+        border-color: var(--navy-deep, #0F172A);
+    }
+
+/* 6. DANH SÁCH KIỆN HÀNG */
+.checkout-prod-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border-color, #E2E8F0);
+}
+
+    .checkout-prod-row:last-of-type {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+.checkout-prod-img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    background: var(--navy-light, #F8FAFC);
+    border-radius: 6px;
+    padding: 4px;
+    border: 1px solid var(--border-color, #E2E8F0);
+}
+
+/* 7. PHƯƠNG THỨC THANH TOÁN */
+.payment-method-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid var(--border-color, #E2E8F0);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--white, #FFFFFF);
+}
+
+    .payment-method-row:hover {
+        border-color: #94A3B8;
+        background: var(--navy-light, #F8FAFC);
+    }
+
+    .payment-method-row:has(input[type="radio"]:checked) {
+        border-color: var(--navy-deep, #0F172A);
+        background: var(--navy-light, #F8FAFC);
+        box-shadow: 0 0 0 1px var(--navy-deep, #0F172A);
+    }
+
+    .payment-method-row input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--navy-deep, #0F172A);
+        cursor: pointer;
+    }
+
+/* 8. Ô NHẬP LIỆU */
+.checkout-input {
+    width: 100%;
+    height: 44px;
+    border: 1px solid var(--border-color, #E2E8F0);
+    border-radius: 6px;
+    padding: 0 14px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--navy-deep, #0F172A);
+    outline: none;
+    transition: all 0.2s;
+    background: var(--white, #FFFFFF);
+    box-sizing: border-box;
+}
+
+    .checkout-input:focus {
+        border-color: var(--navy-deep, #0F172A);
+        box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+    }
+
+    .checkout-input:disabled {
+        background: #F3F4F6;
+        color: #9CA3AF;
+        cursor: not-allowed;
+    }
+
+/* 9. TÓM TẮT THANH TOÁN */
+.summary-sticky-box {
+    position: sticky;
+    top: 90px;
+}
+
+.bill-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--navy-medium, #1E293B);
+    margin-bottom: 16px;
+}
+
+.bill-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy-deep, #0F172A);
+    border-top: 1px dashed var(--border-color, #E2E8F0);
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+.summary-sticky-box .btn-dark, #btnSubmitOrder {
+    width: 100%;
+    height: 48px;
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-top: 24px;
+    border-radius: 6px;
+    background: var(--navy-deep, #0F172A);
+    color: var(--white, #FFFFFF);
+    border: none;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+    .summary-sticky-box .btn-dark:hover, #btnSubmitOrder:hover {
+        background: var(--navy-medium, #1E293B);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+    }
+
+/* 10. MODAL */
+.store-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+    .store-modal-overlay.show {
+        display: flex;
+        opacity: 1;
+    }
+
+.store-modal-content {
+    background: var(--white, #FFFFFF);
+    width: 100%;
+    max-width: 550px;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transform: scale(0.95) translateY(-20px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+}
+
+.store-modal-overlay.show .store-modal-content {
+    transform: scale(1) translateY(0);
+}
+
+.store-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color, #E2E8F0);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--navy-deep, #0F172A);
+    background: var(--navy-light, #F8FAFC);
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9CA3AF;
+    font-size: 18px;
+}
+
+    .btn-close:hover {
+        color: var(--navy-deep);
+    }
+
+.store-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.modal-address-item {
+    border: 1px solid var(--border-color, #E2E8F0);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--white, #FFFFFF);
+}
+
+    .modal-address-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .modal-address-item:hover {
+        border-color: #94A3B8;
+    }
+
+    .modal-address-item:has(input[type="radio"]:checked) {
+        border-color: var(--navy-deep, #0F172A);
+        background: var(--navy-light, #F8FAFC);
+    }
+
+    .modal-address-item input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        margin-top: 2px;
+        accent-color: var(--navy-deep, #0F172A);
+        cursor: pointer;
+    }
+
+.badge-default-address {
+    background: var(--success-green, #059669);
+    color: var(--white, #FFFFFF);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
