@@ -35,4 +35,7 @@ public partial class Orders
 
     public virtual ICollection<Shipping> Shipping { get; set; } = new List<Shipping>();
     public virtual ICollection<OrderHistory> OrderHistories { get; set; } = new List<OrderHistory>();
+
+    public string? CancellationReason { get; set; }
+    public string? CancellationRequestedBy { get; set; }
 }

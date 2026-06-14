@@ -1,0 +1,241 @@
+﻿@model IEnumerable<TMDT_LT.Models.Orders>
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quản lý đơn hàng của tôi";
+    string currentStatus = ViewBag.CurrentStatus ?? "TatCa";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/storefront/store-checkout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/storefront/store-orders.css" asp-append-version="true" />
+}
+
+<div class="orders-page-container">
+
+    <h2 class="orders-page-title">
+        Đơn hàng của tôi
+    </h2>
+
+    <div class="order-tabs-wrapper">
+        <a href="/Customer/Orders?status=TatCa" class="order-tab-link @(currentStatus == "TatCa" ? "active" : "")">Tất cả</a>
+        <a href="/Customer/Orders?status=Chờ xác nhận" class="order-tab-link @(currentStatus == "Chờ xác nhận" ? "active" : "")">Chờ xác nhận</a>
+        <a href="/Customer/Orders?status=Đang xử lý" class="order-tab-link @(currentStatus == "Đang xử lý" ? "active" : "")">Đang xử lý</a>
+        <a href="/Customer/Orders?status=Chờ lấy hàng" class="order-tab-link @(currentStatus == "Chờ lấy hàng" ? "active" : "")">Chờ lấy hàng</a>
+        <a href="/Customer/Orders?status=Đang giao" class="order-tab-link @(currentStatus == "Đang giao" ? "active" : "")">Đang giao</a>
+        <a href="/Customer/Orders?status=Đã hoàn thành" class="order-tab-link @(currentStatus == "Đã hoàn thành" ? "active" : "")">Đã hoàn thành</a>
+        <a href="/Customer/Orders?status=YeuCauHuy" class="order-tab-link @(currentStatus == "YeuCauHuy" ? "active" : "")">Chờ duyệt hủy</a>
+        <a href="/Customer/Orders?status=Đã hủy" class="order-tab-link @(currentStatus == "Đã hủy" ? "active" : "")">Đã hủy</a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="order-empty-state">
+            <i class="fas fa-box-open order-empty-icon"></i>
+            <p class="order-empty-text">Không tìm thấy đơn hàng nào trong danh mục này.</p>
+            <a href="/" class="btn-outline" style="text-decoration: none;">Tiếp tục mua sắm</a>
+        </div>
+    }
+    else
+    {
+        @foreach (var order in Model)
+        {
+            <div class="order-card">
+                <div class="order-card-header">
+                    <div>
+                        <span class="order-id-txt">MÃ ĐƠN: #@order.OrderId</span>
+                        <span class="order-divider">|</span>
+                        <span class="order-date-txt">Ngày đặt: @(order.OrderDate.HasValue? order.OrderDate.Value.ToString("dd/MM/yyyy HH:mm") : "Chưa ghi nhận")</span>
+                    </div>
+                    <div>
+                        @if (order.Status == "Chờ xác nhận" || order.Status == "Yêu cầu hủy")
+                        {
+                            <span class="status-badge-premium badge-navy">@order.Status</span>
+                        }
+                        else if (order.Status == "Đã hoàn thành" || order.Status == "Đang xử lý" || order.Status == "Đang giao")
+                        {
+                            <span class="status-badge-premium badge-green">@order.Status</span>
+                        }
+                        else
+                        {
+                            <span class="status-badge-premium badge-gray">@order.Status</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="order-card-body">
+                    <div class="order-details-list">
+                        <div class="order-details-item">
+                            <i class="fas fa-user order-details-icon"></i>
+                            Người nhận: <strong>@order.ShippingFullName</strong> | @order.ShippingPhone
+                        </div>
+                        <div class="order-details-item">
+                            <i class="fas fa-map-marker-alt order-details-icon"></i>
+                            Địa chỉ: @order.ShippingStreet, @order.ShippingDistrict, @order.ShippingCity
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(order.CancellationReason))
+                        {
+                            <div class="order-cancel-alert">
+                                <strong>Lý do hủy/yêu cầu:</strong> @order.CancellationReason
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="order-card-footer">
+                    <div>
+                        <span class="order-total-label">Tổng thanh toán: </span>
+                        <strong class="order-total-price">@string.Format("{0:N0}", order.TotalAmount) đ</strong>
+                    </div>
+                    <div>
+                        @if (order.Status == "Chờ xác nhận" || order.Status == "Đang xử lý" || order.Status == "Chờ lấy hàng")
+                        {
+                            <button type="button" class="btn-text-action" onclick="openCancelModal(@order.OrderId)">
+                                Hủy đơn hàng
+                            </button>
+                        }
+                        else if (order.Status == "Yêu cầu hủy")
+                        {
+                            <span class="order-date-txt" style="font-weight: 800; text-transform: uppercase;">Đang duyệt hủy...</span>
+                        }
+                        else
+                        {
+                            <a href="/" class="btn-outline" style="text-decoration: none;">Mua lại</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<div class="store-modal-overlay" id="orderSuccessModalOverlay">
+    <div class="success-modal-card">
+        <div class="success-modal-icon-wrap">
+            <i class="fas fa-check success-modal-icon"></i>
+        </div>
+        <h3 class="success-modal-title">Đặt hàng thành công</h3>
+        <p class="success-modal-desc">
+            Đơn hàng mã số <strong style="color: var(--navy-deep);" id="successModalOrderId">#0000</strong> đã được đồng bộ hóa thành công vào danh mục quản lý hệ thống.
+        </p>
+        <button type="button" class="btn-dark" style="width: 100%; height: 44px;" onclick="closeSuccessModal()">
+            Xác nhận thông tin
+        </button>
+    </div>
+</div>
+
+<div class="store-modal-overlay" id="cancelOrderModalOverlay">
+    <div class="store-modal-content" style="max-width: 480px;">
+        <div class="store-modal-header">
+            <span>LÝ DO HỦY ĐƠN HÀNG</span>
+            <button type="button" class="btn-close" onclick="closeCancelModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="store-modal-body">
+            <input type="hidden" id="cancelTargetOrderId" value="0" />
+
+            <p class="cancel-modal-desc">
+                Vui lòng cung cấp lý do chính xác để KingPhone hỗ trợ hoàn trả kho và tiến hành các quy trình kế tiếp một cách nhanh chóng nhất.
+            </p>
+
+            <div class="cancel-options-list">
+                <label class="payment-method-row">
+                    <input type="radio" name="cancelReasonOption" value="Muốn thay đổi thông tin nhận hàng/Sản phẩm" checked />
+                    <span class="cancel-option-text">Muốn thay đổi địa chỉ nhận hoặc cấu hình sản phẩm</span>
+                </label>
+                <label class="payment-method-row">
+                    <input type="radio" name="cancelReasonOption" value="Tìm thấy nơi khác bán giá tốt hơn" />
+                    <span class="cancel-option-text">Tìm thấy đại lý khác bán giá phù hợp hơn</span>
+                </label>
+                <label class="payment-method-row">
+                    <input type="radio" name="cancelReasonOption" value="Đổi ý không muốn mua nữa" />
+                    <span class="cancel-option-text">Thay đổi kế hoạch cá nhân, không còn nhu cầu mua</span>
+                </label>
+                <label class="payment-method-row">
+                    <input type="radio" name="cancelReasonOption" value="Khác" id="radOtherReason" />
+                    <span class="cancel-option-text">Lý do tùy chỉnh khác</span>
+                </label>
+            </div>
+
+            <div id="otherReasonInputBlock" class="other-reason-block" style="display: none;">
+                <input type="text" id="txtCustomReason" placeholder="Vui lòng mô tả lý do hủy cụ thể..." class="checkout-input" />
+            </div>
+
+            <div class="modal-btn-group">
+                <button type="button" class="btn-outline" style="flex: 1; padding: 12px;" onclick="closeCancelModal()">Quay lại</button>
+                <button type="button" class="btn-dark" style="flex: 1; padding: 12px;" onclick="submitCancelOrderAjax()">Xác nhận hủy đơn</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @Html.AntiForgeryToken()
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            @if (TempData["OrderSuccessModal"] != null)
+            {
+                    <text>
+                        const modalData = @Html.Raw(TempData["OrderSuccessModal"]);
+                        if(modalData) {
+                            document.getElementById('successModalOrderId').innerText = '#' + modalData.OrderId;
+                            document.getElementById('orderSuccessModalOverlay').style.display = 'flex';
+                        }
+                    </text>
+            }
+        });
+
+        function closeSuccessModal() {
+            document.getElementById('orderSuccessModalOverlay').style.display = 'none';
+        }
+
+        let cancelModal = document.getElementById('cancelOrderModalOverlay');
+
+        document.querySelectorAll('input[name="cancelReasonOption"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                document.getElementById('otherReasonInputBlock').style.display = (e.target.id === 'radOtherReason') ? 'block' : 'none';
+            });
+        });
+
+        function openCancelModal(orderId) {
+            document.getElementById('cancelTargetOrderId').value = orderId;
+            cancelModal.classList.add('show');
+        }
+
+        function closeCancelModal() {
+            cancelModal.classList.remove('show');
+        }
+
+        function submitCancelOrderAjax() {
+            const orderId = document.getElementById('cancelTargetOrderId').value;
+            let selectedReason = document.querySelector('input[name="cancelReasonOption"]:checked').value;
+
+            if(selectedReason === "Khác") {
+                const customText = document.getElementById('txtCustomReason').value.trim();
+                if(!customText) {
+                    alert("Vui lòng điền chi tiết lý do khác!");
+                    return;
+                }
+                selectedReason = "Khác: " + customText;
+            }
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+            const formData = new FormData();
+            formData.append('orderId', orderId);
+            formData.append('reason', selectedReason);
+            if(token) formData.append('__RequestVerificationToken', token);
+
+            fetch('/Customer/RequestCancelOrder', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                if(data.success) {
+                    location.reload();
+                }
+            });
+        }
+    </script>
+}

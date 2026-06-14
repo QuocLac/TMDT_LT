@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Linq;
@@ -8,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
+using TMDT_LT.Services; // Thêm thư viện gọi VnPayService
 
 namespace TMDT_LT.Areas.Admin.Controllers
 {
@@ -23,6 +25,9 @@ namespace TMDT_LT.Areas.Admin.Controllers
             _config = config;
         }
 
+        // ====================================================================
+        // 1. DANH SÁCH ĐƠN HÀNG & BỘ LỌC
+        // ====================================================================
         public async Task<IActionResult> Index(string searchKeyword, string status, DateTime? fromDate, DateTime? toDate)
         {
             ViewBag.Keyword = searchKeyword;
@@ -72,6 +77,9 @@ namespace TMDT_LT.Areas.Admin.Controllers
             return View(orders);
         }
 
+        // ====================================================================
+        // 2. XEM CHI TIẾT ĐƠN HÀNG
+        // ====================================================================
         public async Task<IActionResult> Details(int id)
         {
             var order = await _context.Orders
@@ -85,24 +93,33 @@ namespace TMDT_LT.Areas.Admin.Controllers
             return View(order);
         }
 
+        // ====================================================================
+        // 3. TRUNG TÂM XỬ LÝ TRẠNG THÁI (ĐỘNG CƠ CỐT LÕI)
+        // ====================================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(int orderId, string newStatus, string? note)
         {
-            // Bổ sung Include(o => o.Customer) để lấy được thông tin khách hàng phục vụ tự động hóa
             var order = await _context.Orders
                 .Include(o => o.OrderDetails).ThenInclude(d => d.Variant).ThenInclude(v => v.Product)
                 .Include(o => o.Shipping)
                 .Include(o => o.Customer)
+                .Include(o => o.Payments) // Nạp thêm thông tin thanh toán để xử lý hoàn tiền
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
             if (order == null) return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
 
+            var payment = order.Payments.FirstOrDefault();
+
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                // -------------------------------------------------------------
+                // LUỒNG 1: DUYỆT ĐƠN HÀNG (TRỪ KHO & GỌI API GIAO HÀNG)
+                // -------------------------------------------------------------
                 if (newStatus == "Đang xử lý" && order.Status == "Chờ xác nhận")
                 {
+                    // 1.1 Kiểm tra và trừ tồn kho
                     foreach (var detail in order.OrderDetails)
                     {
                         if (detail.Variant != null)
@@ -114,82 +131,84 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         }
                     }
 
+                    // 1.2 Gọi API Đơn vị vận chuyển (GHTK/GHN)
                     var defaultCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
                     if (defaultCarrier == null)
                     {
                         return Json(new { success = false, message = "Lỗi vận hành: Chưa cấu hình đơn vị vận chuyển mặc định." });
                     }
 
-                    string apiToken = _config[$"ShippingAPI:{defaultCarrier.CarrierCode}:Token"] ?? "";
-                    string baseUrl = _config[$"ShippingAPI:{defaultCarrier.CarrierCode}:BaseUrl"] ?? "";
-
-                    if (string.IsNullOrEmpty(apiToken))
+                    // Mock Gọi API và lấy mã vận đơn về
+                    string returnedTrackingNumber = "3PL" + defaultCarrier.CarrierCode + DateTime.Now.Ticks.ToString().Substring(11);
+                    var shipInfo = order.Shipping?.FirstOrDefault();
+                    if (shipInfo != null)
                     {
-                        return Json(new { success = false, message = $"Chưa cấu hình Token bảo mật cho hãng {defaultCarrier.CarrierCode}." });
+                        shipInfo.TrackingNumber = returnedTrackingNumber;
+                        shipInfo.Carrier = defaultCarrier.CarrierName;
+                    }
+                }
+
+                // -------------------------------------------------------------
+                // LUỒNG 2: HỦY ĐƠN / HOÀN ĐƠN (HOÀN TIỀN & HOÀN KHO)
+                // -------------------------------------------------------------
+                else if (newStatus == "Đã hủy" || newStatus == "Trả hàng/Hoàn tiền")
+                {
+                    // 2.1 KIỂM TRA LUỒNG TIỀN VÀ GỌI API BANK REFUND (Nếu đã thanh toán)
+                    if (payment != null && payment.PaymentStatus == "Đã thanh toán")
+                    {
+                        string transactionDateStr = payment.PaymentDate?.ToString("yyyyMMddHHmmss") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
+                        string adminEmail = User.Identity?.Name ?? "admin_system";
+
+                        // Lấy Service VNPay để gọi hàm Hoàn tiền tự động
+                        var vnPayService = HttpContext.RequestServices.GetRequiredService<VnPayService>();
+                        bool isRefundSuccess = await vnPayService.RequestBankRefundAsync(order.OrderId, order.TotalAmount ?? 0, transactionDateStr, adminEmail);
+
+                        if (!isRefundSuccess)
+                        {
+                            return Json(new { success = false, message = "Cổng ngân hàng từ chối lệnh hoàn tiền tự động. Vui lòng đối soát lại số dư hoặc mã giao dịch." });
+                        }
+
+                        payment.PaymentStatus = "Đã hoàn tiền";
+                        note = (note ?? "") + " [Hệ thống: Đã kích hoạt lệnh Refund hoàn trả tiền về tài khoản ngân hàng của khách thành công].";
                     }
 
-                    bool apiCallSuccess = true;
-                    string returnedTrackingNumber = "3PL" + defaultCarrier.CarrierCode + DateTime.Now.Ticks.ToString().Substring(11);
-
-                    if (apiCallSuccess)
+                    // 2.2 ĐỀN BÙ LẠI TỒN KHO 
+                    // (Chỉ đền bù nếu đơn hàng đã chuyển qua trạng thái 'Đang xử lý' vì lúc đó kho mới bị trừ)
+                    if (order.Status == "Đang xử lý" || order.Status == "Đang giao")
                     {
-                        var shipInfo = order.Shipping?.FirstOrDefault();
-                        if (shipInfo != null)
+                        foreach (var detail in order.OrderDetails)
                         {
-                            shipInfo.TrackingNumber = returnedTrackingNumber;
-                            shipInfo.Carrier = defaultCarrier.CarrierName;
+                            if (detail.Variant != null) detail.Variant.Stock += detail.Quantity ?? 0;
                         }
                     }
-                    else
-                    {
-                        return Json(new { success = false, message = "Cổng kết nối API của đơn vị vận chuyển từ chối phản hồi dữ liệu." });
-                    }
                 }
-                else if (newStatus == "Đã hủy" && order.Status == "Đang xử lý")
-                {
-                    foreach (var detail in order.OrderDetails)
-                    {
-                        if (detail.Variant != null) detail.Variant.Stock += detail.Quantity;
-                    }
-                }
-                // LUỒNG TỰ ĐỘNG HÓA KHI ĐƠN HÀNG HOÀN THÀNH KHI ĐỐI SOÁT GIAO THÀNH CÔNG
+
+                // -------------------------------------------------------------
+                // LUỒNG 3: HOÀN THÀNH ĐƠN (TÍCH ĐIỂM THÀNH VIÊN)
+                // -------------------------------------------------------------
                 else if (newStatus == "Hoàn thành" && order.Status == "Đang giao")
                 {
                     if (order.Customer != null)
                     {
-                        // Thuật toán: Cứ 100.000 đ tổng hóa đơn đơn hàng = Tích lũy 1 điểm thưởng vào tài khoản
                         decimal totalAmount = order.TotalAmount ?? 0;
-                        int pointsEarned = (int)(totalAmount / 100000);
+                        int pointsEarned = (int)(totalAmount / 100000); // 100k = 1 điểm
 
                         if (pointsEarned > 0)
                         {
                             order.Customer.RewardPoints += pointsEarned;
-
-                            // Tự động rẽ nhánh thăng hạng dựa theo mốc tích lũy RewardPoints mới
                             int currentPoints = order.Customer.RewardPoints;
-                            if (currentPoints >= 600)
-                            {
-                                order.Customer.CustomerType = "Kim Cương";
-                            }
-                            else if (currentPoints >= 300)
-                            {
-                                order.Customer.CustomerType = "Vàng";
-                            }
-                            else if (currentPoints >= 100)
-                            {
-                                order.Customer.CustomerType = "Bạc";
-                            }
-                            else
-                            {
-                                order.Customer.CustomerType = "Newbie";
-                            }
 
-                            // Bổ sung ghi chú tự động vào hành trình đơn hàng để Admin tiện theo dõi
-                            note = (note ?? "") + $" [Hệ thống: Tích lũy +{pointsEarned} điểm thành viên. Cập nhật hạng hiện tại: {order.Customer.CustomerType}].";
+                            if (currentPoints >= 600) order.Customer.CustomerType = "Kim Cương";
+                            else if (currentPoints >= 300) order.Customer.CustomerType = "Vàng";
+                            else if (currentPoints >= 100) order.Customer.CustomerType = "Bạc";
+                            else order.Customer.CustomerType = "Newbie";
+
+                            note = (note ?? "") + $" [Hệ thống: Tích lũy +{pointsEarned} điểm thành viên. Hạng: {order.Customer.CustomerType}].";
                         }
                     }
                 }
 
+                // Cập nhật trạng thái và ghi vết (Log)
                 order.Status = newStatus;
 
                 _context.OrderHistories.Add(new OrderHistory
@@ -197,7 +216,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
                     OrderId = order.OrderId,
                     Status = newStatus,
                     UpdatedAt = DateTime.Now,
-                    Note = note ?? $"Hành động điều phối trạng thái: {newStatus}"
+                    Note = note ?? $"Hành động điều phối trạng thái: {newStatus}" // Lý do hủy đơn hoặc ghi chú sẽ được điền vào đây
                 });
 
                 await _context.SaveChangesAsync();
@@ -211,6 +230,9 @@ namespace TMDT_LT.Areas.Admin.Controllers
             }
         }
 
+        // ====================================================================
+        // 4. XUẤT EXCEL BÁO CÁO DOANH THU
+        // ====================================================================
         public async Task<IActionResult> ExportToExcel(string searchKeyword, string status, DateTime? fromDate, DateTime? toDate)
         {
             var query = _context.Orders.AsQueryable();
@@ -228,7 +250,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
             var orders = await query.OrderByDescending(o => o.OrderDate).ToListAsync();
 
             var csvBuilder = new StringBuilder();
-            csvBuilder.AppendLine("Mã Đơn Hàng,Khách Hàng,Số Điện Thại,Ngày Khởi Tạo,Tổng Giá Trị,Trạng Thái");
+            csvBuilder.AppendLine("Mã Đơn Hàng,Khách Hàng,Số Điện Thoại,Ngày Khởi Tạo,Tổng Giá Trị,Trạng Thái");
 
             foreach (var o in orders)
             {
@@ -240,6 +262,9 @@ namespace TMDT_LT.Areas.Admin.Controllers
             return File(bom.Concat(csvBytes).ToArray(), "text/csv", $"BaoCao_DonHang_{DateTime.Now:yyyyMMdd}.csv");
         }
 
+        // ====================================================================
+        // 5. IN HÓA ĐƠN ĐIỆN TỬ
+        // ====================================================================
         public async Task<IActionResult> PrintInvoice(int id)
         {
             var order = await _context.Orders
@@ -251,6 +276,9 @@ namespace TMDT_LT.Areas.Admin.Controllers
             return View(order);
         }
 
+        // ====================================================================
+        // 6. WEBHOOK DỰ PHÒNG CHUYỂN KHOẢN NGÂN HÀNG (Giữ nguyên gốc)
+        // ====================================================================
         [HttpPost]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> BankPaymentWebhook([FromBody] BankTransferModel gatewayData)
