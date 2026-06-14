@@ -28,6 +28,24 @@
             border-color: #E5E7EB;
             color: #9CA3AF;
         }
+        /* Ẩn mũi tên mặc định của input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        /* Style cho nút + - */
+        .qty-btn {
+            width: 40px; height: 100%; background: #F8FAFC; 
+            border: none; cursor: pointer; font-weight: bold; 
+            color: var(--navy-deep); transition: background 0.2s;
+        }
+        .qty-btn:hover {
+            background: #E2E8F0;
+        }
     </style>
 }
 
@@ -107,12 +125,17 @@
             
             <form action="/Cart/AddToCart" method="post" id="formAddToCart" style="display: flex; gap: 12px; align-items: stretch;">
                 <input type="hidden" name="variantId" id="hiddenVariantId" value="" />
-                <input type="number" name="quantity" value="1" min="1" class="form-control" style="width: 70px; height: 50px; text-align: center; font-weight: 700; border-radius: 4px; border: 1px solid var(--border-color);" />
                 
-                <button type="submit" name="actionType" value="add" id="btnSubmitCart" disabled style="flex: 1; height: 50px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 2px solid var(--navy-deep); color: var(--navy-deep); background: white; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; height: 50px; background: #fff;">
+                    <button type="button" class="qty-btn" onclick="updateQty(-1)" style="border-right: 1px solid var(--border-color);">-</button>
+                    <input type="number" name="quantity" id="qtyInput" value="1" min="1" readonly style="width: 50px; height: 100%; text-align: center; border: none; font-weight: 700; outline: none; background: #fff;" />
+                    <button type="button" class="qty-btn" onclick="updateQty(1)" style="border-left: 1px solid var(--border-color);">+</button>
+                </div>
+                
+                <button type="submit" name="actionType" value="add" id="btnSubmitCart" style="flex: 1; height: 50px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 2px solid var(--navy-deep); color: var(--navy-deep); background: white; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
                     Thêm vào giỏ
                 </button>
-                <button type="submit" name="actionType" value="buy" id="btnBuyNow" disabled style="flex: 1; height: 50px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: var(--accent-red, #DC2626); color: white; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                <button type="submit" name="actionType" value="buy" id="btnBuyNow" style="flex: 1; height: 50px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: var(--accent-red, #DC2626); color: white; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
                     Mua ngay
                 </button>
             </form>
@@ -124,7 +147,7 @@
                 @if (!string.IsNullOrEmpty(Model.Product.Chipset)) { <tr><td>Chip xử lý (CPU)</td><td>@Model.Product.Chipset</td></tr> }
                 @if (!string.IsNullOrEmpty(Model.Product.OperatingSystem)) { <tr><td>Hệ điều hành</td><td>@Model.Product.OperatingSystem</td></tr> }
                 @if (Model.Product.ScreenSize != null) { <tr><td>Kích thước màn hình</td><td>@Model.Product.ScreenSize inch</td></tr> }
-                @if (!string.IsNullOrEmpty(Model.Product.ScreenTech)) { <tr><td>Công nghệ nền nền</td><td>@Model.Product.ScreenTech</td></tr> }
+                @if (!string.IsNullOrEmpty(Model.Product.ScreenTech)) { <tr><td>Công nghệ nền</td><td>@Model.Product.ScreenTech</td></tr> }
                 @if (Model.Product.RefreshRate != null) { <tr><td>Tần số quét hình</td><td>@Model.Product.RefreshRate Hz</td></tr> }
                 @if (Model.Product.BatteryCapacity != null) { <tr><td>Dung lượng Pin</td><td>@Model.Product.BatteryCapacity mAh</td></tr> }
                 @if (!string.IsNullOrEmpty(Model.Product.RearCamera)) { <tr><td>Camera sau</td><td>@Model.Product.RearCamera</td></tr> }
@@ -281,6 +304,32 @@
         const minPriceFromServer = @((minPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
         
         let currentSelection = { storage: null, ram: null, color: null };
+        let currentMatchedVariant = null; // Biến lưu lại variant đang được chọn hoàn chỉnh
+
+        // ----------------------------------------------------
+        // HÀM TĂNG GIẢM SỐ LƯỢNG
+        // ----------------------------------------------------
+        function updateQty(change) {
+            const input = document.getElementById('qtyInput');
+            let currentVal = parseInt(input.value) || 1;
+            let newVal = currentVal + change;
+            
+            // Nếu đã chọn xong biến thể, kiểm tra không cho phép chọn vượt số lượng tồn kho
+            if (currentMatchedVariant && currentMatchedVariant.stock) {
+                if (newVal > currentMatchedVariant.stock) {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(`Chỉ còn ${currentMatchedVariant.stock} sản phẩm trong kho.`, 'error');
+                    } else {
+                        alert(`Chỉ còn ${currentMatchedVariant.stock} sản phẩm trong kho.`);
+                    }
+                    newVal = currentMatchedVariant.stock;
+                }
+            }
+
+            if (newVal >= 1) {
+                input.value = newVal;
+            }
+        }
 
         // ĐỘNG CƠ KHÓA CHÉO (CROSS-LOCKING ENGINE)
         function toggleSelection(type, value, element) {
@@ -337,12 +386,12 @@
         }
 
         function updateUIPanel(match) {
+            currentMatchedVariant = match; // Lưu lại trạng thái
             const lblPrice = document.getElementById('lblCurrentPrice');
             const lblOldPrice = document.getElementById('lblOldPrice');
             const lblStock = document.getElementById('lblStockStatus');
             const hiddenId = document.getElementById('hiddenVariantId');
-            const btnSubmitCart = document.getElementById('btnSubmitCart');
-            const btnBuyNow = document.getElementById('btnBuyNow');
+            const qtyInput = document.getElementById('qtyInput');
             const formatVND = (num) => new Intl.NumberFormat('vi-VN').format(num) + " đ";
 
             if (match) {
@@ -360,13 +409,13 @@
                 if (match.stock > 0) {
                     lblStock.innerText = `Còn hàng (Kho: ${match.stock})`;
                     lblStock.style.color = "var(--navy-deep)";
-                    btnSubmitCart.disabled = false;
-                    btnBuyNow.disabled = false;
+                    // Nếu số lượng chọn đang lớn hơn tồn kho thì tự động đưa về Max
+                    if (parseInt(qtyInput.value) > match.stock) {
+                        qtyInput.value = match.stock;
+                    }
                 } else {
                     lblStock.innerText = "Phiên bản này hiện đã hết hàng";
                     lblStock.style.color = "var(--accent-red)";
-                    btnSubmitCart.disabled = true;
-                    btnBuyNow.disabled = true;
                 }
 
                 if (match.imageUrl) changeGalleryImage(match.imageUrl, document.querySelector('.pdp-thumb-item'));
@@ -375,8 +424,6 @@
                 lblOldPrice.style.display = "none";
                 lblStock.innerText = "Vui lòng chọn cấu hình và màu sắc";
                 lblStock.style.color = "#94A3B8";
-                btnSubmitCart.disabled = true;
-                btnBuyNow.disabled = true;
                 hiddenId.value = "";
             }
         }
@@ -398,6 +445,28 @@
 
         document.getElementById('formAddToCart')?.addEventListener('submit', function(e) {
             e.preventDefault(); 
+            
+            // Kiểm tra xem đã chọn biến thể (cấu hình/màu sắc) chưa
+            const hiddenId = document.getElementById('hiddenVariantId').value;
+            if (!hiddenId) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast("Vui lòng chọn cấu hình / màu sắc sản phẩm trước khi mua.", "error");
+                } else {
+                    alert("Vui lòng chọn cấu hình / màu sắc sản phẩm trước khi mua.");
+                }
+                return;
+            }
+
+            // Kiểm tra xem biến thể đó có còn hàng không
+            if (currentMatchedVariant && currentMatchedVariant.stock <= 0) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast("Phiên bản bạn chọn hiện đã hết hàng.", "error");
+                } else {
+                    alert("Phiên bản bạn chọn hiện đã hết hàng.");
+                }
+                return;
+            }
+
             const formData = new FormData(this);
             formData.set('actionType', submitActionType);
 
@@ -413,10 +482,22 @@
                         window.location.href = data.url;
                     } else {
                         updateCartBadge(data.cartCount);
-                        showShopeeToast("Sản phẩm đã được thêm vào Giỏ hàng");
+                        // Sử dụng chung showToast từ Layout 
+                        if (typeof window.showToast === 'function') {
+                            window.showToast("Sản phẩm đã được thêm vào Giỏ hàng", "success");
+                        }
+                    }
+                } else {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || "Không thể thêm vào giỏ hàng", "error");
                     }
                 }
-            }).catch(err => console.error('Lỗi truyền tải AJAX:', err));
+            }).catch(err => {
+                console.error('Lỗi truyền tải AJAX:', err);
+                if (typeof window.showToast === 'function') {
+                    window.showToast("Lỗi hệ thống, vui lòng thử lại.", "error");
+                }
+            });
         });
 
         function updateCartBadge(count) {
@@ -428,25 +509,6 @@
                 badge.offsetHeight; 
                 badge.style.animation = 'popBadge 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
             }
-        }
-
-        function showShopeeToast(message) {
-            let toast = document.getElementById('shopee-toast');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'shopee-toast';
-                toast.innerHTML = `<i class="fas fa-check-circle" style="font-size:36px; color:#10B981; margin-bottom:12px; display:block;"></i><span style="font-size:14px; font-weight:700;">${message}</span>`;
-                toast.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); color:#fff; padding:30px 40px; border-radius:8px; text-align:center; z-index:9999; opacity:0; visibility:hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
-                document.body.appendChild(toast);
-            }
-            toast.style.visibility = 'visible';
-            toast.style.opacity = '1';
-            toast.style.transform = 'translate(-50%, -50%) scale(1.05)';
-            setTimeout(() => { toast.style.transform = 'translate(-50%, -50%) scale(1)'; }, 50);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.style.visibility = 'hidden', 300);
-            }, 1800);
         }
 
         // Tự động kiểm tra và khóa các thuộc tính khi tải trang lần đầu

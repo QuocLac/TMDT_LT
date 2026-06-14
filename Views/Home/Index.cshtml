@@ -71,7 +71,6 @@
                 transform: scale(1.1);
             }
 
-        /* BỔ SUNG: CSS CHO KHỐI VOUCHER TẠI TRANG CHỦ */
         .voucher-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -222,7 +221,7 @@
                 var defaultVariant = item.ProductVariants?.OrderBy(v => v.Price).FirstOrDefault();
 
                 <div class="market-product-card">
-                    <button class="btn-favorite" onclick="toggleFavorite(event, @item.ProductId)" title="Thêm vào yêu thích">
+                    <button class="btn-favorite" onclick="toggleFavorite(event, this, @(defaultVariant?.VariantId ?? 0))" title="Thêm/Xóa yêu thích">
                         <i class="far fa-heart"></i>
                     </button>
 
@@ -245,7 +244,7 @@
                         </div>
                     </a>
 
-                    <form action="/Cart/AddToCart" method="post" style="margin: 0; width: 100%;">
+                    <form action="/Cart/AddToCart" method="post" class="ajax-cart-form" style="margin: 0; width: 100%;">
                         <input type="hidden" name="variantId" value="@(defaultVariant?.VariantId)" />
                         <input type="hidden" name="quantity" value="1" />
 
@@ -304,7 +303,7 @@
                         </div>
                     </a>
 
-                    <form action="/Cart/AddToCart" method="post" style="margin: 0; width: 100%;">
+                    <form action="/Cart/AddToCart" method="post" class="ajax-cart-form" style="margin: 0; width: 100%;">
                         <input type="hidden" name="variantId" value="@(defaultVariant?.VariantId)" />
                         <input type="hidden" name="quantity" value="1" />
 
@@ -337,12 +336,13 @@
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // KIỂM SOÁT SLIDER CHẠY TỰ ĐỘNG
+            // [CÁC LOGIC CŨ CỦA BẠN ĐƯỢC GIỮ NGUYÊN]
+
+            // 1. SLIDER
             const track = document.getElementById('mainSliderTrack');
             const dots = document.querySelectorAll('.slider-dot');
             const totalSlides = @(Model.ActiveBanners?.Count ?? 0);
-            let currentSlideIndex = 0;
-            let slideInterval;
+            let currentSlideIndex = 0; let slideInterval;
 
             function updateSliderPosition() {
                 if (totalSlides === 0) return;
@@ -352,27 +352,18 @@
                     else dot.classList.remove('active');
                 });
             }
-
             window.moveToSlide = function(index) {
-                currentSlideIndex = index;
-                updateSliderPosition();
-                resetInterval();
+                currentSlideIndex = index; updateSliderPosition(); resetInterval();
             };
-
             function autoPlay() {
                 if (totalSlides <= 1) return;
                 currentSlideIndex++;
-                if (currentSlideIndex >= totalSlides) {
-                    currentSlideIndex = 0;
-                }
+                if (currentSlideIndex >= totalSlides) currentSlideIndex = 0;
                 updateSliderPosition();
             }
-
             function resetInterval() {
-                clearInterval(slideInterval);
-                slideInterval = setInterval(autoPlay, 3000);
+                clearInterval(slideInterval); slideInterval = setInterval(autoPlay, 3000);
             }
-
             if (totalSlides > 1) {
                 resetInterval();
                 const sliderViewport = document.getElementById('marketingSlider');
@@ -382,80 +373,169 @@
                 }
             }
 
-        // XỬ LÝ LƯU VOUCHER BẰNG AJAX
-                    document.querySelectorAll('.btn-save-voucher').forEach(btn => {
-                        btn.addEventListener('click', async function() {
-
-                            // 1. CHẶN VÀ KIỂM TRA ĐĂNG NHẬP NGAY TẠI TRÌNH DUYỆT BẰNG C# RAZOR
-                            @if (User.Identity == null || !User.Identity.IsAuthenticated)
-                            {
-                                    <text>
-                                    // Nếu chưa đăng nhập, hiện thông báo và đẩy thẳng sang trang Login
-                                    if (confirm("Bạn cần đăng nhập tài khoản để thu thập mã giảm giá này. Đến trang đăng nhập ngay?")) {
-                                        window.location.href = '/Account/Login?returnUrl=/';
-                                    }
-                                    return; // Cắt đứt luồng chạy, không gọi API xuống Server nữa để tránh lỗi 405
-                                    </text>
+            // 2. LƯU VOUCHER
+            document.querySelectorAll('.btn-save-voucher').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    @if (User.Identity == null || !User.Identity.IsAuthenticated)
+                    {
+                            <text>
+                            if (confirm("Bạn cần đăng nhập tài khoản để thu thập mã giảm giá này. Đến trang đăng nhập ngay?")) {
+                                window.location.href = '/Account/Login?returnUrl=/';
                             }
+                            return;
+                            </text>
+                    }
+                    const promoId = this.getAttribute('data-id');
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+                    this.disabled = true;
 
-                            // 2. NẾU ĐÃ ĐĂNG NHẬP THÌ MỚI GỌI API
-                            const promoId = this.getAttribute('data-id');
-                            const originalText = this.innerHTML;
+                    try {
+                        const formData = new FormData();
+                        formData.append('promotionId', promoId);
+                        const res = await fetch('/CustomerWallet/SaveVoucher', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        if (data.success) {
+                            this.innerHTML = 'ĐÃ LƯU';
+                            this.style.background = '#10B981'; this.style.color = '#fff';
+                            window.showToast(data.message, 'success');
+                        } else {
+                            if (data.requireLogin) window.location.href = '/Account/Login?returnUrl=/';
+                            else {
+                                window.showToast(data.message, 'error');
+                                this.innerHTML = 'KHÔNG THỂ LƯU';
+                                this.style.background = '#E5E7EB'; this.style.color = '#9CA3AF';
+                            }
+                        }
+                    } catch (e) {
+                        window.showToast('Lỗi kết nối đến máy chủ.', 'error');
+                        this.innerHTML = originalText; this.disabled = false;
+                    }
+                });
+            });
 
-                            this.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
-                            this.disabled = true;
+            // 3. YÊU THÍCH SẢN PHẨM
+       
+        window.toggleFavorite = async function(event, btnElement, variantId) {
+            event.preventDefault();
+            event.stopPropagation();
 
-                            try {
-                                const formData = new FormData();
-                                formData.append('promotionId', promoId);
+            if (variantId === 0) {
+                window.showToast("Sản phẩm này hiện chưa có biến thể cụ thể.", "error");
+                return;
+            }
 
-                                const res = await fetch('/CustomerWallet/SaveVoucher', {
-                                    method: 'POST',
-                                    body: formData
-                                });
+            const icon = btnElement.querySelector('i');
 
-                                const data = await res.json();
+            // Đảo trạng thái UI tạm thời để tạo cảm giác mượt mà tức thì cho người dùng
+            const isCurrentlyActive = btnElement.classList.contains('active');
+            btnElement.classList.toggle('active');
+            icon.className = isCurrentlyActive ? 'far fa-heart' : 'fas fa-heart';
 
-                                if (data.success) {
-                                    this.innerHTML = 'ĐÃ LƯU';
-                                    this.style.background = '#10B981';
-                                    this.style.color = '#fff';
-                                    alert(data.message);
-                                } else {
-                                    if (data.requireLogin) {
-                                        window.location.href = '/Account/Login?returnUrl=/';
-                                    } else {
-                                        alert(data.message);
-                                        this.innerHTML = 'KHÔNG THỂ LƯU';
-                                        this.style.background = '#E5E7EB';
-                                        this.style.color = '#9CA3AF';
-                                    }
-                                }
-                            } catch (e) {
-                                alert('Lỗi kết nối đến máy chủ.');
-                                this.innerHTML = originalText;
-                                this.disabled = false;
+            try {
+                const formData = new FormData();
+                formData.append('variantId', variantId);
+
+                // Gửi request tới FavoriteController vừa tạo
+                const response = await fetch('/Favorite/Toggle', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Nếu thành công, hiện Toast thông báo
+                    window.showToast(data.message, 'success');
+
+                    // Đảm bảo icon đồng bộ với kết quả từ server
+                    if (data.isAdded) {
+                        btnElement.classList.add('active');
+                        icon.className = 'fas fa-heart';
+                    } else {
+                        btnElement.classList.remove('active');
+                        icon.className = 'far fa-heart';
+                    }
+                } else {
+                    // Nếu thất bại (chưa đăng nhập), trả lại trạng thái trái tim ban đầu
+                    btnElement.classList.toggle('active');
+                    icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
+
+                    if (data.requireLogin) {
+                        if (confirm(data.message + " Chuyển đến trang đăng nhập?")) {
+                            window.location.href = '/Account/Login?returnUrl=/';
+                        }
+                    } else {
+                        window.showToast(data.message, 'error');
+                    }
+                }
+            } catch (e) {
+                // Nếu lỗi mạng, trả lại trạng thái trái tim ban đầu
+                btnElement.classList.toggle('active');
+                icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
+                window.showToast('Lỗi kết nối đến máy chủ.', 'error');
+            }
+        };
+
+            // =========================================================
+            // 4. BỔ SUNG: XỬ LÝ AJAX THÊM VÀO GIỎ HÀNG KHÔNG RELOAD TRANG
+            // =========================================================
+            document.querySelectorAll('.ajax-cart-form').forEach(form => {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault(); // Ngăn trình duyệt chuyển trang
+
+                    const btnSubmit = this.querySelector('.btn-home-cart');
+                    if (btnSubmit.disabled) return;
+
+                    const originalContent = btnSubmit.innerHTML;
+
+                    // Đổi trạng thái nút thành Đang xử lý
+                    btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ĐANG XỬ LÝ';
+                    btnSubmit.disabled = true;
+
+                    try {
+                        const formData = new FormData(this);
+                        const url = this.action;
+
+                        // Gửi request Fetch đến CartController
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest' // Khai báo đây là AJAX
                             }
                         });
-                    });
 
-            // YÊU THÍCH SẢN PHẨM
-            window.toggleFavorite = function(event, productId) {
-                event.preventDefault();
-                event.stopPropagation();
+                        // Vì ASP.NET Core mặc định có thể trả về RedirectToAction (HTML) khi AddToCart
+                        // Chạy đến bước này không ném lỗi là đã add thành công vào Session
+                        if (response.ok || response.redirected) {
 
-                const btn = event.currentTarget;
-                const icon = btn.querySelector('i');
-                btn.classList.toggle('active');
+                            // Gọi hàm Toast hiển thị thông báo
+                            window.showToast("Đã thêm sản phẩm vào giỏ hàng!", "success");
 
-                if (btn.classList.contains('active')) {
-                    icon.classList.remove('far');
-                    icon.classList.add('fas');
-                } else {
-                    icon.classList.remove('fas');
-                    icon.classList.add('far');
-                }
-            };
+                            // Tìm badge giỏ hàng trên Header và cập nhật số lượng trực tiếp
+                            const cartBadge = document.getElementById('header-cart-badge');
+                            if (cartBadge) {
+                                let currentQty = parseInt(cartBadge.innerText) || 0;
+                                let qtyToAdd = parseInt(formData.get('quantity')) || 1;
+
+                                cartBadge.innerText = currentQty + qtyToAdd;
+                                cartBadge.classList.add('has-items');
+                            }
+                        } else {
+                            window.showToast("Không thể thêm vào giỏ hàng. Thử lại sau.", "error");
+                        }
+                    } catch (error) {
+                        console.error("Lỗi AJAX giỏ hàng:", error);
+                        window.showToast("Mất kết nối máy chủ.", "error");
+                    } finally {
+                        // Trả lại trạng thái nút ban đầu
+                        btnSubmit.innerHTML = originalContent;
+                        btnSubmit.disabled = false;
+                    }
+                });
+            });
+
         });
     </script>
 }

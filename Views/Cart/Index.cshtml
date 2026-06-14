@@ -12,6 +12,136 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/storefront/store-home.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/storefront/store-cart.css" asp-append-version="true" />
+    <style>
+        /* Bố cục lưới chuẩn thương mại điện tử */
+        .cart-table-header {
+            display: grid;
+            grid-template-columns: 40px 4fr 1.5fr 1.5fr 1.5fr 60px;
+            background: #F8FAFC;
+            padding: 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            color: var(--navy-medium);
+            margin-bottom: 16px;
+            align-items: center;
+        }
+
+        .cart-item-row {
+            display: grid;
+            grid-template-columns: 40px 4fr 1.5fr 1.5fr 1.5fr 60px;
+            background: #FFFFFF;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+            .cart-item-row:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+                border-color: #CBD5E1;
+            }
+        /* Hình ảnh nhỏ nhắn, thông tin tinh gọn */
+        .product-col {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .cart-item-img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            border-radius: 4px;
+            border: 1px solid #F1F5F9;
+        }
+
+        .product-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .cart-item-title {
+            font-weight: 700;
+            color: var(--navy-deep);
+            text-decoration: none;
+            font-size: 14px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .cart-item-variant {
+            font-size: 12px;
+            color: #64748B;
+            background: #F1F5F9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            width: fit-content;
+        }
+        /* Checkbox Tùy chỉnh */
+        .custom-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--accent-red);
+        }
+        /* Nút Tăng giảm số lượng */
+        .qty-wrapper {
+            display: flex;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            width: 90px;
+            height: 32px;
+            overflow: hidden;
+        }
+
+        .qty-btn {
+            width: 30px;
+            background: #F8FAFC;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--navy-deep);
+        }
+
+            .qty-btn:hover {
+                background: #E2E8F0;
+            }
+
+        .qty-input {
+            width: 30px;
+            border: none;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            outline: none;
+        }
+
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .price-col {
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .total-price-col {
+            font-weight: 700;
+            color: var(--accent-red);
+            font-size: 15px;
+        }
+    </style>
 }
 
 <div class="cart-layout-grid">
@@ -20,46 +150,68 @@
 
         @if (Model != null && Model.Any())
         {
+            <div class="cart-table-header">
+                <div><input type="checkbox" id="selectAllCheckbox" class="custom-checkbox" title="Chọn tất cả" /></div>
+                <div>Sản phẩm</div>
+                <div>Đơn giá</div>
+                <div>Số lượng</div>
+                <div>Số tiền</div>
+                <div style="text-align: center;">Xóa</div>
+            </div>
+
             foreach (var item in Model)
             {
                 <div class="cart-item-row" id="item-row-@item.VariantId">
-                    <img src="@item.ImageUrl" alt="@item.ProductName" class="cart-item-img" />
+                    <div>
+                        <input type="checkbox" class="custom-checkbox item-checkbox" value="@item.VariantId" onchange="recalculateSummary()" />
+                    </div>
+
+                    <div class="product-col">
+                        <img src="@item.ImageUrl" alt="@item.ProductName" class="cart-item-img" />
+                        <div class="product-details">
+                            <a href="/Store/Product/@item.VariantId" class="cart-item-title">@item.ProductName</a>
+                            <div class="cart-item-variant">Phân loại: @item.Storage - @item.Color</div>
+                            @if (item.Stock < 5)
+                            {
+                                <div style="font-size: 11px; color: #DC2626; margin-top: 4px;">Chỉ còn @item.Stock sản phẩm</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="price-col">
+                        @string.Format("{0:N0}", item.Price) đ
+                    </div>
 
                     <div>
-                        <a href="/Store/Product/@item.VariantId" class="cart-item-title">@item.ProductName</a>
-                        <div class="cart-item-variant">Phân loại: @item.Storage - @item.Color</div>
-                        @if (item.Stock < 5)
-                        {
-                            <div class="cart-stock-warning">Chỉ còn @item.Stock sản phẩm</div>
-                        }
+                        <div class="qty-wrapper">
+                            <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, -1)">-</button>
+                            <input type="number" id="qty-@item.VariantId" class="qty-input" value="@item.Quantity" readonly />
+                            <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, 1)">+</button>
+                        </div>
                     </div>
 
-                    <div class="qty-control">
-                        <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, -1)">-</button>
-                        <input type="number" id="qty-@item.VariantId" class="qty-input" value="@item.Quantity" readonly />
-                        <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, 1)">+</button>
-                    </div>
-
-                    <div class="cart-item-price" id="price-@item.VariantId">
+                    <div class="total-price-col" id="price-@item.VariantId">
                         @string.Format("{0:N0}", item.TotalPrice) đ
                     </div>
 
-                    <form action="/Cart/RemoveItem" method="post" class="cart-remove-form">
-                        <input type="hidden" name="variantId" value="@item.VariantId" />
-                        <button type="submit" class="cart-remove-btn" title="Xoá khỏi giỏ">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </form>
+                    <div style="text-align: center;">
+                        <form action="/Cart/RemoveItem" method="post" style="margin:0;">
+                            <input type="hidden" name="variantId" value="@item.VariantId" />
+                            <button type="submit" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:16px;" title="Xoá khỏi giỏ">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             }
         }
         else
         {
             <div class="cart-empty-wrapper">
-                <i class="fas fa-shopping-basket" class="cart-empty-icon"></i>
+                <i class="fas fa-shopping-basket cart-empty-icon" style="font-size: 48px; color: #CBD5E1; margin-bottom: 16px;"></i>
                 <h3 class="cart-empty-title">Giỏ hàng trống</h3>
                 <p class="cart-empty-text">Hãy quay lại cửa hàng để chọn cho mình những sản phẩm ưng ý nhé.</p>
-                <a href="/Store" class="btn-dark cart-empty-link">TIẾP TỤC MUA SẮM</a>
+                <a href="/Store" class="btn-dark cart-empty-link" style="padding: 10px 24px; border-radius: 4px; display: inline-block; margin-top: 16px;">TIẾP TỤC MUA SẮM</a>
             </div>
         }
     </div>
@@ -67,71 +219,54 @@
     @if (Model != null && Model.Any())
     {
         <div class="cart-summary-box">
-
-            <div class="smart-voucher-box" id="smartVoucherContainer" style="@(bestVoucher == null ? "display:none;" : "")">
+            <div class="smart-voucher-box" id="smartVoucherContainer" style="display:none;">
                 <div class="voucher-header">
                     <i class="fas fa-ticket-alt"></i> Ưu đãi từ PHONE.ST
                 </div>
-
-                <div id="voucherHintText" class="voucher-hint">
-                    @if (bestVoucher != null)
-                    {
-                        if (bestVoucher.IsEligible)
-                        {
-                            <text>Tuyệt vời! Bạn đã đủ điều kiện sử dụng mã <strong>@bestVoucher.Code</strong>.</text>
-                        }
-                        else
-                        {
-                            string discountDisplay = bestVoucher.DiscountType == 1 ? $"{string.Format("{0:N0}", bestVoucher.DiscountValue)} đ" : $"{bestVoucher.DiscountValue}%";
-                            <text>Mua thêm <strong id="gapAmountDisplay">@string.Format("{0:N0}", bestVoucher.GapAmount) đ</strong> để áp dụng mã <strong>@bestVoucher.Code</strong> (Giảm @discountDisplay).</text>
-                        }
-                    }
-                </div>
-
+                <div id="voucherHintText" class="voucher-hint"></div>
                 <div class="progress-bar-bg">
-                    @{
-                        double initialPercent = 0;
-                        if (bestVoucher != null && bestVoucher.MinOrderValue > 0)
-                        {
-                            initialPercent = bestVoucher.IsEligible ? 100 : (double)(currentSubtotal / bestVoucher.MinOrderValue) * 100;
-                        }
-                    }
-                    <div id="voucherProgressBar" class="progress-bar-fill" style="width: @initialPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;"></div>
+                    <div id="voucherProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
                 </div>
             </div>
 
-            @{
-                decimal discountAmount = (bestVoucher != null && bestVoucher.IsEligible) ? bestVoucher.EstimatedDiscountAmount : 0;
-                decimal finalTotal = currentSubtotal - discountAmount;
-                if (finalTotal < 0) finalTotal = 0;
-            }
-
             <div class="summary-row">
-                <span>Tạm tính</span>
-                <strong class="summary-val-dark" id="summarySubtotal">@string.Format("{0:N0}", currentSubtotal) đ</strong>
+                <span>Tạm tính (đã chọn)</span>
+                <strong class="summary-val-dark" id="summarySubtotal">0 đ</strong>
             </div>
 
             <div class="summary-row">
                 <span>Giảm giá khuyến mãi</span>
-                <span class="summary-val-discount" id="summaryDiscount" style="@(discountAmount > 0 ? "color:#DC2626; font-weight:700;" : "")">
-                    @(discountAmount > 0 ? "- " + string.Format("{0:N0}", discountAmount) + " đ" : "Chưa tính")
-                </span>
+                <span class="summary-val-discount" id="summaryDiscount">Chưa tính</span>
             </div>
 
-            <div class="summary-total">
-                <span>Tổng cộng</span>
-                <span id="summaryTotal">@string.Format("{0:N0}", finalTotal) đ</span>
+            <div class="summary-total" style="border-top: 1px dashed var(--border-color); padding-top: 16px; margin-top: 16px;">
+                <span>Tổng thanh toán</span>
+                <span id="summaryTotal" style="font-size: 20px; color: var(--accent-red);">0 đ</span>
             </div>
+            <div style="font-size: 11px; color: #94A3B8; text-align: right; margin-bottom: 16px;">(Chưa bao gồm phí vận chuyển)</div>
 
-            <a href="/Checkout" class="btn-dark btn-checkout-flat">
-                Tiến hành thanh toán
-            </a>
+            <form action="/Cart/Checkout" method="get" id="checkoutForm">
+                <input type="hidden" name="selectedItems" id="checkoutSelectedItems" value="" />
+                <button type="button" id="btnCheckout" class="btn-dark btn-checkout-flat" style="width: 100%; border-radius: 4px; padding: 14px; font-size: 15px;">
+                    Mua Hàng (<span id="lblCheckoutCount">0</span>)
+                </button>
+            </form>
         </div>
     }
 </div>
 
 @section Scripts {
     <script>
+        // 1. TÍNH NĂNG CHỌN TẤT CẢ SẢN PHẨM
+        document.getElementById('selectAllCheckbox')?.addEventListener('change', function() {
+            const isChecked = this.checked;
+            document.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.checked = isChecked;
+            });
+            recalculateSummary();
+        });
+
+        // 2. CẬP NHẬT SỐ LƯỢNG SẢN PHẨM BẰNG AJAX VÀ HIỂN THỊ COMPONENT THÔNG BÁO
         function updateQty(variantId, change) {
             const input = document.getElementById(`qty-${variantId}`);
             let newQty = parseInt(input.value) + change;
@@ -148,30 +283,70 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    input.value = newQty;
+                    input.value = data.actualQuantity;
                     document.getElementById(`price-${variantId}`).innerText = data.itemTotalPrice;
-                    document.getElementById('summarySubtotal').innerText = data.subtotal;
 
-                    // Gọi hàm cập nhật Giao diện Khuyến mãi + Tổng tiền
-                    updateSmartVoucherUI(data.vouchers, data.subtotal);
+                    // Nếu khách bấm quá số lượng tồn kho -> Gọi component thông báo lỗi (Màu đỏ)
+                    if (data.limitReached) {
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(data.message, 'error');
+                        }
+                    }
+
+                    recalculateSummary();
                 } else {
-                    alert(data.message);
+                    // Nếu lỗi từ server -> Gọi component thông báo lỗi
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message, 'error');
+                    }
                 }
             })
-            .catch(error => console.error('Lỗi kết nối API:', error));
+            .catch(error => {
+                console.error('Lỗi kết nối API:', error);
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Lỗi kết nối đến máy chủ.', 'error');
+                }
+            });
         }
 
-        function updateSmartVoucherUI(vouchers, rawSubtotalStr) {
+        // 3. THUẬT TOÁN TÍNH TOÁN LẠI TỔNG TIỀN & VOUCHER DỰA TRÊN CHECKBOX
+        function recalculateSummary() {
+            const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+            const selectedIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+
+            document.getElementById('lblCheckoutCount').innerText = selectedIds.length;
+            document.getElementById('checkoutSelectedItems').value = selectedIds.join(',');
+
+            fetch('/Cart/GetCartSummary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(selectedIds)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('summarySubtotal').innerText = data.subtotal;
+                    updateSmartVoucherUI(data.vouchers, data.rawSubtotal);
+                }
+            })
+            .catch(err => console.error('Lỗi lấy summary:', err));
+
+            const allBoxes = document.querySelectorAll('.item-checkbox');
+            const selectAllCb = document.getElementById('selectAllCheckbox');
+            if(selectAllCb && allBoxes.length > 0) {
+                selectAllCb.checked = (checkedBoxes.length === allBoxes.length);
+            }
+        }
+
+        // 4. CẬP NHẬT GIAO DIỆN VOUCHER (ĐỘNG)
+        function updateSmartVoucherUI(vouchers, currentSubtotal) {
             const container = document.getElementById('smartVoucherContainer');
             const hintText = document.getElementById('voucherHintText');
             const progressBar = document.getElementById('voucherProgressBar');
-
             const discountElement = document.getElementById('summaryDiscount');
             const totalElement = document.getElementById('summaryTotal');
 
-            const currentSubtotal = parseInt(rawSubtotalStr.replace(/[^0-9]/g, ''));
-
-            if (!vouchers || vouchers.length === 0) {
+            if (!vouchers || vouchers.length === 0 || currentSubtotal === 0) {
                 container.style.display = 'none';
                 discountElement.innerText = "Chưa tính";
                 discountElement.style.color = "";
@@ -187,9 +362,7 @@
             if (bestVoucher.isEligible) {
                 progressBar.style.width = '100%';
                 progressBar.style.background = '#10B981';
-                hintText.innerHTML = `Tuyệt vời! Bạn đã đủ điều kiện sử dụng mã <strong>${bestVoucher.code}</strong>.`;
-
-                // Lấy trực tiếp số tiền giảm từ thuật toán Backend trả về! Không cần tự tính JS nữa.
+                hintText.innerHTML = `Tuyệt vời! Đủ điều kiện sử dụng mã <strong>${bestVoucher.code}</strong>.`;
                 discountAmount = bestVoucher.estimatedDiscountAmount;
             } else {
                 let percent = (currentSubtotal / bestVoucher.minOrderValue) * 100;
@@ -206,7 +379,6 @@
                 hintText.innerHTML = `Mua thêm <strong>${formatGap} đ</strong> để áp dụng mã <strong>${bestVoucher.code}</strong> (Giảm ${discountDisplay}).`;
             }
 
-            // Cập nhật text tiền giảm giá
             if (discountAmount > 0) {
                 discountElement.innerText = "- " + new Intl.NumberFormat('vi-VN').format(discountAmount) + " đ";
                 discountElement.style.color = "#DC2626";
@@ -217,10 +389,25 @@
                 discountElement.style.fontWeight = "normal";
             }
 
-            // Cập nhật text Tiền tổng cộng
             let finalTotal = currentSubtotal - discountAmount;
             if (finalTotal < 0) finalTotal = 0;
             totalElement.innerText = new Intl.NumberFormat('vi-VN').format(finalTotal) + " đ";
         }
+
+        // 5. RÀNG BUỘC KHI BẤM NÚT MUA HÀNG VỚI COMPONENT THÔNG BÁO
+        document.getElementById('btnCheckout')?.addEventListener('click', function() {
+            const selectedItems = document.getElementById('checkoutSelectedItems').value;
+            if (!selectedItems) {
+                // Thay thế alert() bằng component thông báo Toast
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Vui lòng chọn ít nhất một sản phẩm để thanh toán!', 'error');
+                }
+                return;
+            }
+            document.getElementById('checkoutForm').submit();
+        });
+
+        // Chạy tính toán 1 lần khi load trang để reset Subtotal về 0 đ
+        document.addEventListener('DOMContentLoaded', recalculateSummary);
     </script>
 }

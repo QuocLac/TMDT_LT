@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
@@ -17,7 +18,7 @@ namespace TMDT_LT.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly PromotionEngine _promotionEngine;
-        private const string CART_SESSION_KEY = "PhoneStCartSession";
+        private const string CART_COOKIE_KEY = "PhoneStCartCookie";
 
         public CartController(ApplicationDbContext context, PromotionEngine promotionEngine)
         {
@@ -25,32 +26,22 @@ namespace TMDT_LT.Controllers
             _promotionEngine = promotionEngine;
         }
 
-        // =======================================================
-        // 1. MÀN HÌNH GIỎ HÀNG: ĐỐI SOÁT GIÁ & THỰC THI RULE ENGINE
-        // =======================================================
         public async Task<IActionResult> Index()
         {
-            var cart = GetCartFromSession();
+            var cart = await GetCartAsync();
 
-            // Lớp bảo vệ kế toán: Đồng bộ lại Giá và Tồn kho từ CSDL
             await RefreshCartMetadataAsync(cart);
-            SaveCartToSession(cart);
+            await SaveCartAsync(cart);
 
-            decimal subtotal = cart.Sum(x => x.TotalPrice);
-
-            // Triển khai động cơ rà quét điều kiện mã giảm giá
+            decimal subtotal = 0;
             var voucherStates = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
 
-            // Bơm nguyên liệu ra giao diện xử lý thanh tiến trình Progress Bar
             ViewBag.VoucherStates = voucherStates;
             ViewBag.Subtotal = subtotal;
 
             return View(cart);
         }
 
-        // =======================================================
-        // 2. XỬ LÝ THÊM VÀO GIỎ & ĐIỀU HƯỚNG LUỒNG MUA NGAY
-        // =======================================================
         [HttpPost]
         public async Task<IActionResult> AddToCart(int variantId, int quantity = 1, string? actionType = "add")
         {
@@ -60,7 +51,7 @@ namespace TMDT_LT.Controllers
 
             if (variant == null) return NotFound();
 
-            var cart = GetCartFromSession();
+            var cart = await GetCartAsync();
             var existingItem = cart.FirstOrDefault(x => x.VariantId == variantId);
 
             int safeStock = variant.Stock ?? 0;
@@ -86,38 +77,27 @@ namespace TMDT_LT.Controllers
                 });
             }
 
-            SaveCartToSession(cart);
+            await SaveCartAsync(cart);
 
-            // -----------------------------------------------------------
-            // XỬ LÝ AJAX (CHỐNG TẢI LẠI TRANG) GIỐNG SHOPEE
-            // -----------------------------------------------------------
             bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
                           Request.Headers["Accept"].ToString().Contains("application/json");
 
             if (isAjax)
             {
                 int totalCartItems = cart.Sum(x => x.Quantity);
-
-                // Kịch bản Mua ngay -> Báo trình duyệt chuyển hướng qua Checkout
                 if (actionType == "buy")
                 {
                     return Json(new { success = true, action = "redirect", url = "/Cart/Checkout" });
                 }
-
-                // Kịch bản Thêm vào giỏ -> Trả về con số để nhảy Icon trên Header
                 return Json(new { success = true, action = "update", cartCount = totalCartItems });
             }
 
-            // Fallback (Trường hợp trình duyệt không chạy JS)
             if (actionType == "buy") return RedirectToAction("Checkout", "Cart");
             string previousUrl = Request.Headers["Referer"].ToString();
             if (!string.IsNullOrWhiteSpace(previousUrl)) return Redirect(previousUrl);
             return RedirectToAction("Index", "Store");
         }
 
-        // =======================================================
-        // 3. API CẬP NHẬT SỐ LƯỢNG TẠI CHỖ
-        // =======================================================
         [HttpPost]
         public async Task<IActionResult> UpdateQuantity(int variantId, int quantity)
         {
@@ -126,67 +106,136 @@ namespace TMDT_LT.Controllers
             var variant = await _context.ProductVariants.FindAsync(variantId);
             if (variant == null) return Json(new { success = false, message = "Biến thể không tồn tại" });
 
-            var cart = GetCartFromSession();
+            var cart = await GetCartAsync();
             var item = cart.FirstOrDefault(x => x.VariantId == variantId);
 
             int safeStock = variant.Stock ?? 0;
 
             if (item != null)
             {
+                bool isLimitReached = quantity > safeStock;
                 item.Quantity = Math.Min(quantity, safeStock);
-                SaveCartToSession(cart);
 
-                decimal newSubtotal = cart.Sum(x => x.TotalPrice);
-                var voucherStates = await _promotionEngine.EvaluateCartPromotionsAsync(newSubtotal);
+                await SaveCartAsync(cart);
 
                 return Json(new
                 {
                     success = true,
-                    itemTotalPrice = item.TotalPrice.ToString("N0") + " đ",
-                    subtotal = newSubtotal.ToString("N0") + " đ",
-                    vouchers = voucherStates
+                    actualQuantity = item.Quantity,
+                    limitReached = isLimitReached,
+                    message = isLimitReached ? $"Chỉ còn {safeStock} sản phẩm trong kho." : "",
+                    itemTotalPrice = item.TotalPrice.ToString("N0") + " đ"
                 });
             }
 
             return Json(new { success = false, message = "Sản phẩm không có trong giỏ" });
         }
 
-        // =======================================================
-        // 4. XOÁ VẬT PHẨM KHỎI PHÂN HỆ GIỎ HÀNG
-        // =======================================================
         [HttpPost]
-        public IActionResult RemoveItem(int variantId)
+        public async Task<IActionResult> GetCartSummary([FromBody] List<int> selectedVariantIds)
         {
-            var cart = GetCartFromSession();
+            var cart = await GetCartAsync();
+            var selectedItems = cart.Where(x => selectedVariantIds.Contains(x.VariantId)).ToList();
+            decimal subtotal = selectedItems.Sum(x => x.TotalPrice);
+            var voucherStates = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
+
+            return Json(new
+            {
+                success = true,
+                rawSubtotal = subtotal,
+                subtotal = subtotal.ToString("N0") + " đ",
+                vouchers = voucherStates
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveItem(int variantId)
+        {
+            var cart = await GetCartAsync();
             var item = cart.FirstOrDefault(x => x.VariantId == variantId);
 
             if (item != null)
             {
                 cart.Remove(item);
-                SaveCartToSession(cart);
+                await SaveCartAsync(cart);
             }
 
             return RedirectToAction(nameof(Index));
         }
 
         [HttpGet]
-        public IActionResult Checkout()
+        public IActionResult Checkout(string selectedItems)
         {
-            return Content("Trang Checkout chi tiết sẽ được phát triển tiếp theo tại đây.");
+            ViewBag.SelectedItems = selectedItems;
+            return Content($"Trang Checkout. Các sản phẩm bạn chọn mua có ID là: {selectedItems}");
         }
 
         // =======================================================
-        // CÁC PHƯƠNG THỨC TRỢ NĂNG SESSION
+        // ENGINE LƯU TRỮ KÉP (COOKIE CHO GUEST - DATABASE CHO MEMBER)
         // =======================================================
-        private List<CartItemVM> GetCartFromSession()
+        private async Task<List<CartItemVM>> GetCartAsync()
         {
-            var json = HttpContext.Session.GetString(CART_SESSION_KEY);
+            // NẾU LÀ THÀNH VIÊN: ĐỌC TỪ DATABASE
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                var customerIdStr = User.FindFirstValue("CustomerId");
+                if (int.TryParse(customerIdStr, out int cusId))
+                {
+                    var dbCart = await _context.CartItems
+                        .Include(c => c.Variant).ThenInclude(v => v.Product)
+                        .Where(c => c.CustomerId == cusId)
+                        .Select(c => new CartItemVM
+                        {
+                            VariantId = c.VariantId ?? 0,
+                            ProductName = c.Variant.Product.Name,
+                            Color = c.Variant.Color ?? "",
+                            Storage = c.Variant.Storage ?? "",
+                            ImageUrl = !string.IsNullOrEmpty(c.Variant.ImageUrl) ? c.Variant.ImageUrl : c.Variant.Product.MainImage,
+                            Price = c.Variant.DiscountPrice > 0 ? c.Variant.DiscountPrice.Value : (c.Variant.Price ?? 0),
+                            Quantity = c.Quantity ?? 1,
+                            Stock = c.Variant.Stock ?? 0
+                        }).ToListAsync();
+                    return dbCart;
+                }
+            }
+
+            // NẾU LÀ KHÁCH VÃNG LAI: ĐỌC TỪ COOKIE
+            var json = HttpContext.Request.Cookies[CART_COOKIE_KEY];
             return json == null ? new List<CartItemVM>() : JsonSerializer.Deserialize<List<CartItemVM>>(json) ?? new List<CartItemVM>();
         }
 
-        private void SaveCartToSession(List<CartItemVM> cart)
+        private async Task SaveCartAsync(List<CartItemVM> cart)
         {
-            HttpContext.Session.SetString(CART_SESSION_KEY, JsonSerializer.Serialize(cart));
+            // NẾU LÀ THÀNH VIÊN: GHI ĐÈ VÀO DATABASE
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                var customerIdStr = User.FindFirstValue("CustomerId");
+                if (int.TryParse(customerIdStr, out int cusId))
+                {
+                    var existing = _context.CartItems.Where(c => c.CustomerId == cusId);
+                    _context.CartItems.RemoveRange(existing); // Xóa cũ
+
+                    var newItems = cart.Select(item => new CartItems
+                    {
+                        CustomerId = cusId,
+                        VariantId = item.VariantId,
+                        Quantity = item.Quantity,
+                        CreatedDate = DateTime.Now
+                    });
+                    _context.CartItems.AddRange(newItems); // Lưu mới
+                    await _context.SaveChangesAsync();
+                    return;
+                }
+            }
+
+            // NẾU LÀ KHÁCH VÃNG LAI: GHI VÀO COOKIE (Sống 30 ngày)
+            var options = new CookieOptions
+            {
+                Expires = DateTime.Now.AddDays(30),
+                HttpOnly = true,
+                IsEssential = true
+            };
+            HttpContext.Response.Cookies.Append(CART_COOKIE_KEY, JsonSerializer.Serialize(cart), options);
         }
 
         private async Task RefreshCartMetadataAsync(List<CartItemVM> cart)
