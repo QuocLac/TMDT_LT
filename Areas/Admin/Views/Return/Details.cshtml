@@ -1,0 +1,511 @@
+﻿@model TMDT_LT.Models.OrderReturns
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Xử lý Khiếu nại Trả hàng #" + Model.ReturnId;
+
+    // Lấy thông tin thanh toán của đơn hàng gốc
+    var payment = Model.Order?.Payments?.FirstOrDefault();
+    string paymentMethod = payment?.PaymentMethod ?? "COD";
+    decimal refundAmount = Model.Order?.TotalAmount ?? 0;
+
+    // Sinh URL VietQR Động (Chỉ dùng nếu thanh toán là COD/BankTransfer)
+    string bankCode = Model.RefundBankCode ?? "";
+    string accNum = Model.RefundAccountNumber ?? "";
+    string accName = Model.RefundAccountName ?? "";
+    // Xóa dấu tiếng Việt, thay khoảng trắng bằng %20 cho URL
+    string qrUrl = $"https://img.vietqr.io/image/{bankCode}-{accNum}-compact2.png?amount={(int)refundAmount}&addInfo=Hoan tien don hang {Model.OrderId}&accountName={accName}";
+}
+
+<style>
+    .return-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #E2E8F0;
+    }
+
+    .status-badge {
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 13px;
+        text-transform: uppercase;
+    }
+
+    .badge-pending {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+
+    .badge-shipping {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
+
+    .badge-inspecting {
+        background: #E0E7FF;
+        color: #4F46E5;
+    }
+
+    .badge-success {
+        background: #DCFCE7;
+        color: #16A34A;
+    }
+
+    .badge-rejected {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .info-card {
+        background: #FFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+        .info-card h3 {
+            font-size: 16px;
+            font-weight: 800;
+            color: #0F172A;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #F1F5F9;
+            padding-bottom: 8px;
+        }
+
+    .media-grid {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+    }
+
+    .media-item {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #CBD5E1;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+        .media-item:hover {
+            opacity: 0.8;
+        }
+
+    /* Timeline 5 bước */
+    .timeline {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        margin: 40px 0;
+    }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #E2E8F0;
+            z-index: 1;
+        }
+
+    .step {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        width: 20%;
+    }
+
+    .step-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #FFF;
+        border: 2px solid #E2E8F0;
+        margin: 0 auto 8px auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #94A3B8;
+    }
+
+    .step.active .step-icon {
+        border-color: #0F172A;
+        background: #0F172A;
+        color: #FFF;
+    }
+
+    .step-text {
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748B;
+    }
+
+    .step.active .step-text {
+        color: #0F172A;
+    }
+
+    /* Modal Styles */
+    .admin-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15,23,42,0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .admin-modal-content {
+        background: #FFF;
+        width: 90%;
+        max-width: 500px;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    }
+</style>
+
+<div style="max-width: 1200px; margin: 0 auto;">
+    <a href="/Admin/Return/Index" style="color: #64748B; font-weight: 600; text-decoration: none; margin-bottom: 16px; display: inline-block;">
+        <i class="fas fa-arrow-left"></i> Quay lại danh sách
+    </a>
+
+    <div class="return-header">
+        <div>
+            <h1 style="font-size: 24px; font-weight: 800; color: #0F172A; margin: 0;">Mã khiếu nại: #RET-@Model.ReturnId</h1>
+            <div style="font-size: 14px; color: #64748B; margin-top: 4px;">Đơn hàng gốc: <a href="/Admin/Order/Details/@Model.OrderId" style="font-weight: 700; color: #2563EB;">#ORD-@Model.OrderId</a> | Ngày tạo: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+        </div>
+        <div>
+            @{
+                string badgeClass = Model.Status switch
+                {
+                    "Chờ duyệt" => "badge-pending",
+                    "Chờ khách trả hàng" => "badge-shipping",
+                    "Đang kiểm định" => "badge-inspecting",
+                    "Hoàn tiền thành công" => "badge-success",
+                    "Đã từ chối" => "badge-rejected",
+                    _ => "badge-pending"
+                };
+            }
+            <span class="status-badge @badgeClass">@Model.Status</span>
+        </div>
+    </div>
+
+    <div class="info-card">
+        <h3>Tiến trình xử lý</h3>
+        <div class="timeline">
+            <div class="step @(Model.Status != "Đã từ chối" ? "active" : "")">
+                <div class="step-icon">1</div>
+                <div class="step-text">Khách yêu cầu</div>
+            </div>
+            <div class="step @(Model.Status == "Chờ khách trả hàng" || Model.Status == "Đang kiểm định" || Model.Status == "Hoàn tiền thành công" ? "active" : "")">
+                <div class="step-icon">2</div>
+                <div class="step-text">Đã duyệt (Chờ nhận hàng)</div>
+            </div>
+            <div class="step @(Model.Status == "Đang kiểm định" || Model.Status == "Hoàn tiền thành công" ? "active" : "")">
+                <div class="step-icon">3</div>
+                <div class="step-text">Đang kiểm định kho</div>
+            </div>
+            <div class="step @(Model.Status == "Hoàn tiền thành công" ? "active" : "")">
+                <div class="step-icon"><i class="fas fa-check"></i></div>
+                <div class="step-text">Hoàn tiền thành công</div>
+            </div>
+            @if (Model.Status == "Đã từ chối")
+            {
+                <div class="step active" style="position: absolute; right: 0; background: #FFF;">
+                    <div class="step-icon" style="border-color: #DC2626; background: #DC2626; color: #FFF;"><i class="fas fa-times"></i></div>
+                    <div class="step-text" style="color: #DC2626;">Đã từ chối</div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+
+        <div>
+            <div class="info-card">
+                <h3>Chi tiết khiếu nại</h3>
+                <div style="display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px; margin-bottom: 20px;">
+                    <strong style="color: #64748B;">Khách hàng:</strong> <span style="color: #0F172A; font-weight: 600;">@Model.Customer?.FullName</span>
+                    <strong style="color: #64748B;">Lý do chính:</strong> <span style="color: #DC2626; font-weight: 700;">@Model.Reason</span>
+                    <strong style="color: #64748B;">Mô tả thêm:</strong> <span style="color: #0F172A;">@Model.Description</span>
+                </div>
+
+                <strong style="color: #64748B; font-size: 14px;">Hình ảnh / Video minh chứng:</strong>
+                <div class="media-grid">
+                    @if (!string.IsNullOrEmpty(Model.MediaUrls))
+                    {
+                        var medias = Model.MediaUrls.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var m in medias)
+                        {
+                            if (m.EndsWith(".mp4") || m.EndsWith(".mov"))
+                            {
+                                <video src="@m" class="media-item" controls></video>
+                            }
+                            else
+                            {
+                                <a href="@m" target="_blank"><img src="@m" class="media-item" /></a>
+                            }
+                        }
+                    }
+                    else
+                    {
+                        <p style="font-size: 13px; color: #94A3B8; font-style: italic;">Khách hàng không tải lên minh chứng.</p>
+                    }
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>Sản phẩm cần hoàn trả</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                            <th style="padding: 12px; text-align: left;">Sản phẩm</th>
+                            <th style="padding: 12px; text-align: center;">SL</th>
+                            <th style="padding: 12px; text-align: right;">Đơn giá</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Order != null && Model.Order.OrderDetails != null)
+                        {
+                            foreach (var item in Model.Order.OrderDetails)
+                            {
+                                <tr style="border-bottom: 1px solid #F1F5F9;">
+                                    <td style="padding: 12px;">
+                                        <div style="font-weight: 700; color: #0F172A;">@item.Variant?.Product?.Name</div>
+                                        <div style="font-size: 12px; color: #64748B;">Phân loại: @item.Variant?.Ram / @item.Variant?.Storage - @item.Variant?.Color</div>
+                                    </td>
+                                    <td style="padding: 12px; text-align: center; font-weight: 700;">@item.Quantity</td>
+                                    <td style="padding: 12px; text-align: right; font-weight: 700;">@string.Format("{0:N0}", item.UnitPrice)đ</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <div class="info-card">
+                <h3>Thông tin hoàn tiền</h3>
+                <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 16px;">
+                    <div style="font-size: 12px; color: #64748B; text-transform: uppercase; font-weight: 800;">Tổng tiền cần hoàn</div>
+                    <div style="font-size: 28px; font-weight: 900; color: #DC2626;">@string.Format("{0:N0}", refundAmount) đ</div>
+                </div>
+
+                <div style="font-size: 13px; line-height: 1.6; color: #334155;">
+                    <strong style="color: #0F172A; display: block; margin-bottom: 8px;">Phương thức thanh toán gốc: @paymentMethod</strong>
+
+                    @if (paymentMethod == "COD" || paymentMethod == "BankTransfer")
+                    {
+                        <div style="background: #FEF2F2; padding: 12px; border-left: 4px solid #DC2626; border-radius: 4px;">
+                            <strong>Ngân hàng:</strong> @Model.RefundBankCode <br />
+                            <strong>Số TK:</strong> @Model.RefundAccountNumber <br />
+                            <strong>Chủ TK:</strong> @Model.RefundAccountName
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="background: #ECFDF5; padding: 12px; border-left: 4px solid #10B981; border-radius: 4px; color: #065F46;">
+                            Hệ thống sẽ gọi API VNPay để tự động hoàn trả về thẻ của khách.
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>Bảng điều khiển</h3>
+
+                @if (Model.Status == "Chờ duyệt")
+                {
+                    <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">Xem xét lý do và hình ảnh trước khi cho phép khách gửi hàng về kho.</p>
+                    <button class="btn btn-success w-100 mb-2" onclick="openBasicModal('Chờ khách trả hàng', 'Chấp nhận yêu cầu. Vui lòng hướng dẫn khách đóng gói gửi về kho.')" style="background: #0F172A; color: white; border: none; padding: 10px; font-weight: 700; border-radius: 6px;">Đồng ý (Chờ khách gửi hàng)</button>
+                    <button class="btn btn-danger w-100" onclick="openBasicModal('Đã từ chối', 'Từ chối khiếu nại.')" style="background: white; color: #DC2626; border: 1px solid #DC2626; padding: 10px; font-weight: 700; border-radius: 6px;">Từ chối yêu cầu</button>
+                }
+                else if (Model.Status == "Chờ khách trả hàng")
+                {
+                    <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">Xác nhận khi kho đã nhận được hộp hàng từ shipper.</p>
+                    <button class="btn btn-primary w-100" onclick="openBasicModal('Đang kiểm định', 'Kho đã nhận hàng, chuyển sang bước khui hộp kiểm tra.')" style="background: #2563EB; color: white; border: none; padding: 10px; font-weight: 700; border-radius: 6px;">Đã nhận được hàng (Bắt đầu kiểm định)</button>
+                }
+                else if (Model.Status == "Đang kiểm định")
+                {
+                    <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">Sau khi kho kiểm định máy xong, tiến hành chốt hoàn tiền hoặc từ chối do tráo hàng.</p>
+                    <button class="btn btn-warning w-100 mb-2" onclick="openRefundModal()" style="background: #F59E0B; color: white; border: none; padding: 12px; font-weight: 800; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.4);">TIẾN HÀNH HOÀN TIỀN & CHỐT</button>
+                    <button class="btn btn-danger w-100" onclick="openBasicModal('Đã từ chối', 'Từ chối hoàn tiền (Ví dụ: Phát hiện khách tráo hàng).')" style="background: white; color: #DC2626; border: 1px solid #DC2626; padding: 10px; font-weight: 700; border-radius: 6px;">Hủy quyền hoàn tiền (Hàng lỗi)</button>
+                }
+                else
+                {
+                    <div style="text-align: center; color: #16A34A; font-weight: 800; font-size: 16px;">
+                        <i class="fas fa-lock"></i> KHIẾU NẠI ĐÃ ĐÓNG
+                    </div>
+                    if (!string.IsNullOrEmpty(Model.AdminNote))
+                    {
+                        <div style="margin-top: 12px; padding: 12px; background: #F1F5F9; border-radius: 6px; font-size: 13px; color: #475569;">
+                            <strong>Ghi chú cuối:</strong> @Model.AdminNote
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="admin-modal-overlay" id="basicModal">
+    <div class="admin-modal-content">
+        <h3 style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 16px;">Xác nhận thao tác</h3>
+        <input type="hidden" id="basicNewStatus" />
+        <label style="font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px; display: block;">Lời nhắn cho khách hàng / Ghi chú nội bộ:</label>
+        <textarea id="basicAdminNote" class="form-control" rows="3" style="width: 100%; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; margin-bottom: 20px;"></textarea>
+
+        <div style="display: flex; gap: 12px;">
+            <button class="btn" style="flex: 1; background: #F1F5F9; color: #475569; border: none; padding: 10px; font-weight: 700; border-radius: 6px;" onclick="closeModal('basicModal')">Hủy</button>
+            <button class="btn" style="flex: 1; background: #0F172A; color: white; border: none; padding: 10px; font-weight: 700; border-radius: 6px;" onclick="submitBasicUpdate()">Xác nhận</button>
+        </div>
+    </div>
+</div>
+
+<div class="admin-modal-overlay" id="refundModal">
+    <div class="admin-modal-content" style="max-width: 600px;">
+        <h3 style="font-size: 20px; font-weight: 800; color: #0F172A; margin-bottom: 16px; border-bottom: 2px solid #F1F5F9; padding-bottom: 12px;">QUYẾT TOÁN HOÀN TIỀN</h3>
+
+        <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 20px;">
+            <strong style="display: block; color: #0F172A; margin-bottom: 10px; font-size: 14px;">1. Tình trạng hàng hóa khi kho kiểm định?</strong>
+            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;">
+                <input type="radio" name="chkStock" value="true" checked style="width: 18px; height: 18px;" />
+                <span style="font-size: 14px; font-weight: 600; color: #16A34A;">Hàng nguyên vẹn - CỘNG TRẢ LẠI VÀO KHO (Stock)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="chkStock" value="false" style="width: 18px; height: 18px;" />
+                <span style="font-size: 14px; font-weight: 600; color: #DC2626;">Hàng hỏng hóc/Lỗi - Đẩy vào phế phẩm (Không cộng kho)</span>
+            </label>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <strong style="display: block; color: #0F172A; margin-bottom: 10px; font-size: 14px;">2. Thao tác hoàn tiền:</strong>
+            @if (paymentMethod == "VNPAY")
+            {
+                <div style="background: #ECFDF5; padding: 16px; border-radius: 8px; border: 1px solid #10B981; text-align: center;">
+                    <i class="fas fa-robot" style="font-size: 32px; color: #10B981; margin-bottom: 10px;"></i>
+                    <div style="font-weight: 700; color: #065F46; font-size: 15px;">HỆ THỐNG SẼ TỰ ĐỘNG GỌI API VNPAY</div>
+                    <div style="font-size: 13px; color: #047857; margin-top: 4px;">Tiền sẽ được tự động hoàn ngược về tài khoản khách hàng.</div>
+                    <input type="hidden" id="refTransactionId" value="AUTO_VNPAY" />
+                </div>
+            }
+            else
+            {
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <div style="width: 150px; height: 150px; border: 2px dashed #CBD5E1; border-radius: 8px; padding: 4px;">
+                        <img src="@qrUrl" style="width: 100%; height: 100%; object-fit: contain;" alt="Mã VietQR" />
+                    </div>
+                    <div style="flex: 1;">
+                        <p style="font-size: 13px; color: #64748B; margin-bottom: 12px; line-height: 1.5;">Vui lòng dùng App Ngân hàng quét mã QR bên cạnh để chuyển đúng <strong>@string.Format("{0:N0}", refundAmount) đ</strong> cho khách. Sau đó nhập mã giao dịch để đối soát.</p>
+                        <label style="font-weight: 700; font-size: 13px; color: #0F172A; display: block; margin-bottom: 6px;">Mã giao dịch / Mã tham chiếu (*)</label>
+                        <input type="text" id="refTransactionId" class="form-control" placeholder="VD: FT231... hoặc VCB_123" style="width: 100%; border: 1px solid #CBD5E1; padding: 10px; border-radius: 6px;" required />
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div style="margin-bottom: 24px;">
+            <label style="font-weight: 700; font-size: 13px; color: #0F172A; display: block; margin-bottom: 6px;">Ghi chú nội bộ Kế toán:</label>
+            <input type="text" id="refAdminNote" class="form-control" placeholder="Ghi chú thêm (Không bắt buộc)..." style="width: 100%; border: 1px solid #CBD5E1; padding: 10px; border-radius: 6px;" />
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+            <button class="btn" style="flex: 1; background: #F1F5F9; color: #475569; border: none; padding: 12px; font-weight: 700; border-radius: 6px;" onclick="closeModal('refundModal')">Hủy bỏ</button>
+            <button class="btn" id="btnConfirmRefund" style="flex: 2; background: #DC2626; color: white; border: none; padding: 12px; font-weight: 800; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.4);" onclick="submitProcessRefund()">CHỐT HOÀN TIỀN VÀ ĐÓNG ĐƠN</button>
+        </div>
+    </div>
+</div>
+
+<form id="adminAntiForgeryForm" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
+@section Scripts {
+    <script>
+        function getAdminToken() {
+            return document.querySelector('#adminAntiForgeryForm input[name="__RequestVerificationToken"]').value;
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // ---------- XỬ LÝ CHUYỂN BƯỚC CƠ BẢN ----------
+        function openBasicModal(status, hint) {
+            document.getElementById('basicNewStatus').value = status;
+            document.getElementById('basicAdminNote').value = hint;
+            document.getElementById('basicModal').style.display = 'flex';
+        }
+
+        async function submitBasicUpdate() {
+            const token = getAdminToken();
+            const formData = new FormData();
+            formData.append('returnId', @Model.ReturnId);
+            formData.append('newStatus', document.getElementById('basicNewStatus').value);
+            formData.append('adminNote', document.getElementById('basicAdminNote').value);
+            formData.append('__RequestVerificationToken', token);
+
+            try {
+                let response = await fetch('/Admin/Return/UpdateReturnStatus', { method: 'POST', body: formData });
+                let data = await response.json();
+                alert(data.message);
+                if(data.success) location.reload();
+            } catch (err) { alert("Lỗi hệ thống: " + err); }
+        }
+
+        // ---------- XỬ LÝ HOÀN TIỀN THẦN THÁNH ----------
+        function openRefundModal() {
+            document.getElementById('refundModal').style.display = 'flex';
+        }
+
+        async function submitProcessRefund() {
+            const transRef = document.getElementById('refTransactionId').value.trim();
+            if(!transRef) {
+                alert("Vui lòng nhập Mã giao dịch sau khi chuyển khoản cho khách!");
+                return;
+            }
+
+            if(!confirm("BẠN CHẮC CHẮN CHỨ? Hành động này sẽ khóa vĩnh viễn đơn hàng và kích hoạt tiến trình Hoàn Tồn Kho.")) return;
+
+            const btn = document.getElementById('btnConfirmRefund');
+            const originalText = btn.innerText;
+            btn.innerText = "ĐANG XỬ LÝ..."; btn.disabled = true;
+
+            const isIntact = document.querySelector('input[name="chkStock"]:checked').value;
+            const token = getAdminToken();
+
+            const formData = new FormData();
+            formData.append('returnId', @Model.ReturnId);
+            formData.append('isProductIntact', isIntact);
+            formData.append('adminNote', document.getElementById('refAdminNote').value);
+            formData.append('transactionRef', transRef);
+            formData.append('__RequestVerificationToken', token);
+
+            try {
+                let response = await fetch('/Admin/Return/ProcessRefund', { method: 'POST', body: formData });
+                let data = await response.json();
+                alert(data.message);
+                if(data.success) location.reload();
+            } catch (err) {
+                alert("Lỗi hệ thống: " + err);
+            } finally {
+                btn.innerText = originalText; btn.disabled = false;
+            }
+        }
+    </script>
+}

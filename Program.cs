@@ -57,6 +57,8 @@ builder.Services.AddHttpClient();
 // BỔ SUNG 2 DÒNG NÀY ĐỂ KÍCH HOẠT VNPAY SERVICE
 builder.Services.Configure<VnPayConfig>(builder.Configuration.GetSection("VNPay"));
 builder.Services.AddScoped<VnPayService>();
+// Đăng ký HttpClient cho GhnService
+builder.Services.AddHttpClient<TMDT_LT.Services.GhnService>();
 
 var app = builder.Build();
 

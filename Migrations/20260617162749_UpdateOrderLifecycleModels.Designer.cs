@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TMDT_LT.Data;
 
@@ -11,9 +12,11 @@ using TMDT_LT.Data;
 namespace TMDT_LT.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617162749_UpdateOrderLifecycleModels")]
+    partial class UpdateOrderLifecycleModels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -635,9 +638,6 @@ namespace TMDT_LT.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsAlertAdminRead")
-                        .HasColumnType("bit");
-
                     b.Property<string>("MediaUrls")
                         .HasColumnType("nvarchar(max)");
 
@@ -1128,9 +1128,6 @@ namespace TMDT_LT.Migrations
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
-                    b.Property<string>("MediaUrls")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int?>("Rating")
                         .HasColumnType("int");
 
@@ -1499,7 +1496,7 @@ namespace TMDT_LT.Migrations
                         .IsRequired();
 
                     b.HasOne("TMDT_LT.Models.Orders", "Order")
-                        .WithMany("OrderReturns")
+                        .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1724,8 +1721,6 @@ namespace TMDT_LT.Migrations
                     b.Navigation("OrderDetails");
 
                     b.Navigation("OrderHistories");
-
-                    b.Navigation("OrderReturns");
 
                     b.Navigation("Payments");
 

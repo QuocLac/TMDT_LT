@@ -3,6 +3,7 @@
     Layout = "_Layout";
     ViewData["Title"] = "Quản lý đơn hàng của tôi";
     string currentStatus = ViewBag.CurrentStatus ?? "TatCa";
+    DateTime currentTime = ViewBag.CurrentTime ?? DateTime.Now;
 }
 
 @section Styles {
@@ -11,19 +12,16 @@
 }
 
 <div class="orders-page-container">
-
-    <h2 class="orders-page-title">
-        Đơn hàng của tôi
-    </h2>
+    <h2 class="orders-page-title"> Đơn hàng của tôi</h2>
 
     <div class="order-tabs-wrapper">
         <a href="/Customer/Orders?status=TatCa" class="order-tab-link @(currentStatus == "TatCa" ? "active" : "")">Tất cả</a>
         <a href="/Customer/Orders?status=Chờ xác nhận" class="order-tab-link @(currentStatus == "Chờ xác nhận" ? "active" : "")">Chờ xác nhận</a>
         <a href="/Customer/Orders?status=Đang xử lý" class="order-tab-link @(currentStatus == "Đang xử lý" ? "active" : "")">Đang xử lý</a>
-        <a href="/Customer/Orders?status=Chờ lấy hàng" class="order-tab-link @(currentStatus == "Chờ lấy hàng" ? "active" : "")">Chờ lấy hàng</a>
         <a href="/Customer/Orders?status=Đang giao" class="order-tab-link @(currentStatus == "Đang giao" ? "active" : "")">Đang giao</a>
-        <a href="/Customer/Orders?status=Đã hoàn thành" class="order-tab-link @(currentStatus == "Đã hoàn thành" ? "active" : "")">Đã hoàn thành</a>
-        <a href="/Customer/Orders?status=YeuCauHuy" class="order-tab-link @(currentStatus == "YeuCauHuy" ? "active" : "")">Chờ duyệt hủy</a>
+        <a href="/Customer/Orders?status=Đã giao" class="order-tab-link @(currentStatus == "Đã giao" ? "active" : "")">Đã giao</a>
+        <a href="/Customer/Orders?status=Trả hàng/Hoàn tiền" class="order-tab-link @(currentStatus == "Trả hàng/Hoàn tiền" ? "active" : "")">Trả hàng/Hoàn tiền</a>
+        <a href="/Customer/Orders?status=Hoàn thành" class="order-tab-link @(currentStatus == "Hoàn thành" ? "active" : "")">Hoàn thành</a>
         <a href="/Customer/Orders?status=Đã hủy" class="order-tab-link @(currentStatus == "Đã hủy" ? "active" : "")">Đã hủy</a>
     </div>
 
@@ -32,54 +30,74 @@
         <div class="order-empty-state">
             <i class="fas fa-box-open order-empty-icon"></i>
             <p class="order-empty-text">Không tìm thấy đơn hàng nào trong danh mục này.</p>
-            <a href="/" class="btn-outline" style="text-decoration: none;">Tiếp tục mua sắm</a>
+            <a href="/" class="btn-outline" style="text-decoration: none; display: inline-block; padding: 10px 20px;">Tiếp tục mua sắm</a>
         </div>
     }
     else
     {
         @foreach (var order in Model)
         {
+            var deliveredLog = order.OrderHistories?.OrderByDescending(h => h.UpdatedAt).FirstOrDefault(h => h.Status == "Đã giao");
+            var completedLog = order.OrderHistories?.OrderByDescending(h => h.UpdatedAt).FirstOrDefault(h => h.Status == "Hoàn thành");
+
             <div class="order-card">
                 <div class="order-card-header">
                     <div>
                         <span class="order-id-txt">MÃ ĐƠN: #@order.OrderId</span>
                         <span class="order-divider">|</span>
-                        <span class="order-date-txt">Ngày đặt: @(order.OrderDate.HasValue? order.OrderDate.Value.ToString("dd/MM/yyyy HH:mm") : "Chưa ghi nhận")</span>
+                        <span class="order-date-txt">Ngày đặt: @(order.OrderDate?.ToString("dd/MM/yyyy HH:mm"))</span>
                     </div>
                     <div>
-                        @if (order.Status == "Chờ xác nhận" || order.Status == "Yêu cầu hủy")
-                        {
-                            <span class="status-badge-premium badge-navy">@order.Status</span>
-                        }
-                        else if (order.Status == "Đã hoàn thành" || order.Status == "Đang xử lý" || order.Status == "Đang giao")
-                        {
-                            <span class="status-badge-premium badge-green">@order.Status</span>
-                        }
-                        else
-                        {
-                            <span class="status-badge-premium badge-gray">@order.Status</span>
-                        }
+                        <span class="status-badge-premium @(order.Status == "Hoàn thành" || order.Status == "Đã hoàn trả" ? "badge-green" : (new[] { "Chờ duyệt", "Chờ khách trả hàng", "Đang kiểm định", "Trả hàng/Hoàn tiền" }.Contains(order.Status) ? "badge-navy" : "badge-gray"))">@order.Status</span>
                     </div>
                 </div>
 
-                <div class="order-card-body">
-                    <div class="order-details-list">
-                        <div class="order-details-item">
-                            <i class="fas fa-user order-details-icon"></i>
-                            Người nhận: <strong>@order.ShippingFullName</strong> | @order.ShippingPhone
-                        </div>
-                        <div class="order-details-item">
-                            <i class="fas fa-map-marker-alt order-details-icon"></i>
-                            Địa chỉ: @order.ShippingStreet, @order.ShippingDistrict, @order.ShippingCity
-                        </div>
+                <div class="order-card-body" style="padding: 0;">
+                    @foreach (var detail in order.OrderDetails)
+                    {
+                        var variant = detail.Variant;
+                        var product = variant?.Product;
+                        string productName = product?.Name ?? "Sản phẩm không xác định";
+                        int productId = product?.ProductId ?? 0;
+                        string variantImg = !string.IsNullOrEmpty(variant?.ImageUrl) ? variant.ImageUrl : (product?.MainImage ?? "/images/productDefault.png");
 
-                        @if (!string.IsNullOrEmpty(order.CancellationReason))
-                        {
-                            <div class="order-cancel-alert">
-                                <strong>Lý do hủy/yêu cầu:</strong> @order.CancellationReason
+                        <div style="display: flex; padding: 20px 24px; border-bottom: 1px solid #E2E8F0; align-items: center;">
+                            <img src="@variantImg" style="width: 70px; height: 70px; object-fit: contain; border: 1px solid #E2E8F0; border-radius: 6px; margin-right: 16px;" />
+
+                            <div style="flex: 1;">
+                                <div style="font-weight: 700; color: var(--navy-deep); font-size: 15px; margin-bottom: 4px;">@productName</div>
+                                <div style="font-size: 13px; color: #64748B; margin-bottom: 4px;">
+                                    Phân loại: @(variant?.Ram)/@(variant?.Storage) | Màu sắc: @(variant?.Color)
+                                </div>
+                                <div style="font-weight: 800; color: var(--navy-deep); font-size: 14px;">
+                                    x@(detail.Quantity) - @string.Format("{0:N0}", detail.UnitPrice) đ
+                                </div>
                             </div>
-                        }
-                    </div>
+
+                            @if (order.Status == "Hoàn thành" && completedLog != null)
+                            {
+                                bool isReviewExpired = (currentTime - completedLog.UpdatedAt).TotalDays > 60;
+
+                                <div style="text-align: right; min-width: 130px;">
+                                    @if (detail.IsReviewed)
+                                    {
+                                        <span class="status-badge-premium badge-gray" style="background: transparent; border: 1px solid #CBD5E1;"><i class="fas fa-check-circle" style="color:#059669"></i> Đã phản hồi</span>
+                                    }
+                                    else if (isReviewExpired)
+                                    {
+                                        <span style="font-size: 12px; color: #94A3B8; font-style: italic;">Hết hạn đánh giá</span>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 12px;"
+                                                onclick="openReviewModal(@order.OrderId, @detail.OrderDetailId, @productId, '@Html.Raw(productName.Replace("'", "\\'"))')">
+                                            Đánh giá món này
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
 
                 <div class="order-card-footer">
@@ -88,19 +106,24 @@
                         <strong class="order-total-price">@string.Format("{0:N0}", order.TotalAmount) đ</strong>
                     </div>
                     <div>
-                        @if (order.Status == "Chờ xác nhận" || order.Status == "Đang xử lý" || order.Status == "Chờ lấy hàng")
+                        <a href="/Customer/OrderDetail/@order.OrderId" class="btn-outline" style="text-decoration: none; padding: 8px 16px; font-size: 13px; margin-right: 8px;">Xem chi tiết</a>
+
+                        @if (order.Status == "Chờ xác nhận")
                         {
-                            <button type="button" class="btn-text-action" onclick="openCancelModal(@order.OrderId)">
-                                Hủy đơn hàng
-                            </button>
+                            <button type="button" class="btn-text-action" onclick="openCancelModal(@order.OrderId)" style="padding: 8px 16px; font-size: 13px; border-radius: 6px;">Hủy đơn hàng</button>
                         }
-                        else if (order.Status == "Yêu cầu hủy")
+
+                        @if (order.Status == "Đã giao")
                         {
-                            <span class="order-date-txt" style="font-weight: 800; text-transform: uppercase;">Đang duyệt hủy...</span>
-                        }
-                        else
-                        {
-                            <a href="/" class="btn-outline" style="text-decoration: none;">Mua lại</a>
+                            <button type="button" class="btn-dark" style="padding: 8px 16px; font-size: 13px; border-radius: 6px; margin-right: 8px;" onclick="confirmReceived(@order.OrderId)">Đã nhận được hàng</button>
+
+                            if (deliveredLog != null && (currentTime - deliveredLog.UpdatedAt).TotalDays <= 7)
+                            {
+                                var pMethod = order.Payments?.FirstOrDefault()?.PaymentMethod ?? "COD";
+                                <button type="button" class="btn-outline" style="border-color: #EA580C; color: #EA580C; padding: 8px 16px; font-size: 13px; border-radius: 6px;" onclick="openReturnModal(@order.OrderId, '@pMethod')">
+                                    Yêu cầu Trả hàng
+                                </button>
+                            }
                         }
                     </div>
                 </div>
@@ -109,18 +132,94 @@
     }
 </div>
 
-<div class="store-modal-overlay" id="orderSuccessModalOverlay">
-    <div class="success-modal-card">
-        <div class="success-modal-icon-wrap">
-            <i class="fas fa-check success-modal-icon"></i>
+@* =========================================================================
+   CÁC FORM MODAL (ĐÁNH GIÁ, TRẢ HÀNG, HỦY)
+========================================================================= *@
+<div class="store-modal-overlay" id="reviewModalOverlay">
+    <div class="store-modal-content" style="max-width: 500px;">
+        <div class="store-modal-header" style="background: #F8FAFC;">
+            <span>ĐÁNH GIÁ SẢN PHẨM</span>
+            <button type="button" class="btn-close" onclick="closeReviewModal()"><i class="fas fa-times"></i></button>
         </div>
-        <h3 class="success-modal-title">Đặt hàng thành công</h3>
-        <p class="success-modal-desc">
-            Đơn hàng mã số <strong style="color: var(--navy-deep);" id="successModalOrderId">#0000</strong> đã được đồng bộ hóa thành công vào danh mục quản lý hệ thống.
-        </p>
-        <button type="button" class="btn-dark" style="width: 100%; height: 44px;" onclick="closeSuccessModal()">
-            Xác nhận thông tin
-        </button>
+        <div class="store-modal-body">
+            <input type="hidden" id="revOrderId" />
+            <input type="hidden" id="revDetailId" />
+            <input type="hidden" id="revProductId" />
+            <input type="hidden" id="revRating" value="5" />
+
+            <div id="revProductName" style="font-weight: 700; color: var(--navy-deep); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #E2E8F0;"></div>
+
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                <span style="font-weight: 600; font-size: 14px; color: #334155;">Chất lượng sản phẩm</span>
+                <div class="star-rating" id="starContainer" style="font-size: 24px; color: #F59E0B; margin: 0;">
+                    <i class="fas fa-star star-active" id="star-1" onclick="setRating(1)"></i>
+                    <i class="fas fa-star star-active" id="star-2" onclick="setRating(2)"></i>
+                    <i class="fas fa-star star-active" id="star-3" onclick="setRating(3)"></i>
+                    <i class="fas fa-star star-active" id="star-4" onclick="setRating(4)"></i>
+                    <i class="fas fa-star star-active" id="star-5" onclick="setRating(5)"></i>
+                </div>
+                <span id="ratingText" style="font-size: 14px; color: #F59E0B; font-weight: 700;">Tuyệt vời</span>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 13px; font-weight: 600; color: #475569; display: block; margin-bottom: 8px;">Đúng với mô tả</label>
+                <input type="text" id="revDescriptionMatch" class="checkout-input" placeholder="Ví dụ: Rất đúng, Màu đẹp hơn ảnh..." style="margin-bottom: 0;" />
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 13px; font-weight: 600; color: #475569; display: block; margin-bottom: 8px;">Thêm Hình ảnh / Video</label>
+                <input type="file" id="revFiles" class="checkout-input" multiple accept="image/*,video/*" style="padding: 8px;" />
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <textarea id="revComment" class="checkout-input" rows="4" placeholder="Hãy chia sẻ những điều bạn thích về sản phẩm này nhé..." style="height: auto; resize: none; margin-bottom: 0;"></textarea>
+            </div>
+
+            <button type="button" class="btn-dark" style="width: 100%;" onclick="submitReviewAjax(this)">Gửi đánh giá</button>
+        </div>
+    </div>
+</div>
+
+<div class="store-modal-overlay" id="returnModalOverlay">
+    <div class="store-modal-content" style="max-width: 500px;">
+        <div class="store-modal-header" style="background: #FFF5F5; color: #991B1B;">
+            <span>YÊU CẦU TRẢ HÀNG / HOÀN TIỀN</span>
+            <button type="button" class="btn-close" onclick="closeReturnModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="store-modal-body">
+            <input type="hidden" id="retOrderId" />
+            <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">Vui lòng cung cấp chính xác tình trạng hàng hóa để đối soát.</p>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-weight: 700; font-size: 13px; color: var(--navy-deep); margin-bottom: 8px; display: block;">Lý do trả hàng (*)</label>
+                <select id="retReason" class="checkout-input">
+                    <option value="Sản phẩm bị lỗi kỹ thuật">Sản phẩm bị lỗi kỹ thuật / không lên nguồn</option>
+                    <option value="Giao sai sản phẩm/Màu sắc">Giao sai sản phẩm / Màu sắc / Cấu hình</option>
+                    <option value="Hộp móp méo, vỡ seal">Hộp móp méo, vỡ seal trong quá trình vận chuyển</option>
+                </select>
+            </div>
+
+            <div id="bankInfoSection" style="margin-bottom: 16px;">
+                <label style="font-weight: 700; font-size: 13px; color: var(--navy-deep); margin-bottom: 8px; display: block;">Thông tin nhận Hoàn Tiền (Rất Quan Trọng)</label>
+                <input type="text" id="retBankCode" class="checkout-input" placeholder="Tên Ngân hàng (VD: Vietcombank, MB...)" style="margin-bottom: 8px;" />
+                <input type="text" id="retAccountNumber" class="checkout-input" placeholder="Số tài khoản" style="margin-bottom: 8px;" />
+                <input type="text" id="retAccountName" class="checkout-input" placeholder="Tên chủ tài khoản (VIẾT HOA KHÔNG DẤU)" />
+            </div>
+
+            <div id="vnpayInfoSection" style="display: none; margin-bottom: 16px; background: #ECFDF5; padding: 12px; border-left: 4px solid #10B981; border-radius: 4px;">
+                <span style="color: #065F46; font-size: 13px; font-weight: 600;">
+                    <i class="fas fa-check-circle"></i> Đơn hàng thanh toán qua VNPAY. Tiền sẽ được hệ thống hoàn tự động về tài khoản/thẻ bạn đã dùng.
+                </span>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-weight: 700; font-size: 13px; color: var(--navy-deep); margin-bottom: 8px; display: block;">Mô tả chi tiết & Tải ảnh/Video (*)</label>
+                <textarea id="retDesc" class="checkout-input" rows="2" placeholder="Mô tả chi tiết tình trạng..." style="height: auto; margin-bottom: 8px;"></textarea>
+                <input type="file" id="retFiles" multiple accept="image/*,video/*" style="font-size: 12px; width: 100%;" />
+            </div>
+
+            <button type="button" class="btn-dark" style="width: 100%; background: #EA580C; border-color: #EA580C;" onclick="submitReturnAjax(this)">Gửi Yêu Cầu</button>
+        </div>
     </div>
 </div>
 
@@ -131,111 +230,174 @@
             <button type="button" class="btn-close" onclick="closeCancelModal()"><i class="fas fa-times"></i></button>
         </div>
         <div class="store-modal-body">
-            <input type="hidden" id="cancelTargetOrderId" value="0" />
-
-            <p class="cancel-modal-desc">
-                Vui lòng cung cấp lý do chính xác để KingPhone hỗ trợ hoàn trả kho và tiến hành các quy trình kế tiếp một cách nhanh chóng nhất.
-            </p>
-
-            <div class="cancel-options-list">
-                <label class="payment-method-row">
-                    <input type="radio" name="cancelReasonOption" value="Muốn thay đổi thông tin nhận hàng/Sản phẩm" checked />
-                    <span class="cancel-option-text">Muốn thay đổi địa chỉ nhận hoặc cấu hình sản phẩm</span>
-                </label>
-                <label class="payment-method-row">
-                    <input type="radio" name="cancelReasonOption" value="Tìm thấy nơi khác bán giá tốt hơn" />
-                    <span class="cancel-option-text">Tìm thấy đại lý khác bán giá phù hợp hơn</span>
-                </label>
-                <label class="payment-method-row">
-                    <input type="radio" name="cancelReasonOption" value="Đổi ý không muốn mua nữa" />
-                    <span class="cancel-option-text">Thay đổi kế hoạch cá nhân, không còn nhu cầu mua</span>
-                </label>
-                <label class="payment-method-row">
-                    <input type="radio" name="cancelReasonOption" value="Khác" id="radOtherReason" />
-                    <span class="cancel-option-text">Lý do tùy chỉnh khác</span>
-                </label>
-            </div>
-
-            <div id="otherReasonInputBlock" class="other-reason-block" style="display: none;">
-                <input type="text" id="txtCustomReason" placeholder="Vui lòng mô tả lý do hủy cụ thể..." class="checkout-input" />
-            </div>
-
-            <div class="modal-btn-group">
-                <button type="button" class="btn-outline" style="flex: 1; padding: 12px;" onclick="closeCancelModal()">Quay lại</button>
-                <button type="button" class="btn-dark" style="flex: 1; padding: 12px;" onclick="submitCancelOrderAjax()">Xác nhận hủy đơn</button>
+            <input type="hidden" id="cancelTargetOrderId" />
+            <select id="cancelReasonSelect" class="checkout-input" style="margin-bottom: 24px;">
+                <option value="Muốn thay đổi cấu hình sản phẩm">Muốn thay đổi cấu hình sản phẩm</option>
+                <option value="Tìm thấy nơi khác bán giá tốt hơn">Tìm thấy cửa hàng khác bán giá phù hợp hơn</option>
+                <option value="Đổi ý không muốn mua nữa">Đổi ý không muốn mua nữa</option>
+            </select>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-outline" style="flex:1;" onclick="closeCancelModal()">Đóng</button>
+                <button class="btn-dark" style="flex:1; margin-top: 0;" onclick="submitCancelOrderAjax(this)">Xác nhận Hủy</button>
             </div>
         </div>
     </div>
 </div>
 
+<form id="antiForgeryForm" style="display:none;">@Html.AntiForgeryToken()</form>
+
 @section Scripts {
-    @Html.AntiForgeryToken()
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            @if (TempData["OrderSuccessModal"] != null)
-            {
-                    <text>
-                        const modalData = @Html.Raw(TempData["OrderSuccessModal"]);
-                        if(modalData) {
-                            document.getElementById('successModalOrderId').innerText = '#' + modalData.OrderId;
-                            document.getElementById('orderSuccessModalOverlay').style.display = 'flex';
-                        }
-                    </text>
-            }
-        });
-
-        function closeSuccessModal() {
-            document.getElementById('orderSuccessModalOverlay').style.display = 'none';
+        function getSafeToken() {
+            const form = document.getElementById('antiForgeryForm');
+            const tokenInput = form ? form.querySelector('input[name="__RequestVerificationToken"]') : null;
+            if (!tokenInput) { alert("Lỗi bảo mật. F5 lại trang."); return null; }
+            return tokenInput.value;
         }
 
-        let cancelModal = document.getElementById('cancelOrderModalOverlay');
+        // ================= HỦY ĐƠN =================
+        function openCancelModal(id) { document.getElementById('cancelTargetOrderId').value = id; document.getElementById('cancelOrderModalOverlay').classList.add('show'); document.body.style.overflow = 'hidden'; }
+        function closeCancelModal() { document.getElementById('cancelOrderModalOverlay').classList.remove('show'); document.body.style.overflow = 'auto'; }
 
-        document.querySelectorAll('input[name="cancelReasonOption"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                document.getElementById('otherReasonInputBlock').style.display = (e.target.id === 'radOtherReason') ? 'block' : 'none';
-            });
-        });
+        async function submitCancelOrderAjax(btn) {
+            const token = getSafeToken(); if (!token) return;
+            const originalText = btn.innerText; btn.innerText = "Đang xử lý..."; btn.disabled = true;
 
-        function openCancelModal(orderId) {
-            document.getElementById('cancelTargetOrderId').value = orderId;
-            cancelModal.classList.add('show');
-        }
+            let formData = new FormData();
+            formData.append('orderId', document.getElementById('cancelTargetOrderId').value);
+            formData.append('reason', document.getElementById('cancelReasonSelect').value);
+            formData.append('__RequestVerificationToken', token);
 
-        function closeCancelModal() {
-            cancelModal.classList.remove('show');
-        }
-
-        function submitCancelOrderAjax() {
-            const orderId = document.getElementById('cancelTargetOrderId').value;
-            let selectedReason = document.querySelector('input[name="cancelReasonOption"]:checked').value;
-
-            if(selectedReason === "Khác") {
-                const customText = document.getElementById('txtCustomReason').value.trim();
-                if(!customText) {
-                    alert("Vui lòng điền chi tiết lý do khác!");
-                    return;
-                }
-                selectedReason = "Khác: " + customText;
-            }
-
-            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-
-            const formData = new FormData();
-            formData.append('orderId', orderId);
-            formData.append('reason', selectedReason);
-            if(token) formData.append('__RequestVerificationToken', token);
-
-            fetch('/Customer/RequestCancelOrder', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
+            try {
+                let response = await fetch('/Customer/RequestCancelOrder', { method: 'POST', body: formData });
+                let data = await response.json();
                 alert(data.message);
-                if(data.success) {
-                    location.reload();
+                if (data.success) location.reload();
+            } catch (error) { alert("Lỗi mạng: " + error.message); }
+            finally { btn.innerText = originalText; btn.disabled = false; closeCancelModal(); }
+        }
+
+        // ================= TRẢ HÀNG =================
+        let currentReturnPaymentMethod = 'COD';
+        function openReturnModal(id, paymentMethod) {
+            document.getElementById('retOrderId').value = id;
+            currentReturnPaymentMethod = paymentMethod;
+
+            if (paymentMethod === 'VNPAY') {
+                document.getElementById('bankInfoSection').style.display = 'none';
+                document.getElementById('vnpayInfoSection').style.display = 'block';
+            } else {
+                document.getElementById('bankInfoSection').style.display = 'block';
+                document.getElementById('vnpayInfoSection').style.display = 'none';
+            }
+            document.getElementById('returnModalOverlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeReturnModal() {
+            document.getElementById('returnModalOverlay').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        async function submitReturnAjax(btn) {
+            const token = getSafeToken(); if (!token) return;
+            if (currentReturnPaymentMethod !== 'VNPAY') {
+                if (!document.getElementById('retBankCode').value || !document.getElementById('retAccountNumber').value || !document.getElementById('retAccountName').value) {
+                    alert("Vui lòng nhập đủ thông tin Ngân hàng."); return;
                 }
-            });
+            }
+
+            const originalText = btn.innerText; btn.innerText = "Đang gửi..."; btn.disabled = true;
+
+            let formData = new FormData();
+            formData.append('orderId', document.getElementById('retOrderId').value);
+            formData.append('reason', document.getElementById('retReason').value);
+            formData.append('description', document.getElementById('retDesc').value);
+            formData.append('bankCode', document.getElementById('retBankCode').value);
+            formData.append('accountNumber', document.getElementById('retAccountNumber').value);
+            formData.append('accountName', document.getElementById('retAccountName').value);
+            formData.append('__RequestVerificationToken', token);
+
+            let files = document.getElementById('retFiles').files;
+            for(let i=0; i<files.length; i++) formData.append('files', files[i]);
+
+            try {
+                let response = await fetch('/Customer/SubmitOrderReturn', { method: 'POST', body: formData });
+                let data = await response.json();
+                alert(data.message);
+                if (data.success) location.reload();
+            } catch (error) { alert("Lỗi mạng: " + error.message); }
+            finally { btn.innerText = originalText; btn.disabled = false; }
+        }
+
+        // ================= ĐÁNH GIÁ =================
+        function setRating(s) {
+            const texts = ["Tệ", "Không hài lòng", "Bình thường", "Hài lòng", "Tuyệt vời"];
+            document.getElementById('revRating').value = s;
+            document.getElementById('ratingText').innerText = texts[s-1];
+            for(let i=1; i<=5; i++) document.getElementById('star-'+i).className = i<=s ? 'fas fa-star star-active' : 'far fa-star';
+        }
+        function openReviewModal(oId, dId, pId, name) {
+            document.getElementById('revOrderId').value = oId;
+            document.getElementById('revDetailId').value = dId;
+            document.getElementById('revProductId').value = pId;
+            document.getElementById('revProductName').innerText = name;
+            document.getElementById('reviewModalOverlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeReviewModal() {
+            document.getElementById('reviewModalOverlay').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+        async function submitReviewAjax(btn) {
+            const token = getSafeToken(); if (!token) return;
+            const comment = document.getElementById('revComment').value.trim();
+            const descMatch = document.getElementById('revDescriptionMatch').value.trim();
+
+            if (comment.length < 5) { alert("Vui lòng nhập ít nhất 5 ký tự."); return; }
+
+            const originalText = btn.innerText; btn.innerText = "Đang tải lên..."; btn.disabled = true;
+
+            let formData = new FormData();
+            formData.append('orderId', document.getElementById('revOrderId').value);
+            formData.append('detailId', document.getElementById('revDetailId').value);
+            formData.append('productId', document.getElementById('revProductId').value);
+            formData.append('rating', document.getElementById('revRating').value);
+            formData.append('descriptionMatch', descMatch);
+            formData.append('comment', comment);
+            formData.append('__RequestVerificationToken', token);
+
+            let files = document.getElementById('revFiles').files;
+            for(let i=0; i<files.length; i++) formData.append('reviewFiles', files[i]);
+
+            try {
+                let response = await fetch('/Customer/SubmitProductReview', { method: 'POST', body: formData });
+                let data = await response.json();
+                alert(data.message);
+                if (data.success) location.reload();
+            } catch (error) { alert("Lỗi mạng: " + error.message); }
+            finally { btn.innerText = originalText; btn.disabled = false; }
+        }
+
+        // ================= XÁC NHẬN ĐÃ NHẬN HÀNG =================
+        async function confirmReceived(id) {
+            if (!confirm("Xác nhận bạn đã nhận được hàng nguyên vẹn? Bạn sẽ không thể Trả hàng/Hoàn tiền sau khi xác nhận.")) return;
+            const token = getSafeToken(); if (!token) return;
+
+            const btn = event.target;
+            const originalText = btn.innerText; btn.innerText = "Đang cập nhật..."; btn.disabled = true;
+
+            let formData = new FormData();
+            formData.append('orderId', id);
+            formData.append('__RequestVerificationToken', token);
+
+            try {
+                let response = await fetch('/Customer/ConfirmOrderCompleted', { method: 'POST', body: formData });
+                let data = await response.json();
+                if (data.success) location.reload();
+                else alert("Lỗi hệ thống.");
+            } catch (error) { alert("Lỗi mạng: " + error.message); }
+            finally { btn.innerText = originalText; btn.disabled = false; }
         }
     </script>
 }

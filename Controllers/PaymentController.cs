@@ -22,7 +22,7 @@ namespace TMDT_LT.Controllers
         }
 
         // =================================================================
-        // 1. CALLBACK ĐỒNG BỘ (Dành cho trình duyệt khách hàng nhìn thấy kết quả)
+        // 1. CALLBACK ĐỒNG BỘ (Trình duyệt khách hàng nhận kết quả)
         // =================================================================
         [HttpGet]
         public async Task<IActionResult> PaymentReturn()
@@ -37,6 +37,37 @@ namespace TMDT_LT.Controllers
             }
 
             int orderId = Convert.ToInt32(response.OrderId);
+
+            // --- BỔ SUNG FIX LỖI LOCALHOST: CẬP NHẬT TRẠNG THÁI NGAY TẠI ĐÂY ---
+            var order = await _context.Orders
+                .Include(o => o.Payments)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
+            if (order != null)
+            {
+                var payment = order.Payments.FirstOrDefault();
+
+                // Chỉ cập nhật nếu nó chưa được IPN cập nhật trước đó
+                if (payment != null && payment.PaymentStatus != "Đã thanh toán" && payment.PaymentStatus != "Đã hoàn tiền")
+                {
+                    order.Status = "Đang xử lý"; // Đẩy qua kho đóng gói
+                    payment.PaymentStatus = "Đã thanh toán"; // Chốt dòng tiền
+                    payment.PaymentDate = DateTime.Now;
+
+                    _context.OrderHistories.Add(new OrderHistory
+                    {
+                        OrderId = order.OrderId,
+                        Status = "Đang xử lý",
+                        UpdatedAt = DateTime.Now,
+                        Note = $"[Return URL] Xác nhận giao dịch VNPAY thành công. Mã GD: {response.TransactionId}."
+                    });
+
+                    await _context.SaveChangesAsync();
+                }
+            }
+            // -----------------------------------------------------------------
+
+            // Bật Modal chúc mừng bên trang quản lý đơn hàng
             TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = orderId, Method = "VNPAY" });
             return RedirectToAction("Orders", "Customer");
         }

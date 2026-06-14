@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
 using TMDT_LT.Models.ViewModels;
@@ -45,11 +46,38 @@ namespace TMDT_LT.Controllers
                 .Include(a => a.Customer)
                 .FirstOrDefaultAsync(a => a.Email == email && a.IsActive == true);
 
-            if (account == null || !BCryptNet.Verify(password, account.Password))
+            // ==========================================
+            // FIX: XỬ LÝ LỖI MẬT KHẨU CŨ CHƯA ĐƯỢC HASH
+            // ==========================================
+            bool isPasswordValid = false;
+
+            if (account != null)
+            {
+                // Mật khẩu hash bằng BCrypt luôn bắt đầu bằng "$2" (VD: $2a$, $2b$, $2y$)
+                if (account.Password.StartsWith("$2"))
+                {
+                    try
+                    {
+                        isPasswordValid = BCryptNet.Verify(password, account.Password);
+                    }
+                    catch (BCrypt.Net.SaltParseException)
+                    {
+                        isPasswordValid = false;
+                    }
+                }
+                else
+                {
+                    // Fallback: Dành cho các tài khoản cũ lưu bằng Plain Text (VD: "user789")
+                    isPasswordValid = (password == account.Password);
+                }
+            }
+
+            if (account == null || !isPasswordValid)
             {
                 ModelState.AddModelError("", "Email hoặc mật khẩu không đúng.");
                 return View();
             }
+            // ==========================================
 
             var customerId = account.Customer.FirstOrDefault()?.CustomerId.ToString() ?? "";
 
@@ -66,6 +94,12 @@ namespace TMDT_LT.Controllers
 
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
                 new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTime.UtcNow.AddDays(7) });
+
+            // BỔ SUNG: Gọi hàm gộp giỏ hàng vãng lai vào Database
+            if (int.TryParse(customerId, out int cusIdParsed))
+            {
+                await MergeCartAfterLogin(cusIdParsed);
+            }
 
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
@@ -130,29 +164,45 @@ namespace TMDT_LT.Controllers
                 return View();
             }
         }
-        // Trong AuthController, sau khi sign in
+
+        // CẬP NHẬT: Hàm gộp giỏ hàng đọc từ Cookie thay vì Session
         private async Task MergeCartAfterLogin(int customerId)
         {
-            var sessionCart = HttpContext.Session.Get<List<CartItemSession>>("PhoneStore_Cart");
-            if (sessionCart != null && sessionCart.Any())
+            var cartCookie = HttpContext.Request.Cookies["PhoneStCartCookie"];
+            if (!string.IsNullOrEmpty(cartCookie))
             {
-                // Xóa cart cũ của customer
-                var existing = _context.CartItems.Where(c => c.CustomerId == customerId);
-                _context.CartItems.RemoveRange(existing);
-                // Thêm mới
-                foreach (var item in sessionCart)
+                try
                 {
-                    _context.CartItems.Add(new CartItems
+                    var guestCart = JsonSerializer.Deserialize<List<CartItemVM>>(cartCookie);
+                    if (guestCart != null && guestCart.Any())
                     {
-                        CustomerId = customerId,
-                        VariantId = item.VariantId,
-                        Quantity = item.Quantity,
-                        CreatedDate = DateTime.Now
-                    });
+                        var dbCart = await _context.CartItems.Where(c => c.CustomerId == customerId).ToListAsync();
+
+                        foreach (var item in guestCart)
+                        {
+                            var exist = dbCart.FirstOrDefault(c => c.VariantId == item.VariantId);
+                            if (exist != null)
+                            {
+                                exist.Quantity += item.Quantity;
+                            }
+                            else
+                            {
+                                _context.CartItems.Add(new CartItems
+                                {
+                                    CustomerId = customerId,
+                                    VariantId = item.VariantId,
+                                    Quantity = item.Quantity,
+                                    CreatedDate = DateTime.Now
+                                });
+                            }
+                        }
+                        await _context.SaveChangesAsync();
+                    }
                 }
-                await _context.SaveChangesAsync();
-                // Xóa session cart
-                HttpContext.Session.Remove("PhoneStore_Cart");
+                catch { }
+
+                // Xóa Cookie sau khi đã gộp vào Database thành công
+                HttpContext.Response.Cookies.Delete("PhoneStCartCookie");
             }
         }
         [HttpPost]
@@ -160,7 +210,7 @@ namespace TMDT_LT.Controllers
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return RedirectToAction("Login", "Auth");
+            return RedirectToAction("Index", "Home");
         }
 
         [HttpGet]

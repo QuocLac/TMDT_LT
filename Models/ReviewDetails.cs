@@ -19,6 +19,9 @@ public partial class ReviewDetails
 
     public string? Comment { get; set; }
 
+    // --- CỘT MỚI: LƯU HÌNH ẢNH/VIDEO TỪ NGƯỜI DÙNG ---
+    public string? MediaUrls { get; set; }
+
     // --- CÁC TRƯỜNG NGHIỆP VỤ QUẢN TRỊ (SAAS REVIEW MANAGEMENT) ---
 
     // Cờ trạng thái: Đánh dấu bình luận mới/chưa đọc để hiện Badge đỏ
@@ -32,6 +35,7 @@ public partial class ReviewDetails
 
     // Mốc thời gian: Dùng để sort sản phẩm có đánh giá mới nhất lên đầu danh sách
     public DateTime? CreatedAt { get; set; } = DateTime.Now;
+
 
 
     // --- NAVIGATION PROPERTIES (XỬ LÝ LỖI INCLUDE) ---

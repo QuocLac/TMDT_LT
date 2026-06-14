@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
 using TMDT_LT.Models.ViewModels.Storefront;
+using TMDT_LT.Models.ViewModels;
 
 namespace TMDT_LT.Controllers
 {
@@ -227,97 +228,116 @@ namespace TMDT_LT.Controllers
             return View(vm);
         }
 
-        // =======================================================
-        // TRANG CHI TIẾT SẢN PHẨM (PDP) & THUẬT TOÁN TIẾP THỊ
-        // =======================================================
+        // =====================================================================
+        // 1. CHI TIẾT SẢN PHẨM (PDP) - ĐÃ SỬA LỖI KHÔNG HIỂN THỊ SẢN PHẨM LIÊN QUAN
+        // =====================================================================
         [Route("Store/Product/{id}")]
         public async Task<IActionResult> Product(int id)
         {
-            // 1. NẠP DỮ LIỆU LÕI: Kéo toàn bộ thông tin máy, biến thể và bộ sưu tập ảnh
             var product = await _context.Products
                 .Include(p => p.Brand)
                 .Include(p => p.Category)
-                .Include(p => p.ProductVariants)
+                .Include(p => p.ProductVariants.Where(v => v.IsActive == true))
                 .Include(p => p.ProductImages)
                 .FirstOrDefaultAsync(p => p.ProductId == id && p.IsActive == true);
 
-            if (product == null) return NotFound();
+            if (product == null) return RedirectToAction("Index");
 
-            // 2. LƯU VẾT HÀNH VI (COOKIE TRACKING)
-            // Lưu mã Danh mục/Thương hiệu để trang chủ gợi ý
-            Response.Cookies.Append("LastViewedBrandId", product.BrandId.ToString(), new Microsoft.AspNetCore.Http.CookieOptions { Expires = DateTime.Now.AddDays(30) });
-
-            // Lưu lịch sử xem sản phẩm (Tối đa 5 máy gần nhất)
-            string recentCookie = Request.Cookies["RecentViews"] ?? "";
-            var recentIds = recentCookie.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
-
-            // Xóa ID cũ nếu đã tồn tại để đẩy lên đầu, hoặc giữ nguyên nếu chưa có
-            recentIds.Remove(id.ToString());
-            recentIds.Insert(0, id.ToString());
-            if (recentIds.Count > 5) recentIds = recentIds.Take(5).ToList();
-
-            Response.Cookies.Append("RecentViews", string.Join(",", recentIds), new Microsoft.AspNetCore.Http.CookieOptions { Expires = DateTime.Now.AddDays(7) });
-
-            // 3. THUẬT TOÁN UP-SELLING (BÁN NÂNG CẤP)
-            // Tìm các máy cùng danh mục, lấy các máy được tạo mới hơn hoặc có ID khác để gợi ý
-            var upSells = await _context.Products
-                .Include(p => p.ProductVariants)
+            // --- THUẬT TOÁN GỢI Ý SẢN PHẨM LIÊN QUAN CHUẨN DOANH NGHIỆP ---
+            var upSellProducts = await _context.Products
+                .Include(p => p.ProductVariants.Where(v => v.IsActive == true))
                 .Where(p => p.CategoryId == product.CategoryId && p.ProductId != id && p.IsActive == true)
-                .OrderByDescending(p => p.CreatedDate)
-                .Take(5)
+                .Take(10)
                 .ToListAsync();
 
-            // 4. THUẬT TOÁN RETARGETING (HIỂN THỊ CÁC MÁY VỪA XEM)
-            var recentlyViewedProducts = new List<Products>();
-            if (recentIds.Count > 1) // Trừ máy hiện tại ra
-            {
-                var viewIds = recentIds.Where(x => x != id.ToString()).Select(int.Parse).ToList();
-                recentlyViewedProducts = await _context.Products
-                    .Include(p => p.ProductVariants)
-                    .Where(p => viewIds.Contains(p.ProductId) && p.IsActive == true)
-                    .ToListAsync();
-            }
-
-            // 5. NẠP DỮ LIỆU ĐÁNH GIÁ (MODULE REVIEWS)
-            // Chỉ lấy các bình luận hợp lệ (chưa bị Admin ẩn đi)
-            var reviews = await _context.Reviews
-                .Include(r => r.Customer) // Nối bảng để lấy Tên khách hàng
+            // Lấy tất cả đánh giá công khai phục vụ thống kê số sao
+            var allReviews = await _context.Reviews
+                .Include(r => r.Customer)
+                .Include(r => r.ReviewDetails).ThenInclude(rd => rd.Variant)
                 .Where(r => r.ProductId == id && r.IsHidden == false)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 
-            double avgRating = 0;
-            int[] starCounts = new int[5]; // Mảng chứa số lượng 1 sao, 2 sao... 5 sao
-
-            if (reviews.Any())
+            double avgRating = allReviews.Any() ? (double)allReviews.Average(r => r.Rating ?? 0) : 0;
+            var starCounts = new Dictionary<int, int> { { 5, 0 }, { 4, 0 }, { 3, 0 }, { 2, 0 }, { 1, 0 } };
+            foreach (var r in allReviews)
             {
-                // Tính điểm trung bình (Làm tròn 1 chữ số thập phân, mặc định 5 nếu null)
-                avgRating = Math.Round(reviews.Average(r => r.Rating ?? 5.0), 1);
-
-                // Đếm số lượng cho từng mức sao để vẽ thanh Progress Bar
-                starCounts[4] = reviews.Count(r => r.Rating == 5);
-                starCounts[3] = reviews.Count(r => r.Rating == 4);
-                starCounts[2] = reviews.Count(r => r.Rating == 3);
-                starCounts[1] = reviews.Count(r => r.Rating == 2);
-                starCounts[0] = reviews.Count(r => r.Rating == 1);
+                int star = r.Rating ?? 5;
+                if (starCounts.ContainsKey(star)) starCounts[star]++;
             }
 
-            // Lắp ráp toàn bộ vào ViewModel
+            var displayReviews = allReviews.Take(3).ToList();
+
+            // ĐÓNG GÓI VIEW MODEL TOÀN DIỆN DỮ LIỆU
             var model = new ProductDetailVM
             {
                 Product = product,
-                UpSellProducts = upSells,
-                //CrossSellProducts = new List<Products>(), // Phần phụ kiện (Cross-sell) phát triển sau
-                RecentlyViewed = recentlyViewedProducts,
-
-                // Dữ liệu mới cập nhật cho Module Đánh giá
-                ApprovedReviews = reviews,
+                UpSellProducts = upSellProducts, // FIX CHÍ MẠNG: Đổ dữ liệu thuật toán vào đây để không bị mất giao diện
+                ApprovedReviews = displayReviews,
                 AverageRating = avgRating,
-                TotalReviews = reviews.Count,
+                TotalReviews = allReviews.Count,
                 StarCounts = starCounts
             };
 
+            // Ràng buộc kiểm tra quyền viết đánh giá của khách
+            bool hasPurchased = false;
+            if (User.Identity.IsAuthenticated)
+            {
+                string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0";
+                int customerId = int.Parse(userIdStr);
+
+                hasPurchased = await _context.Orders
+                    .Include(o => o.OrderDetails)
+                    .AnyAsync(o => o.CustomerId == customerId && o.Status == "Đã hoàn thành" && o.OrderDetails.Any(d => d.Variant.ProductId == id));
+            }
+            ViewBag.HasPurchased = hasPurchased;
+
             return View(model);
+        }
+
+        // =====================================================================
+        // TRANG CHI TIẾT DANH SÁCH ĐÁNH GIÁ SẢN PHẨM (REVIEWS PAGE)
+        // =====================================================================
+        [Route("Store/Product/{id}/Reviews")]
+        public async Task<IActionResult> ProductReviews(int id, int? starFilter)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == id);
+            if (product == null) return NotFound();
+
+            // Lấy toàn bộ đánh giá công khai của sản phẩm này
+            var query = _context.Reviews
+                .Include(r => r.Customer)
+                .Include(r => r.ReviewDetails).ThenInclude(rd => rd.Variant)
+                .Where(r => r.ProductId == id && r.IsHidden == false);
+
+            var allReviews = await query.ToListAsync();
+
+            // Tính toán tổng quan (Số sao trung bình, phân bổ phần trăm)
+            double avgRating = allReviews.Any() ? (double)allReviews.Average(r => r.Rating ?? 0) : 0;
+            var starCounts = new Dictionary<int, int> { { 5, 0 }, { 4, 0 }, { 3, 0 }, { 2, 0 }, { 1, 0 } };
+
+            foreach (var r in allReviews)
+            {
+                int star = r.Rating ?? 5;
+                if (starCounts.ContainsKey(star)) starCounts[star]++;
+            }
+
+            // Nếu người dùng click vào nút lọc theo số sao
+            if (starFilter.HasValue && starFilter.Value >= 1 && starFilter.Value <= 5)
+            {
+                query = query.Where(r => r.Rating == starFilter.Value);
+            }
+
+            // Lấy dữ liệu cuối cùng đưa ra View
+            var displayReviews = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+
+            ViewBag.Product = product;
+            ViewBag.AverageRating = avgRating;
+            ViewBag.TotalReviews = allReviews.Count;
+            ViewBag.StarCounts = starCounts;
+            ViewBag.SelectedStar = starFilter;
+
+            return View(displayReviews); // Đổ dữ liệu vào file ProductReviews.cshtml
         }
     }
 

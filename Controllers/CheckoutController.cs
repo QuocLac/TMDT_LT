@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
 using TMDT_LT.Models.ViewModels.Storefront;
@@ -10,55 +14,77 @@ using TMDT_LT.Services;
 
 namespace TMDT_LT.Controllers
 {
-    // Bắt buộc đăng nhập mới được vào trang Checkout
     [Authorize]
     public class CheckoutController : Controller
     {
         private readonly ApplicationDbContext _context;
         private readonly PromotionEngine _promotionEngine;
-        // Giả sử bạn có VnPayService đã đăng ký ở Program.cs
         private readonly VnPayService _vnPayService;
+        private readonly GhnService _ghnService; // TIÊM DỊCH VỤ GHN VÀO
 
         private const string CART_SESSION_KEY = "PhoneStCartSession";
 
-        public CheckoutController(ApplicationDbContext context, PromotionEngine promotionEngine, VnPayService vnPayService)
+        public CheckoutController(ApplicationDbContext context, PromotionEngine promotionEngine, VnPayService vnPayService, GhnService ghnService)
         {
             _context = context;
             _promotionEngine = promotionEngine;
             _vnPayService = vnPayService;
+            _ghnService = ghnService;
         }
 
-        // =================================================================
-        // 1. TRANG THANH TOÁN (GET)
-        // =================================================================
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? selectedItems)
         {
-            var cart = GetCartFromSession();
-            if (!cart.Any()) return RedirectToAction("Index", "Cart"); // Giỏ trống thì đuổi về trang giỏ hàng
-
-            // Lấy ID khách hàng từ Claims (Cookie Đăng nhập)
             int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
             string email = User.FindFirstValue(ClaimTypes.Email) ?? "";
+            List<CartItemVM> cart = new List<CartItemVM>();
 
-            // Truy xuất thông tin khách hàng và sổ địa chỉ
+            if (!string.IsNullOrWhiteSpace(selectedItems))
+            {
+                var variantIds = selectedItems.Split(',').Select(int.Parse).ToList();
+                var dbItems = await _context.CartItems
+                    .Include(c => c.Variant)
+                    .ThenInclude(v => v.Product)
+                    .Where(c => c.CustomerId == customerId && variantIds.Contains((int)c.VariantId))
+                    .ToListAsync();
+
+                cart = dbItems.Select(c => {
+                    decimal price = c.Variant.DiscountPrice > 0 ? c.Variant.DiscountPrice.Value : (c.Variant.Price ?? 0);
+                    return new CartItemVM
+                    {
+                        VariantId = (int)c.VariantId,
+                        ProductName = c.Variant.Product.Name,
+                        ImageUrl = c.Variant.ImageUrl ?? c.Variant.Product.MainImage,
+                        Storage = c.Variant.Storage ?? "",
+                        Color = c.Variant.Color ?? "",
+                        Price = price,
+                        Quantity = (int)c.Quantity,
+                        Stock = c.Variant.Stock ?? 0
+                    };
+                }).ToList();
+
+                HttpContext.Session.SetString(CART_SESSION_KEY, JsonSerializer.Serialize(cart));
+            }
+            else
+            {
+                cart = GetCartFromSession();
+            }
+
+            if (!cart.Any()) return RedirectToAction("Index", "Cart");
+
             var customer = await _context.Customer
                 .Include(c => c.Address)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (customer == null) return RedirectToAction("Login", "Auth");
 
-            // Xử lý đối soát Tiền & Voucher
             decimal subtotal = cart.Sum(x => x.TotalPrice);
             var vouchers = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
             var bestVoucher = vouchers.FirstOrDefault(v => v.IsEligible);
             decimal discount = bestVoucher?.EstimatedDiscountAmount ?? 0;
 
-            // Xử lý Vận chuyển
             var carriers = await _context.ShippingCarriers.Where(c => c.IsActive).ToListAsync();
-
-            // Giả lập Phí ship mặc định (Bạn có thể gọi API GHN ở đây dựa trên địa chỉ Mặc định của khách)
-            decimal defaultShippingFee = 30000;
+            decimal defaultShippingFee = 0; // Phí ship ban đầu là 0, đợi khách chọn địa chỉ gọi API GHN
 
             var vm = new CheckoutVM
             {
@@ -78,9 +104,6 @@ namespace TMDT_LT.Controllers
             return View(vm);
         }
 
-        // =================================================================
-        // 2. XỬ LÝ ĐẶT HÀNG (POST)
-        // =================================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> PlaceOrder(
@@ -92,33 +115,32 @@ namespace TMDT_LT.Controllers
 
             int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
 
-            // MỞ TRANSACTION: Đảm bảo nếu trừ tiền/tồn kho lỗi thì Rollback toàn bộ
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 1. XÁC ĐỊNH ĐỊA CHỈ GIAO HÀNG
-                string shipName, shipPhone, shipStreet, shipDistrict, shipCity;
+                string shipName, shipPhone, shipStreet, shipWard, shipDistrict, shipCity;
 
-                if (addressId == 0) // Trường hợp khách chọn "Thêm địa chỉ mới"
+                if (addressId == 0) // Địa chỉ mới
                 {
                     shipName = newFullName ?? "";
                     shipPhone = newPhone ?? "";
-                    shipStreet = $"{newStreet}, {newWard}";
+                    shipStreet = newStreet ?? ""; // Không gộp chung với Ward nữa
+                    shipWard = newWard ?? "";
                     shipDistrict = newDistrict ?? "";
                     shipCity = newProvince ?? "";
 
-                    // Tự động lưu địa chỉ mới vào sổ địa chỉ cho khách
                     var newAddress = new Address
                     {
                         CustomerId = customerId,
                         Street = shipStreet,
+                        Ward = shipWard,
                         District = shipDistrict,
                         City = shipCity,
-                        IsDefault = false // Có thể cho khách tích chọn làm mặc định trên UI
+                        IsDefault = false
                     };
                     _context.Address.Add(newAddress);
                 }
-                else // Khách chọn địa chỉ cũ
+                else // Địa chỉ cũ
                 {
                     var existingAddress = await _context.Address.FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
                     if (existingAddress == null) throw new Exception("Địa chỉ không hợp lệ.");
@@ -126,12 +148,12 @@ namespace TMDT_LT.Controllers
                     var customer = await _context.Customer.FindAsync(customerId);
                     shipName = customer?.FullName ?? "";
                     shipPhone = customer?.Phone ?? "";
-                    shipStreet = existingAddress.Street;
+                    shipStreet = existingAddress.Street ?? "";
+                    shipWard = existingAddress.Ward ?? "";
                     shipDistrict = existingAddress.District ?? "";
                     shipCity = existingAddress.City ?? "";
                 }
 
-                // 2. ĐỐI SOÁT TỒN KHO TRƯỚC KHI TẠO ĐƠN
                 foreach (var item in cart)
                 {
                     var variant = await _context.ProductVariants.FindAsync(item.VariantId);
@@ -140,34 +162,38 @@ namespace TMDT_LT.Controllers
                         TempData["Error"] = $"Sản phẩm {item.ProductName} ({item.Storage}-{item.Color}) đã hết hàng hoặc không đủ số lượng.";
                         return RedirectToAction("Index");
                     }
-                    // KHÓA TỒN KHO TẠM THỜI
                     variant.Stock -= item.Quantity;
                 }
 
-                // 3. TÍNH TOÁN DÒNG TIỀN
                 decimal subtotal = cart.Sum(x => x.TotalPrice);
                 var vouchers = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
                 decimal discount = vouchers.FirstOrDefault(v => v.IsEligible)?.EstimatedDiscountAmount ?? 0;
-                decimal shippingFee = 30000; // Thay bằng API GHN thực tế
+
+                // Gọi API tính lại phí ship lần cuối trước khi chốt đơn đề phòng khách F12 sửa Code HTML
+                int totalWeight = cart.Sum(c => c.Quantity) * 500;
+                int insuranceValue = (int)subtotal > 5000000 ? 5000000 : (int)subtotal;
+                string dIdStr = shipDistrict.Contains("|") ? shipDistrict.Split('|')[0] : "0";
+                string wCodeStr = shipWard.Contains("|") ? shipWard.Split('|')[0] : "0";
+                int dId = int.Parse(dIdStr);
+
+                decimal shippingFee = await _ghnService.CalculateFeeAsync(dId, wCodeStr, totalWeight, insuranceValue);
                 decimal totalAmount = (subtotal - discount) + shippingFee;
 
-                // 4. KHỞI TẠO ĐƠN HÀNG (Orders)
                 var order = new Orders
                 {
                     CustomerId = customerId,
                     OrderDate = DateTime.Now,
-                    Status = "Chờ xác nhận", // Đơn mới luôn chờ xác nhận
+                    Status = "Chờ xác nhận",
                     TotalAmount = totalAmount,
                     ShippingFullName = shipName,
                     ShippingPhone = shipPhone,
                     ShippingStreet = shipStreet,
-                    ShippingDistrict = shipDistrict,
-                    ShippingCity = shipCity
+                    ShippingDistrict = shipDistrict.Contains("|") ? shipDistrict.Split('|')[1] : shipDistrict, // Lưu tên Quận vào DB
+                    ShippingCity = shipCity.Contains("|") ? shipCity.Split('|')[1] : shipCity // Lưu tên Tỉnh vào DB
                 };
                 _context.Orders.Add(order);
-                await _context.SaveChangesAsync(); // Lưu để lấy OrderId
+                await _context.SaveChangesAsync();
 
-                // 5. LƯU CHI TIẾT ĐƠN HÀNG (OrderDetails)
                 var orderDetails = cart.Select(item => new OrderDetails
                 {
                     OrderId = order.OrderId,
@@ -177,17 +203,17 @@ namespace TMDT_LT.Controllers
                 }).ToList();
                 _context.OrderDetails.AddRange(orderDetails);
 
-                // 6. LƯU HỒ SƠ VẬN CHUYỂN (Shipping)
+                // LƯU TRỮ ID GHN VÀO TRƯỜNG TRACKING NUMBER CHỜ ADMIN SỬ DỤNG
                 var shipping = new Shipping
                 {
                     OrderId = order.OrderId,
-                    Carrier = "GHN", // Lấy từ carrier khách chọn
+                    Carrier = "GHN",
                     Status = "Chờ lấy hàng",
+                    TrackingNumber = $"{dIdStr}_{wCodeStr}", // Mẹo: Lưu tạm ID Tỉnh Quận tại đây
                     Note = note
                 };
                 _context.Shipping.Add(shipping);
 
-                // 7. LƯU THÔNG TIN THANH TOÁN (Payments)
                 var payment = new Payments
                 {
                     OrderId = order.OrderId,
@@ -197,7 +223,13 @@ namespace TMDT_LT.Controllers
                 };
                 _context.Payments.Add(payment);
 
-                // Ghi log lịch sử đơn hàng
+                var purchasedVariantIds = cart.Select(x => x.VariantId).ToList();
+                var cartItemsToRemove = await _context.CartItems
+                    .Where(c => c.CustomerId == customerId && purchasedVariantIds.Contains((int)c.VariantId))
+                    .ToListAsync();
+
+                _context.CartItems.RemoveRange(cartItemsToRemove);
+
                 _context.OrderHistories.Add(new OrderHistory
                 {
                     OrderId = order.OrderId,
@@ -207,51 +239,75 @@ namespace TMDT_LT.Controllers
                 });
 
                 await _context.SaveChangesAsync();
-                await transaction.CommitAsync(); // Xác nhận chốt giao dịch
+                await transaction.CommitAsync();
 
-                // Xóa giỏ hàng Session
                 HttpContext.Session.Remove(CART_SESSION_KEY);
 
-                // =====================================================
-                // 8. ĐIỀU HƯỚNG THEO PHƯƠNG THỨC THANH TOÁN
-                // =====================================================
                 if (paymentMethod == "VNPAY")
                 {
-                    // Chuyển hướng sang VNPay. Bạn cần truyền OrderId và TotalAmount vào Service của bạn
                     string vnpayUrl = _vnPayService.CreatePaymentUrl(HttpContext, order.OrderId, (double)totalAmount);
                     return Redirect(vnpayUrl);
                 }
 
-                // Nếu là COD, sang trang Cảm ơn
                 TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = order.OrderId, Method = "COD" });
                 return RedirectToAction("Orders", "Customer");
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                TempData["Error"] = "Có lỗi xảy ra trong quá trình đặt hàng: " + ex.Message;
+                TempData["Error"] = "Có lỗi xảy ra: " + ex.Message;
                 return RedirectToAction("Index");
             }
         }
 
         // =================================================================
-        // 3. API TÍNH PHÍ SHIP ĐỘNG (AJAX TỪ GIAO DIỆN)
+        // 3. API TÍNH PHÍ SHIP ĐỘNG (GỌI THẲNG QUA GIAO HÀNG NHANH)
         // =================================================================
         [HttpPost]
-        public IActionResult CalculateShippingFee(string district, string ward, string carrierCode)
+        public async Task<IActionResult> CalculateShippingFee(int districtId, string wardCode)
         {
-            // TẠI ĐÂY BẠN GỌI API CỦA GHN HOẶC GHTK
-            // Ví dụ mô phỏng:
-            decimal fee = 30000;
-            if (district.Contains("Quận 1") || district.Contains("Quận 3")) fee = 15000; // Nội thành
-            if (carrierCode == "GHTK") fee -= 5000;
+            try
+            {
+                var cart = GetCartFromSession();
+                int totalWeight = cart.Sum(c => c.Quantity) * 500;
+                int insuranceValue = (int)cart.Sum(c => c.TotalPrice);
+                if (insuranceValue > 5000000) insuranceValue = 5000000;
 
-            return Json(new { success = true, fee = fee, feeFormatted = string.Format("{0:N0} đ", fee) });
+                decimal fee = await _ghnService.CalculateFeeAsync(districtId, wardCode, totalWeight, insuranceValue);
+
+                return Json(new { success = true, fee = fee, feeFormatted = string.Format("{0:N0} đ", fee) });
+            }
+            catch (Exception ex)
+            {
+                // Trả ra success = false kèm thông điệp lỗi để Client biết chính xác API bị gì
+                return Json(new { success = false, message = ex.Message, fee = 30000, feeFormatted = "30.000 đ (Tạm tính)" });
+            }
         }
 
         // =================================================================
-        // 4. TRANG ĐẶT HÀNG THÀNH CÔNG
+        // 4. BỘ PROXY API: TRUNG CHUYỂN DATA TỪ GHN VỀ FRONTEND (ẨN TOKEN)
         // =================================================================
+        [HttpGet]
+        public async Task<IActionResult> GetGhnProvinces()
+        {
+            var data = await _ghnService.GetProvincesAsync();
+            return Content(data, "application/json");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetGhnDistricts(int provinceId)
+        {
+            var data = await _ghnService.GetDistrictsAsync(provinceId);
+            return Content(data, "application/json");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetGhnWards(int districtId)
+        {
+            var data = await _ghnService.GetWardsAsync(districtId);
+            return Content(data, "application/json");
+        }
+
         [HttpGet]
         public IActionResult Success(int orderId)
         {
@@ -259,7 +315,6 @@ namespace TMDT_LT.Controllers
             return View();
         }
 
-        // Hàm hỗ trợ lấy Session
         private List<CartItemVM> GetCartFromSession()
         {
             var json = HttpContext.Session.GetString(CART_SESSION_KEY);
@@ -269,7 +324,6 @@ namespace TMDT_LT.Controllers
         // ----------------------------------------------------------------
         // CÁC API AJAX CHO MODAL QUẢN LÝ ĐỊA CHỈ (CRUD)
         // ----------------------------------------------------------------
-
         [HttpPost]
         public async Task<IActionResult> SaveAddressAjax(int addressId, string receiverName, string receiverPhone, string street, string ward, string district, string city, bool isDefault)
         {
@@ -277,13 +331,12 @@ namespace TMDT_LT.Controllers
 
             if (isDefault)
             {
-                // Nếu set mặc định, gỡ mặc định của các địa chỉ cũ
                 var oldDefaults = await _context.Address.Where(a => a.CustomerId == customerId && a.IsDefault == true).ToListAsync();
                 foreach (var old in oldDefaults) old.IsDefault = false;
             }
 
             Address address;
-            if (addressId == 0) // THÊM MỚI
+            if (addressId == 0)
             {
                 address = new Address
                 {
@@ -291,14 +344,14 @@ namespace TMDT_LT.Controllers
                     ReceiverName = receiverName,
                     ReceiverPhone = receiverPhone,
                     Street = street,
-                    Ward = ward,
-                    District = district,
-                    City = city,
+                    Ward = ward,       // Lưu luôn mã nối "20101|Phường Bến Nghé"
+                    District = district, // Lưu luôn "1442|Quận 1"
+                    City = city,         // Lưu luôn "202|Hồ Chí Minh"
                     IsDefault = isDefault
                 };
                 _context.Address.Add(address);
             }
-            else // CẬP NHẬT
+            else
             {
                 address = await _context.Address.FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
                 if (address == null) return Json(new { success = false, message = "Không tìm thấy địa chỉ." });

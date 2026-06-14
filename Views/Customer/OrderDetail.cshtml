@@ -1,0 +1,343 @@
+﻿@model TMDT_LT.Models.Orders
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Chi tiết đơn hàng #" + Model.OrderId;
+    var payment = Model.Payments?.FirstOrDefault();
+
+    var activeReturn = Model.OrderReturns?.OrderByDescending(r => r.CreatedAt).FirstOrDefault();
+
+    // 1. MÀNG LỌC ÉP TRẠNG THÁI UI
+    string displayStatus = Model.Status;
+    string statusBadgeClass = "badge-gray";
+    bool isReturnFlow = new[] { "Chờ duyệt", "Chờ khách trả hàng", "Đang kiểm định", "Đã hoàn trả", "Trả hàng/Hoàn tiền" }.Contains(Model.Status);
+    
+    if (activeReturn != null && activeReturn.Status == "Hoàn tiền thành công")
+    {
+        displayStatus = "Đã hoàn trả";
+        statusBadgeClass = "badge-green"; 
+    }
+    else if (isReturnFlow && Model.Status != "Đã hoàn trả")
+    {
+        statusBadgeClass = "badge-navy"; 
+    }
+    else if (Model.Status == "Đã hoàn trả" || Model.Status == "Hoàn thành")
+    {
+        statusBadgeClass = "badge-green";
+    }
+
+    // 2. LỌC LOG RÁC GIAO HÀNG
+    var returnStatuses = new[] { "Chờ duyệt", "Chờ khách trả hàng", "Đang kiểm định", "Đã hoàn trả", "Trả hàng/Hoàn tiền" };
+    var regularHistories = Model.OrderHistories
+        .Where(h => !returnStatuses.Contains(h.Status)
+            && (h.Note == null || (
+                !h.Note.Contains("mở khiếu nại") &&
+                !h.Note.Contains("[Tiến trình Trả hàng]") &&
+                !h.Note.Contains("TỪ CHỐI") &&
+                !h.Note.Contains("[Hoàn Tiền Thành Công]") &&
+                !h.Note.Contains("Đã hoàn trả")
+            )))
+        .OrderByDescending(x => x.UpdatedAt)
+        .ToList();
+
+    // 3. TRÍCH XUẤT LỊCH SỬ GHI CHÚ TỪ ADMIN
+    string noteKiemDinh = "", timeKiemDinh = "";
+    var logKiemDinh = Model.OrderHistories.FirstOrDefault(h => h.Note != null && h.Note.Contains("Cập nhật mốc: Đang kiểm định"));
+    if (logKiemDinh != null)
+    {
+        int idx = logKiemDinh.Note.IndexOf("Ghi chú: ");
+        noteKiemDinh = idx >= 0 ? logKiemDinh.Note.Substring(idx + 9) : logKiemDinh.Note;
+        timeKiemDinh = logKiemDinh.UpdatedAt.ToString("dd/MM HH:mm");
+    }
+
+    string noteChoKhach = "", timeChoKhach = "";
+    var logChoKhach = Model.OrderHistories.FirstOrDefault(h => h.Note != null && h.Note.Contains("Cập nhật mốc: Chờ khách trả hàng"));
+    if (logChoKhach != null)
+    {
+        int idx = logChoKhach.Note.IndexOf("Ghi chú: ");
+        noteChoKhach = idx >= 0 ? logChoKhach.Note.Substring(idx + 9) : logChoKhach.Note;
+        timeChoKhach = logChoKhach.UpdatedAt.ToString("dd/MM HH:mm");
+    }
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/storefront/store-checkout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/storefront/store-orders.css" asp-append-version="true" />
+    <style>
+        .order-detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 24px; }
+        .timeline-container { position: relative; padding-left: 24px; margin-top: 20px; }
+        .timeline-line { position: absolute; top: 0; bottom: 0; left: 7px; width: 2px; background: #E2E8F0; }
+        .timeline-item { position: relative; margin-bottom: 24px; }
+        .timeline-item:last-child { margin-bottom: 0; }
+        
+        .timeline-dot { position: absolute; left: -22px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--navy-deep, #0F172A); border: 2px solid #FFFFFF; box-shadow: 0 0 0 2px var(--navy-deep, #0F172A); z-index: 2; }
+        
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
+        .info-row:last-child { margin-bottom: 0; }
+        .info-label { color: #64748B; }
+        .info-value { font-weight: 700; color: var(--navy-deep, #0F172A); }
+
+        .return-address-box { background: #FFFFFF; border: 1px dashed #60A5FA; border-radius: 8px; padding: 16px; margin: 12px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        @@media (max-width: 992px) { .order-detail-grid { grid-template-columns: 1fr; } }
+    </style>
+}
+
+<div class="orders-page-container">
+
+    <a href="/Customer/Orders" style="display: inline-flex; align-items: center; gap: 8px; color: #64748B; text-decoration: none; font-size: 14px; font-weight: 700; margin-bottom: 24px; transition: color 0.2s;">
+        <i class="fas fa-arrow-left"></i> Trở về danh sách đơn hàng
+    </a>
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #E2E8F0; padding-bottom: 16px;">
+        <div>
+            <h2 class="orders-page-title" style="margin-bottom: 6px;">Chi tiết đơn hàng #@Model.OrderId</h2>
+            <span style="color: #64748B; font-size: 13px; font-weight: 600;">
+                Thời gian đặt: @(Model.OrderDate.HasValue? Model.OrderDate.Value.ToString("dd/MM/yyyy HH:mm") : "N/A")
+            </span>
+        </div>
+        <div>
+            <span class="status-badge-premium @statusBadgeClass" style="padding: 8px 16px; font-size: 13px; border-radius: 6px; @(statusBadgeClass == "badge-navy" ? "background: #FEF2F2; color: #DC2626; border: 1px solid #FCA5A5;" : "")">
+                @displayStatus
+            </span>
+        </div>
+    </div>
+
+    @if (statusBadgeClass == "badge-navy")
+    {
+        <div style="background: #FFF5F5; border: 1px dashed #DC2626; padding: 16px 24px; border-radius: 6px; margin-top: 24px; text-align: center;">
+            <strong style="color: #DC2626; font-size: 14px;"><i class="fas fa-exclamation-circle"></i> Đơn hàng đang trong tiến trình giải quyết đổi trả / hoàn tiền.</strong>
+        </div>
+    }
+
+    <div class="order-detail-grid">
+
+        <div>
+            <div class="checkout-section-box" style="margin-bottom: 24px;">
+                <div class="section-title"><i class="fas fa-box"></i> Danh sách thiết bị trong đơn</div>
+
+                @foreach (var detail in Model.OrderDetails)
+                {
+                    var variant = detail.Variant;
+                    var product = variant?.Product;
+                    string productName = product?.Name ?? "Sản phẩm không xác định";
+                    string variantImg = !string.IsNullOrEmpty(variant?.ImageUrl) ? variant.ImageUrl : (product?.MainImage ?? "/images/productDefault.png");
+
+                    <div style="display: flex; padding: 20px 0; border-bottom: 1px solid #F1F5F9; align-items: center;">
+                        <img src="@variantImg" style="width: 80px; height: 80px; object-fit: contain; border: 1px solid #E2E8F0; border-radius: 8px; margin-right: 20px; background: #FFFFFF;" />
+
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 700; color: var(--navy-deep, #0F172A); font-size: 16px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@productName</div>
+                            <div style="font-size: 13px; color: #64748B; font-weight: 600;">Phân loại: @(variant?.Ram)/@(variant?.Storage) | Màu sắc: @(variant?.Color)</div>
+                        </div>
+
+                        <div style="text-align: right; margin-left: 20px; flex-shrink: 0;">
+                            <div style="font-weight: 800; color: var(--navy-deep, #0F172A); font-size: 15px;">@string.Format("{0:N0}", detail.UnitPrice) đ</div>
+                            <div style="font-size: 13px; color: #94A3B8; margin-top: 4px; font-weight: 700;">Số lượng: x@(detail.Quantity)</div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="checkout-section-box">
+                <div class="section-title"><i class="fas fa-history"></i> Nhật ký hành trình đơn hàng</div>
+
+                <div class="timeline-container">
+                    <div class="timeline-line"></div>
+
+                    @* =========================================================
+                       IN-LINE TIMELINE KHIẾU NẠI (CÓ LỜI NHẮN TỪ SHOP) 
+                    ========================================================= *@
+                    @if (activeReturn != null)
+                    {
+                        <!-- MỐC 4: CHỐT HOÀN TIỀN / TỪ CHỐI -->
+                        @if (activeReturn.Status == "Hoàn tiền thành công") {
+                            <div class="timeline-item">
+                                <div class="timeline-dot" style="background: #16A34A; box-shadow: 0 0 0 4px #DCFCE7; border: none;"></div>
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                                    <span style="font-size: 14px; font-weight: 800; color: #16A34A; text-transform: uppercase;">HOÀN TIỀN THÀNH CÔNG</span>
+                                    <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">@activeReturn.ResolvedAt?.ToString("dd/MM/yyyy HH:mm")</span>
+                                </div>
+                                <div style="font-size: 13px; color: #065F46; background: #ECFDF5; padding: 16px; border-radius: 6px; border: 1px solid #A7F3D0; margin-top: 8px;">
+                                    Shop đã hoàn tất việc hoàn trả tiền. Cảm ơn bạn đã hợp tác!<br/>
+                                    @if(!string.IsNullOrEmpty(activeReturn.AdminNote)) {
+                                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #34D399;"><strong>Ghi chú từ Kế toán:</strong> @activeReturn.AdminNote</div>
+                                    }
+                                </div>
+                            </div>
+                        } else if (activeReturn.Status == "Đã từ chối") {
+                            <div class="timeline-item">
+                                <div class="timeline-dot" style="background: #64748B; box-shadow: 0 0 0 4px #F1F5F9; border: none;"></div>
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                                    <span style="font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase;">KHIẾU NẠI BỊ TỪ CHỐI</span>
+                                    <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">@activeReturn.ResolvedAt?.ToString("dd/MM/yyyy HH:mm")</span>
+                                </div>
+                                <div style="font-size: 13px; color: #475569; background: #F1F5F9; padding: 16px; border-radius: 6px; border: 1px solid #E2E8F0; margin-top: 8px;">
+                                    Rất tiếc, yêu cầu trả hàng của bạn không được chấp thuận.<br/>
+                                    @if(!string.IsNullOrEmpty(activeReturn.AdminNote)) {
+                                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #CBD5E1;"><strong>Phản hồi từ Shop:</strong> @activeReturn.AdminNote</div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <!-- MỐC 3: ĐANG KIỂM ĐỊNH -->
+                        @if (activeReturn.Status == "Đang kiểm định" || activeReturn.Status == "Hoàn tiền thành công") {
+                            <div class="timeline-item">
+                                <div class="timeline-dot" style="background: #EA580C; box-shadow: 0 0 0 4px #FFEDD5; border: none;"></div>
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                                    <span style="font-size: 14px; font-weight: 800; color: #EA580C; text-transform: uppercase;">ĐANG KIỂM ĐỊNH HÀNG</span>
+                                    @if(!string.IsNullOrEmpty(timeKiemDinh)) { <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">@timeKiemDinh</span> }
+                                </div>
+                                @if (activeReturn.Status == "Đang kiểm định") {
+                                    <div style="font-size: 13px; color: #9A3412; background: #FFF7ED; padding: 16px; border-radius: 6px; border: 1px solid #FED7AA; margin-top: 8px;">
+                                        <i class="fas fa-search"></i> Shop đã nhận được kiện hàng bạn gửi lại và đang khui hộp để kiểm tra. Nếu tình trạng đúng như mô tả, hệ thống sẽ thực hiện lệnh Hoàn tiền ngay!
+                                        @if(!string.IsNullOrEmpty(noteKiemDinh)) {
+                                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #FDBA74;"><strong>Ghi chú kho bãi:</strong> @noteKiemDinh</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <!-- MỐC 2: CHỜ KHÁCH GỬI HÀNG -->
+                        @if (activeReturn.Status == "Chờ khách trả hàng" || activeReturn.Status == "Đang kiểm định" || activeReturn.Status == "Hoàn tiền thành công") {
+                            <div class="timeline-item">
+                                <div class="timeline-dot" style="background: #2563EB; box-shadow: 0 0 0 4px #DBEAFE; border: none;"></div>
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                                    <span style="font-size: 14px; font-weight: 800; color: #2563EB; text-transform: uppercase;">CHẤP NHẬN ĐỔI TRẢ</span>
+                                    @if(!string.IsNullOrEmpty(timeChoKhach)) { <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">@timeChoKhach</span> }
+                                </div>
+                                @if (activeReturn.Status == "Chờ khách trả hàng") {
+                                    <div style="font-size: 13px; color: #1E40AF; background: #EFF6FF; padding: 16px; border-radius: 6px; border: 1px solid #BFDBFE; margin-top: 8px;">
+                                        <p style="margin: 0 0 4px 0;">Shop đã đồng ý yêu cầu trả hàng. Vui lòng đóng gói cẩn thận thiết bị kèm đầy đủ phụ kiện và gửi về địa chỉ sau:</p>
+                                        
+                                        <!-- KHUNG HIỂN THỊ ĐỊA CHỈ TRẢ HÀNG -->
+                                        <div class="return-address-box">
+                                            <strong style="color: #1E3A8A; display: block; margin-bottom: 6px; font-size: 14px;"><i class="fas fa-map-marker-alt" style="color: #EF4444; margin-right: 4px;"></i> TRUNG TÂM BẢO HÀNH & ĐỔI TRẢ</strong>
+                                            <div style="display: grid; gap: 4px; color: #334155;">
+                                                <span><strong>Người nhận:</strong> Bộ phận Xử lý Khiếu nại PHONE.ST</span>
+                                                <span><strong>Điện thoại:</strong> 0909.123.456</span>
+                                                <span><strong>Địa chỉ:</strong> Số 123 Đường Công Nghệ, Phường Tân Chánh Hiệp, Quận 10, TP. Hồ Chí Minh</span>
+                                            </div>
+                                        </div>
+
+                                        @if(!string.IsNullOrEmpty(noteChoKhach)) {
+                                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #93C5FD;"><strong>Lời nhắn từ Shop:</strong> @noteChoKhach</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <!-- MỐC 1: KHÁCH YÊU CẦU -->
+                        <div class="timeline-item">
+                            <div class="timeline-dot" style="background: #DC2626; box-shadow: 0 0 0 4px #FEE2E2; border: none;"></div>
+                            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                                <span style="font-size: 14px; font-weight: 800; color: #DC2626; text-transform: uppercase;">YÊU CẦU HOÀN TRẢ ĐƯỢC GỬI</span>
+                                <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">@activeReturn.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                            </div>
+                            <div style="font-size: 13px; color: #7F1D1D; background: #FEF2F2; padding: 16px; border-radius: 6px; border: 1px solid #FCA5A5; margin-top: 8px;">
+                                <p style="margin: 0 0 8px 0;"><strong>Lý do chọn:</strong> @activeReturn.Reason</p>
+                                <p style="margin: 0 0 12px 0; color: #475569;"><strong>Mô tả chi tiết:</strong> @activeReturn.Description</p>
+                                
+                                @if (!string.IsNullOrEmpty(activeReturn.MediaUrls)) {
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        @foreach (var m in activeReturn.MediaUrls.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)) {
+                                            if (m.EndsWith(".mp4") || m.EndsWith(".mov")) {
+                                                <video src="@m" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #FCA5A5;" controls></video>
+                                            } else {
+                                                <a href="@m" target="_blank"><img src="@m" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #FCA5A5;" /></a>
+                                            }
+                                        }
+                                    </div>
+                                }
+                                
+                                @if (activeReturn.Status == "Chờ duyệt") {
+                                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #FCA5A5; color: #DC2626; font-weight: 700;">
+                                        <i class="fas fa-user-clock"></i> Cửa hàng đang tiếp nhận và xem xét minh chứng của bạn.
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @* =========================================================
+                       NHẬT KÝ ĐƠN HÀNG BÌNH THƯỜNG (ĐÃ LỌC BỎ LOG RÁC)
+                    ========================================================= *@
+                    @if (regularHistories != null && regularHistories.Any())
+                    {
+                        @foreach (var history in regularHistories)
+                        {
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                                    <span style="font-size: 14px; font-weight: 700; color: var(--navy-deep, #0F172A); text-transform: uppercase;">
+                                        @history.Status
+                                    </span>
+                                    <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">
+                                        @history.UpdatedAt.ToString("dd/MM/yyyy HH:mm:ss")
+                                    </span>
+                                </div>
+                                <div style="font-size: 13px; color: #475569; background: #F8FAFC; padding: 12px 16px; border-radius: 6px; border: 1px solid #E2E8F0; margin-top: 4px; line-height: 1.5;">
+                                    @history.Note
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p style="color: #94A3B8; font-size: 13px; font-style: italic; margin-top: 16px; text-align: center;">Chưa có lịch sử cập nhật trạng thái cho đơn hàng này.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-sticky-box" style="top: 20px;">
+            <div class="checkout-section-box">
+                <div class="section-title" style="font-size: 14px;"><i class="fas fa-map-marker-alt"></i> Thông tin nhận hàng</div>
+                <div style="font-size: 14px; line-height: 1.6; color: #334155;">
+                    <div style="font-weight: 700; color: var(--navy-deep, #0F172A); margin-bottom: 6px; font-size: 15px;">@Model.ShippingFullName</div>
+                    <div style="color: #64748B; font-weight: 600; margin-bottom: 10px;">Số điện thoại: @Model.ShippingPhone</div>
+                    <div style="color: #475569; background: #F8FAFC; padding: 12px; border-radius: 6px; border: 1px solid #E2E8F0; font-size: 13px;">
+                        @Model.ShippingStreet, <br />@Model.ShippingDistrict, @Model.ShippingCity
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD THANH TOÁN "BIẾN HÌNH" DỰA TRÊN TRẠNG THÁI -->
+            <div class="checkout-section-box">
+                <div class="section-title" style="font-size: 14px; margin-bottom: 12px;">
+                    @if (isReturnFlow) {
+                        <i class="fas fa-hand-holding-usd" style="color: #EA580C;"></i> <span style="color: #EA580C; font-weight: 800;">Thông tin Thanh toán & Hoàn tiền</span>
+                    } else {
+                        <i class="fas fa-credit-card"></i> <span>Hình thức giao dịch</span>
+                    }
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="info-row"><span class="info-label">Phương thức:</span><span class="info-value">@(payment?.PaymentMethod ?? "COD")</span></div>
+                    <div class="info-row" style="border-top: 1px dashed #E2E8F0; padding-top: 12px;">
+                        <span class="info-label">Trạng thái:</span>
+                        @if (payment?.PaymentStatus == "Đã thanh toán") { 
+                            <span class="info-value" style="color: var(--success-green, #059669);"><i class="fas fa-check-circle"></i> Đã hoàn tất</span> 
+                        }
+                        else if (payment?.PaymentStatus == "Đã hoàn tiền") { 
+                            <span class="info-value" style="color: #16A34A;"><i class="fas fa-undo"></i> Đã hoàn tiền về tài khoản</span> 
+                        }
+                        else if (payment?.PaymentStatus == "Chờ hoàn tiền") { 
+                            <span class="info-value" style="color: #EA580C;"><i class="fas fa-hourglass-half fa-spin"></i> Đang chờ xử lý hoàn tiền</span> 
+                        }
+                        else { 
+                            <span class="info-value" style="color: #EA580C;"><i class="fas fa-clock"></i> @(payment?.PaymentStatus ?? "Chờ thanh toán")</span> 
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="checkout-section-box" style="border-top: 4px solid var(--navy-deep, #0F172A); background: #FFF;">
+                <div class="bill-total-row" style="margin-top: 0; padding-top: 0; border: none; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 14px; font-weight: 700; color: #64748B;">Tổng giá trị đơn:</span>
+                    <span style="font-size: 20px; font-weight: 800; color: var(--navy-deep, #0F172A);">@string.Format("{0:N0}", Model.TotalAmount) đ</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

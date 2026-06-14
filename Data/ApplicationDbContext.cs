@@ -76,6 +76,8 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<BlogMedia> BlogMedias { get; set; }
 
+    public virtual DbSet<OrderReturns> OrderReturns { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

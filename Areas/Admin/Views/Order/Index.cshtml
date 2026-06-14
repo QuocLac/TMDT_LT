@@ -16,21 +16,152 @@
     </div>
 </div>
 
+@* =========================================================
+   THÔNG BÁO XẾP CHỒNG (STACKED NOTIFICATIONS)
+========================================================= *@
+@{
+    var alerts = ViewBag.ReturnAlerts as List<TMDT_LT.Models.OrderReturns>;
+}
+@if (alerts != null && alerts.Any())
+{
+    <style>
+        .stacked-alerts-container {
+            position: relative;
+            margin-bottom: 35px;
+            min-height: 60px;
+        }
+
+        .stacked-alert {
+            position: absolute;
+            width: 100%;
+            top: 0;
+            left: 0;
+            background: #FEF2F2;
+            border: 1px solid #FCA5A5;
+            border-left: 4px solid #DC2626;
+            border-radius: 6px;
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.1);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+            .stacked-alert:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.2);
+            }
+
+            .stacked-alert:nth-child(1) {
+                z-index: 10;
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+
+            .stacked-alert:nth-child(2) {
+                z-index: 9;
+                transform: translateY(10px) scale(0.98);
+                opacity: 0.8;
+                filter: brightness(0.95);
+                cursor: default;
+                pointer-events: none;
+            }
+
+            .stacked-alert:nth-child(3) {
+                z-index: 8;
+                transform: translateY(20px) scale(0.96);
+                opacity: 0.5;
+                filter: brightness(0.9);
+                cursor: default;
+                pointer-events: none;
+            }
+
+            .stacked-alert:nth-child(n+4) {
+                display: none;
+            }
+
+        .alert-close-btn {
+            background: none;
+            border: none;
+            color: #DC2626;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+
+            .alert-close-btn:hover {
+                background: rgba(220, 38, 38, 0.1);
+            }
+    </style>
+
+    <div class="stacked-alerts-container" id="alertContainer">
+        @foreach (var alert in alerts)
+        {
+            <div class="stacked-alert" onclick="readAndRedirect(this, @alert.ReturnId, @alert.OrderId)">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div style="width: 40px; height: 40px; background: #FEE2E2; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 18px; color: #DC2626;"></i>
+                    </div>
+                    <div>
+                        <strong style="color: #991B1B; font-size: 14px; display: block; margin-bottom: 2px;">YÊU CẦU HOÀN TIỀN KHẨN - ĐƠN #ORD-@alert.OrderId</strong>
+                        <span style="color: #B91C1C; font-size: 13px;">Lý do: <strong>@alert.Reason</strong>. Vui lòng bấm vào đây để xem chi tiết và đối soát.</span>
+                    </div>
+                </div>
+                <button type="button" class="alert-close-btn" title="Tạm ẩn thông báo này" onclick="dismissAlert(event, this)"><i class="fas fa-times"></i></button>
+            </div>
+        }
+    </div>
+
+    <form id="alertAntiForgeryForm" style="display:none;">@Html.AntiForgeryToken()</form>
+
+    <script>
+        function dismissAlert(event, btn) {
+            event.stopPropagation();
+            let alertBox = btn.closest('.stacked-alert');
+            alertBox.remove();
+        }
+
+        async function readAndRedirect(element, returnId, orderId) {
+            element.innerHTML = '<div style="width: 100%; text-align: center; color: #DC2626; font-weight: bold;"><i class="fas fa-circle-notch fa-spin"></i> Đang tải dữ liệu khiếu nại...</div>';
+            try {
+                const token = document.querySelector('#alertAntiForgeryForm input[name="__RequestVerificationToken"]')?.value;
+                const formData = new FormData();
+                formData.append('returnId', returnId);
+                await fetch('/Admin/Order/MarkReturnAlertAsRead', { method: 'POST', headers: { 'RequestVerificationToken': token }, body: formData });
+            } catch (e) { console.error(e); }
+            window.location.href = `/Admin/Order/Details/${orderId}`;
+        }
+    </script>
+}
+
 <div class="admin-card" style="margin-bottom: 24px; padding: 15px 20px;">
     <form method="get" asp-action="Index" style="display: flex; gap: 15px; align-items: flex-end;">
         <div style="flex: 1.5;">
             <label class="form-label">Mã chứng từ / Số điện thoại</label>
             <input type="text" name="searchKeyword" value="@ViewBag.Keyword" class="form-control" placeholder="Tìm kiếm..." />
         </div>
-        <div style="flex: 1;">
+        <div style="flex: 1.5;">
             <label class="form-label">Trạng thái vận hành</label>
             <select name="status" class="form-control">
                 <option value="">- Tất cả -</option>
-                <option value="Chờ xác nhận" selected="@(ViewBag.Status == "Chờ xác nhận")">Chờ xác nhận</option>
-                <option value="Đang xử lý" selected="@(ViewBag.Status == "Đang xử lý")">Đang xử lý</option>
-                <option value="Đang giao" selected="@(ViewBag.Status == "Đang giao")">Đang giao</option>
-                <option value="Hoàn thành" selected="@(ViewBag.Status == "Hoàn thành")">Hoàn thành</option>
-                <option value="Đã hủy" selected="@(ViewBag.Status == "Đã hủy")">Đã hủy</option>
+                <optgroup label="Tiến trình giao hàng">
+                    <option value="Chờ xác nhận" selected="@(ViewBag.Status == "Chờ xác nhận")">Chờ xác nhận</option>
+                    <option value="Đang xử lý" selected="@(ViewBag.Status == "Đang xử lý")">Đang xử lý</option>
+                    <option value="Đang giao" selected="@(ViewBag.Status == "Đang giao")">Đang giao</option>
+                    <option value="Đã giao" selected="@(ViewBag.Status == "Đã giao")">Đã giao (Chờ khách test)</option>
+                    <option value="Hoàn thành" selected="@(ViewBag.Status == "Hoàn thành")">Hoàn thành</option>
+                    <option value="Đã hủy" selected="@(ViewBag.Status == "Đã hủy")">Đã hủy</option>
+                </optgroup>
+                <optgroup label="Tiến trình hoàn trả">
+                    <option value="Chờ duyệt" selected="@(ViewBag.Status == "Chờ duyệt")">Y/C Trả hàng (Chờ duyệt)</option>
+                    <option value="Chờ khách trả hàng" selected="@(ViewBag.Status == "Chờ khách trả hàng")">Chờ khách trả hàng</option>
+                    <option value="Đang kiểm định" selected="@(ViewBag.Status == "Đang kiểm định")">Đang kiểm định kho</option>
+                    <option value="Đã hoàn trả" selected="@(ViewBag.Status == "Đã hoàn trả")">Đã hoàn trả (Chốt sổ)</option>
+                </optgroup>
             </select>
         </div>
         <div style="flex: 1;">
@@ -63,11 +194,17 @@
         <tbody>
             @foreach (var item in Model)
             {
-                string bStyle = item.Status == "Chờ xác nhận" ? "background: #FEF3C7; color: #D97706;" :
-                item.Status == "Đang xử lý" ? "background: #DBEAFE; color: #2563EB;" :
+                string bStyle =
+                item.Status == "Chờ xác nhận" ? "background: #FEF3C7; color: #D97706;" :
+                item.Status == "Đang xử lý" ? "background: #E0E7FF; color: #4F46E5;" :
                 item.Status == "Đang giao" ? "background: #E0F2FE; color: #0369A1;" :
+                item.Status == "Đã giao" ? "background: #FEF3C7; color: #B45309;" :
                 item.Status == "Hoàn thành" ? "background: #D1FAE5; color: #059669;" :
-                "background: #FEE2E2; color: #DC2626;";
+                item.Status == "Chờ duyệt" ? "background: #FEF2F2; color: #DC2626; border: 1px solid #FCA5A5;" :
+                item.Status == "Chờ khách trả hàng" ? "background: #DBEAFE; color: #2563EB;" :
+                item.Status == "Đang kiểm định" ? "background: #FFF7ED; color: #EA580C;" :
+                item.Status == "Đã hoàn trả" ? "background: #DCFCE7; color: #16A34A;" :
+                "background: #FEE2E2; color: #DC2626;"; // Đã hủy
 
                 <tr style="border-bottom: 1px solid #F3F4F6;">
                     <td style="padding: 16px; font-family: monospace; font-weight: 700;">#ORD-@item.OrderId</td>

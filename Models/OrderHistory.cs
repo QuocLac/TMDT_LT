@@ -13,11 +13,11 @@ namespace TMDT_LT.Models
 
         [Required]
         [StringLength(50)]
-        public string Status { get; set; } = string.Empty; // Chờ duyệt, Đang xử lý, Đang giao, Hoàn thành, Đã hủy
+        public string Status { get; set; } = string.Empty;
 
         public DateTime UpdatedAt { get; set; }
 
-        public string? Note { get; set; }
+        public string? Note { get; set; } // Chứa thông báo hủy đơn, lý do, số tiền đã hoàn,...
 
         [ForeignKey("OrderId")]
         public virtual Orders? Order { get; set; }

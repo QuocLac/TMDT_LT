@@ -299,3 +299,39 @@
     gap: 12px;
     margin-top: 28px;
 }
+/* CSS cho hệ thống chọn Sao đánh giá */
+.star-rating {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 16px 0;
+}
+
+.star-rating i {
+    font-size: 28px;
+    color: #CBD5E1;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+    .star-rating i:hover {
+        transform: scale(1.1);
+    }
+
+.star-active {
+    color: #F59E0B !important;
+}
+
+/* CSS cho Upload file Hoàn trả */
+.file-upload-box {
+    border: 2px dashed #CBD5E1;
+    padding: 20px;
+    text-align: center;
+    border-radius: 8px;
+    background: #F8FAFC;
+    cursor: pointer;
+}
+
+    .file-upload-box:hover {
+        border-color: var(--navy-deep, #0F172A);
+    }

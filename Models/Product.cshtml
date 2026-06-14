@@ -17,45 +17,84 @@
     <link rel="stylesheet" href="~/css/storefront/store-catalog.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/storefront/store-pdp.css" asp-append-version="true" />
     <style>
-        body, button, input, select, textarea { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body, button, input, select, textarea {
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+        }
 
-        /* NÚT CHỌN BIẾN THỂ */
-        .chip-btn { padding: 8px 16px; border: 1px solid var(--border-color); background: white; color: var(--navy-deep); border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .chip-btn:hover { border-color: var(--navy-deep); }
-        .chip-btn.active { border-color: var(--accent-red) !important; color: var(--accent-red) !important; background: #FEF2F2 !important; box-shadow: none; }
-        .chip-btn.disabled-chip { opacity: 0.3 !important; cursor: not-allowed !important; border-color: #E5E7EB !important; background: #F9FAFB !important; color: #9CA3AF !important; }
+        /* BỘ NÚT CHỌN BIẾN THỂ TRANG CHÍNH & MODAL */
+        .chip-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            background: white;
+            color: var(--navy-deep);
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chip-btn:hover {
+            border-color: var(--navy-deep);
+        }
+        .chip-btn.active {
+            border-color: var(--accent-red) !important;
+            color: var(--accent-red) !important;
+            background: #FEF2F2 !important;
+            box-shadow: none;
+        }
+        .chip-btn.disabled-chip {
+            opacity: 0.3 !important;
+            cursor: not-allowed !important;
+            border-color: #E5E7EB !important;
+            background: #F9FAFB !important;
+            color: #9CA3AF !important;
+        }
 
-        /* SLIDER GỢI Ý */
-        .pdp-slider-wrapper { display: flex; overflow-x: auto; gap: 20px; padding: 10px 4px 30px 4px; scroll-snap-type: x mandatory; scrollbar-width: none; -ms-overflow-style: none; }
-        .pdp-slider-wrapper::-webkit-scrollbar { display: none; }
+        /* SLIDER TRƯỢT NGANG ẨN SCROLLBAR */
+        .pdp-slider-wrapper {
+            display: flex;
+            overflow-x: auto;
+            gap: 20px;
+            padding: 10px 4px 30px 4px;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none; 
+            -ms-overflow-style: none;  
+        }
+        .pdp-slider-wrapper::-webkit-scrollbar {
+            display: none; 
+        }
 
-        /* SAO ĐÁNH GIÁ */
+        /* CSS ICON SAO TRẮNG VIỀN VÀNG */
         .star-custom { color: #FFFFFF !important; -webkit-text-stroke: 1.5px #F59E0B; font-size: 15px; }
         .star-custom.filled { color: #F59E0B !important; -webkit-text-stroke: 1px #F59E0B; }
         .rating-bar-wrapper { flex: 1; height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden; }
         .rating-bar-progress { height: 100%; background: var(--navy-deep, #0F172A); border-radius: 3px; transition: width 0.4s ease; }
 
-        /* MÔ TẢ HTML CHUẨN */
-        .product-html-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; }
-        .product-html-content p { margin-bottom: 12px; }
-
-        /* MODAL QUICK ADD */
-        .qa-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
+        /* CSS MODAL QUICK ADD CHUẨN CATALOG */
+        .qa-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; transition: opacity 0.3s;
+        }
         .qa-modal-overlay.show { display: flex; opacity: 1; }
-        .qa-modal-content { background: white; border-radius: 8px; width: 90%; max-width: 480px; padding: 20px; position: relative; transform: translateY(20px); transition: transform 0.3s; }
+        .qa-modal-content {
+            background: white; border-radius: 8px; width: 90%; max-width: 480px;
+            padding: 20px; position: relative; transform: translateY(20px); transition: transform 0.3s;
+        }
         .qa-modal-overlay.show .qa-modal-content { transform: translateY(0); }
-        .qa-close-btn { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 20px; color: #9CA3AF; cursor: pointer; }
+        .qa-close-btn {
+            position: absolute; top: 15px; right: 15px; background: none; border: none;
+            font-size: 20px; color: #9CA3AF; cursor: pointer;
+        }
         .qa-close-btn:hover { color: var(--accent-red); }
     </style>
 }
 
 <div class="pdp-container" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
-    
-    @* =======================================================
-       KHU VỰC 1: HÌNH ẢNH & MUA HÀNG
-       ======================================================= *@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 50px;">
-        <!-- Ảnh Sản Phẩm -->
+        
         <div>
             <div style="border: 1px solid #E2E8F0; border-radius: 12px; padding: 30px; text-align: center; background: #FFFFFF; height: 450px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
                 <img id="mainProductImage" src="@(Model.Product.MainImage ?? "/images/productDefault.png")" style="max-height: 100%; max-width: 100%; object-fit: contain; transition: all 0.25s;" />
@@ -77,7 +116,6 @@
             }
         </div>
 
-        <!-- Chọn Biến Thể & Nút Mua -->
         <div>
             <span style="font-size: 11px; font-weight: 800; background: #0F172A; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-transform: uppercase;">
                 @Model.Product.Brand?.BrandName
@@ -148,69 +186,8 @@
         </div>
     </div>
 
-    @* =======================================================
-       KHU VỰC 2: BÀI VIẾT MÔ TẢ & BẢNG THÔNG SỐ (MỚI)
-       ======================================================= *@
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 40px; margin-top: 50px; padding-top: 40px; border-top: 1px solid #E2E8F0;">
-        
-        <!-- Cột Bài viết -->
-        <div>
-            <h3 style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 20px; text-transform: uppercase;">Mô tả sản phẩm</h3>
-            <div class="product-html-content" style="font-size: 15px; color: #334155; line-height: 1.8;">
-                @if(!string.IsNullOrEmpty(Model.Product.Description)) {
-                    @Html.Raw(Model.Product.Description)
-                } else {
-                    <p style="color:#94A3B8; font-style:italic;">Thông tin giới thiệu đang được cập nhật...</p>
-                }
-            </div>
-        </div>
-
-        <!-- Cột Bảng Thông Số -->
-        <div>
-            <div style="background: #FFFFFF; padding: 24px; border-radius: 8px; border: 1px solid #E2E8F0; position: sticky; top: 100px;">
-                <h3 style="font-size: 16px; font-weight: 800; color: var(--navy-deep, #0F172A); margin-bottom: 16px; text-transform: uppercase; border-bottom: 2px solid #F1F5F9; padding-bottom: 12px;">Thông số kỹ thuật</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #334155;">
-                    <tbody>
-                        <tr style="border-bottom: 1px solid #F1F5F9;">
-                            <td style="padding: 10px 0; font-weight: 600; width: 40%; color: #64748B;">Màn hình</td>
-                            <td style="padding: 10px 0; font-weight: 500; text-align: right;">@Model.Product.ScreenTech, @Model.Product.ScreenSize", @Model.Product.RefreshRate Hz</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #F1F5F9;">
-                            <td style="padding: 10px 0; font-weight: 600; color: #64748B;">Hệ điều hành</td>
-                            <td style="padding: 10px 0; font-weight: 500; text-align: right;">@Model.Product.OperatingSystem</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #F1F5F9;">
-                            <td style="padding: 10px 0; font-weight: 600; color: #64748B;">Camera sau</td>
-                            <td style="padding: 10px 0; font-weight: 500; text-align: right;">@Model.Product.RearCamera</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #F1F5F9;">
-                            <td style="padding: 10px 0; font-weight: 600; color: #64748B;">Camera trước</td>
-                            <td style="padding: 10px 0; font-weight: 500; text-align: right;">@Model.Product.FrontCamera</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #F1F5F9;">
-                            <td style="padding: 10px 0; font-weight: 600; color: #64748B;">Chip xử lý (CPU)</td>
-                            <td style="padding: 10px 0; font-weight: 500; text-align: right;">@Model.Product.Chipset</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #F1F5F9;">
-                            <td style="padding: 10px 0; font-weight: 600; color: #64748B;">Pin & Sạc</td>
-                            <td style="padding: 10px 0; font-weight: 500; text-align: right;">@Model.Product.BatteryCapacity mAh, @(Model.Product.ChargerIncluded == true ? "Có củ sạc" : "Không củ sạc")</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 0; font-weight: 600; color: #64748B;">Trọng lượng</td>
-                            <td style="padding: 10px 0; font-weight: 500; text-align: right;">@Model.Product.Weight g</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-    </div>
-
-    @* =======================================================
-       KHU VỰC 3: ĐÁNH GIÁ TỪ KHÁCH HÀNG (CÓ HÌNH ẢNH/VIDEO)
-       ======================================================= *@
-    <div class="pdp-reviews-section" style="margin-top: 50px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 32px;">
-        <h3 style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 24px; text-transform: uppercase;">
+    <div class="pdp-reviews-section" style="margin-top: 60px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 32px;">
+        <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin-bottom: 24px; text-transform: uppercase;">
             Khách hàng phản hồi về sản phẩm
         </h3>
 
@@ -239,6 +216,10 @@
             </div>
         </div>
 
+        <p style="font-size: 13px; color: #64748B; font-style: italic; text-align: left; margin-bottom: 24px;">
+            <i class="fas fa-info-circle"></i> Đánh giá chỉ có thể thực hiện khi bạn mua sản phẩm này.
+        </p>
+
         <div class="reviews-list-container">
             @if (Model.ApprovedReviews != null && Model.ApprovedReviews.Any())
             {
@@ -249,63 +230,30 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <strong style="color: #0F172A; font-size: 14px;">@rev.Customer?.FullName</strong>
-                                <span style="font-size: 11px; font-weight: 700; background: #DCFCE7; color: #15803D; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">
+                                <span style="font-size: 11px; font-weight: 700; background: #F1F5F9; color: #0F172A; padding: 2px 8px; border-radius: 4px; border: 1px solid #E2E8F0;">
                                     <i class="fas fa-check-circle"></i> Đã mua hàng
                                 </span>
                             </div>
                             <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">@(rev.CreatedAt?.ToString("dd/MM/yyyy"))</span>
                         </div>
-                        <div style="font-size: 12px; margin-bottom: 12px;">
+                        <div style="font-size: 12px; margin-bottom: 6px;">
                             @for (int i = 1; i <= 5; i++) { <i class="fas fa-star star-custom @(i <= (rev.Rating ?? 5) ? "filled" : "")"></i> }
                             @if (detailRev?.Variant != null)
                             {
                                 <span style="color: #64748B; font-size: 12px; font-weight: 700; margin-left: 10px;">
-                                    Phân loại: @(detailRev.Variant.Ram)/@(detailRev.Variant.Storage) - @detailRev.Variant.Color
+                                    Bản: @(detailRev.Variant.Ram)/@(detailRev.Variant.Storage) - @detailRev.Variant.Color
                                 </span>
                             }
                         </div>
-                        
-                        @* TÁCH DÒNG BÌNH LUẬN VÀ HIỂN THỊ MULTIMEDIA (SHOPEE STYLE) *@
-                        @{
-                            var commentLines = rev.Comment?.Split('\n') ?? new string[0];
-                        }
-                        <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #F1F5F9;">
-                            @foreach(var line in commentLines)
-                            {
-                                <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 6px 0;">@line</p>
-                            }
-
-                            @if (!string.IsNullOrEmpty(detailRev?.MediaUrls))
-                            {
-                                var medias = detailRev.MediaUrls.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                                if (medias.Any())
-                                {
-                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-                                        @foreach(var m in medias)
-                                        {
-                                            if (m.EndsWith(".mp4") || m.EndsWith(".mov") || m.EndsWith(".avi"))
-                                            {
-                                                <video src="@m" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #E2E8F0;" controls></video>
-                                            }
-                                            else
-                                            {
-                                                <a href="@m" target="_blank">
-                                                    <img src="@m" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #E2E8F0; cursor: pointer; transition: 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" />
-                                                </a>
-                                            }
-                                        }
-                                    </div>
-                                }
-                            }
-                        </div>
+                        <p style="font-size: 14px; color: #334155; line-height: 1.5; margin: 0;">@rev.Comment</p>
                     </div>
                 }
 
-                @if (Model.TotalReviews > 3)
+                @if (Model.TotalReviews > 4)
                 {
                     <div style="text-align: center; margin-top: 28px;">
-                        <a href="/Store/Product/@Model.Product.ProductId/Reviews" class="btn-dark" style="background: transparent; border: 1px solid #0F172A; color: #0F172A; text-decoration: none; font-weight: 700; padding: 10px 24px; border-radius: 6px; display: inline-block;">
-                            Xem tất cả @(Model.TotalReviews) đánh giá <i class="fas fa-chevron-right" style="margin-left: 4px; font-size: 11px;"></i>
+                        <a href="/Store/Product/@Model.Product.ProductId/Reviews" class="btn-dark" style="background: transparent; border: 1px solid #0F172A; color: #0F172A; text-decoration: none; font-weight: 700;">
+                            Xem thêm @(Model.TotalReviews - 3) đánh giá <i class="fas fa-chevron-right" style="margin-left: 4px; font-size: 11px;"></i>
                         </a>
                     </div>
                 }
@@ -313,19 +261,16 @@
             else
             {
                 <p style="text-align: center; color: #94A3B8; font-size: 14px; font-style: italic; padding: 20px 0;">
-                    Chưa có phản hồi nào cho dòng sản phẩm này. Hãy là người đầu tiên trải nghiệm!
+                    Chưa có phản hồi nào cho dòng sản phẩm này.
                 </p>
             }
         </div>
     </div>
 
-    @* =======================================================
-       KHU VỰC 4: SẢN PHẨM TƯƠNG TỰ
-       ======================================================= *@
     @if (Model.UpSellProducts != null && Model.UpSellProducts.Any())
     {
-        <div style="margin-top: 50px; padding-top: 40px; margin-bottom: 40px;">
-            <h3 style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 20px; text-transform: uppercase;">
+        <div style="margin-top: 50px; border-top: 1px solid #E2E8F0; padding-top: 40px; margin-bottom: 40px;">
+            <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin-bottom: 20px; text-transform: uppercase;">
                 Sản phẩm tương tự bạn có thể thích
             </h3>
             
@@ -402,7 +347,6 @@
     }
 </div>
 
-@* MODAL QUICK ADD CHUẨN CATALOG *@
 <div id="qa-modal" class="qa-modal-overlay" onclick="closeQuickAddModal()">
     <div class="qa-modal-content" onclick="event.stopPropagation()">
         <button class="qa-close-btn" onclick="closeQuickAddModal()">✖</button>
@@ -526,6 +470,7 @@
             updateMatrixChipsAvailability();
         }
 
+        // BẮT SỰ KIỆN TÍCH VÀ BỎ TÍCH
         document.querySelectorAll('#mainRamOptions .ram-chip').forEach(btn => {
             btn.addEventListener('click', function() {
                 if(this.classList.contains('active')) {
@@ -589,6 +534,7 @@
             }
         });
 
+        // AJAX MUA CHÍNH TẠI TRANG PDP (FIX LỖI KẾT NỐI MÁY CHỦ)
         async function executeAddToCart() {
             const variantId = document.getElementById('selectedVariantIdHidden').value;
             const quantity = document.getElementById('pdpMainQty').value;
@@ -602,18 +548,23 @@
             const formData = new FormData();
             formData.append('variantId', variantId);
             formData.append('quantity', quantity);
-            formData.append('actionType', 'add');
+            formData.append('actionType', 'add'); // Thêm tham số bảo mật
 
             try {
                 const response = await fetch('/Cart/AddToCart', { 
-                    method: 'POST', body: formData, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    method: 'POST', 
+                    body: formData,
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
                 });
                 
                 if(response.ok || response.redirected) {
                     const data = await response.json();
                     if(data.success) {
                         const cartBadge = document.getElementById('header-cart-badge');
-                        if (cartBadge) { cartBadge.innerText = data.cartCount; cartBadge.classList.add('has-items'); }
+                        if (cartBadge) {
+                            cartBadge.innerText = data.cartCount;
+                            cartBadge.classList.add('has-items');
+                        }
                         if (typeof window.showToast === 'function') window.showToast("Đã thêm vào giỏ hàng thành công!", "success");
                     } else {
                         if (typeof window.showToast === 'function') window.showToast(data.message, "error");
@@ -622,10 +573,12 @@
             } catch {
                 if (typeof window.showToast === 'function') window.showToast("Lỗi kết nối máy chủ.", "error");
             } finally {
-                btnCart.disabled = false; btnCart.innerHTML = originalContent;
+                btnCart.disabled = false;
+                btnCart.innerHTML = originalContent;
             }
         }
 
+        // LUỒNG ĐIỀU HƯỚNG MUA NGAY SANG CHECKOUT
         async function executeBuyNowAction() {
             const variantId = document.getElementById('selectedVariantIdHidden').value;
             const quantity = document.getElementById('pdpMainQty').value;
@@ -643,22 +596,29 @@
 
             try {
                 const response = await fetch('/Cart/AddToCart', { 
-                    method: 'POST', body: formData, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    method: 'POST', 
+                    body: formData,
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
                 });
                 if(response.ok || response.redirected) {
                     const data = await response.json();
-                    if(data.success) window.location.href = '/Checkout/Index';
-                    else if (typeof window.showToast === 'function') window.showToast(data.message, "error");
+                    if(data.success) {
+                        window.location.href = '/Checkout/Index';
+                    } else {
+                        if (typeof window.showToast === 'function') window.showToast(data.message, "error");
+                    }
                 }
             } catch {
                 if (typeof window.showToast === 'function') window.showToast("Lỗi kết nối máy chủ.", "error");
             } finally {
-                btnBuyNow.disabled = false; btnBuyNow.innerHTML = originalContent;
+                btnBuyNow.disabled = false;
+                btnBuyNow.innerHTML = originalContent;
             }
         }
 
         window.toggleFavorite = function(event, productId) {
-            event.preventDefault(); event.stopPropagation();
+            event.preventDefault();
+            event.stopPropagation();
             const btn = event.currentTarget; const icon = btn.querySelector('i');
             btn.classList.toggle('active');
             if (btn.classList.contains('active')) { icon.classList.remove('far'); icon.classList.add('fas'); }
@@ -666,7 +626,7 @@
         };
 
         // =====================================================================
-        // PHẦN 2: LOGIC QUICK ADD MODAL CHUẨN XÁC
+        // PHẦN 2: LOGIC QUICK ADD MODAL (CHÍNH XÁC NHƯ TRANG CATALOG)
         // =====================================================================
         let qaVariantMatrix = [];
         let qaCurrentSelection = { storage: null, ram: null, color: null };
@@ -718,8 +678,14 @@
 
         function qaToggleSelection(type, value, element) {
             if (element.classList.contains('disabled-chip')) return;
-            if (qaCurrentSelection[type] === value) { qaCurrentSelection[type] = null; element.classList.remove('active'); } 
-            else { qaCurrentSelection[type] = value; document.querySelectorAll(`.attr-qa-${type}`).forEach(el => el.classList.remove('active')); element.classList.add('active'); }
+            if (qaCurrentSelection[type] === value) {
+                qaCurrentSelection[type] = null;
+                element.classList.remove('active');
+            } else {
+                qaCurrentSelection[type] = value;
+                document.querySelectorAll(`.attr-qa-${type}`).forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+            }
             qaEvaluateMatrix();
         }
 
@@ -764,9 +730,21 @@
         }
 
         function qaCheckAvailability(typeToCheck, valueToCheck, element) {
-            let testSelection = { ...qaCurrentSelection }; testSelection[typeToCheck] = valueToCheck;
-            const isAvailable = qaVariantMatrix.some(v => (!testSelection.storage || v.storage === testSelection.storage) && (!testSelection.ram || v.ram === testSelection.ram) && (!testSelection.color || v.color === testSelection.color));
-            if (isAvailable) { element.classList.remove('disabled-chip'); } else { element.classList.add('disabled-chip'); element.classList.remove('active'); if (qaCurrentSelection[typeToCheck] === valueToCheck) qaCurrentSelection[typeToCheck] = null; }
+            let testSelection = { ...qaCurrentSelection };
+            testSelection[typeToCheck] = valueToCheck;
+
+            const isAvailable = qaVariantMatrix.some(v =>
+                (!testSelection.storage || v.storage === testSelection.storage) &&
+                (!testSelection.ram || v.ram === testSelection.ram) &&
+                (!testSelection.color || v.color === testSelection.color)
+            );
+            if (isAvailable) {
+                element.classList.remove('disabled-chip');
+            } else {
+                element.classList.add('disabled-chip');
+                element.classList.remove('active');
+                if (qaCurrentSelection[typeToCheck] === valueToCheck) qaCurrentSelection[typeToCheck] = null;
+            }
         }
 
         function qaChangeQty(change) {
@@ -777,43 +755,96 @@
 
         document.getElementById('qa-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            const formData = new FormData(this); formData.append('actionType', 'add');
-            const btn = document.getElementById('qa-btn-submit');
-            const originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>...';
+            const formData = new FormData(this);
+            formData.append('actionType', 'add'); // Fix lỗi máy chủ giống hệt Index
 
-            fetch(this.action, { method: this.method, body: formData, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            const btn = document.getElementById('qa-btn-submit');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>...';
+
+            fetch(this.action, {
+                method: this.method, body: formData,
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    btn.innerHTML = 'ĐÃ THÊM'; btn.style.background = '#10B981';
+                    btn.innerHTML = 'ĐÃ THÊM';
+                    btn.style.background = '#10B981';
+                    
                     const cartBadge = document.getElementById('header-cart-badge');
-                    if (cartBadge) { let currentQty = parseInt(cartBadge.innerText) || 0; let qtyToAdd = parseInt(formData.get('quantity')) || 1; cartBadge.innerText = currentQty + qtyToAdd; cartBadge.classList.add('has-items'); }
+                    if (cartBadge) {
+                        let currentQty = parseInt(cartBadge.innerText) || 0;
+                        let qtyToAdd = parseInt(formData.get('quantity')) || 1;
+                        cartBadge.innerText = currentQty + qtyToAdd;
+                        cartBadge.classList.add('has-items');
+                    }
+                    
                     if (typeof window.showToast === 'function') window.showToast("Đã thêm vào giỏ hàng!", "success");
-                    setTimeout(() => { closeQuickAddModal(); btn.innerHTML = originalText; btn.style.background = ''; }, 800);
-                } else { if (typeof window.showToast === 'function') window.showToast(data.message, "error"); }
-            }).catch(err => { if (typeof window.showToast === 'function') window.showToast("Mất kết nối máy chủ.", "error"); })
-            .finally(() => { btn.innerHTML = originalText; btn.style.background = ''; });
+
+                    setTimeout(() => {
+                        closeQuickAddModal();
+                        btn.innerHTML = originalText;
+                        btn.style.background = '';
+                    }, 800);
+                } else {
+                    if (typeof window.showToast === 'function') window.showToast(data.message, "error");
+                }
+            }).catch(err => {
+                console.error('Lỗi kết nối API:', err);
+                if (typeof window.showToast === 'function') window.showToast("Mất kết nối máy chủ.", "error");
+            }).finally(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            });
         });
 
+        // XỬ LÝ THÊM VÀO GIỎ CHO CÁC SẢN PHẨM GỢI Ý (BẢN CHỈ CÓ 1 BIẾN THỂ)
         document.querySelectorAll('.ajax-cart-form:not(#qa-form)').forEach(form => {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
-                const formData = new FormData(this); formData.append('actionType', 'add');
-                const btn = this.querySelector('button[type="submit"]');
-                const originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>...';
+                const formData = new FormData(this);
+                formData.append('actionType', 'add');
 
-                fetch(this.action, { method: this.method, body: formData, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                const btn = this.querySelector('button[type="submit"]');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>...';
+
+                fetch(this.action, {
+                    method: this.method, body: formData,
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        btn.innerHTML = 'ĐÃ THÊM'; btn.style.background = '#10B981'; btn.style.color = 'white';
+                        btn.innerHTML = 'ĐÃ THÊM';
+                        btn.style.background = '#10B981';
+                        btn.style.color = 'white';
+                        
                         const cartBadge = document.getElementById('header-cart-badge');
-                        if (cartBadge) { let currentQty = parseInt(cartBadge.innerText) || 0; cartBadge.innerText = currentQty + 1; cartBadge.classList.add('has-items'); }
+                        if (cartBadge) {
+                            let currentQty = parseInt(cartBadge.innerText) || 0;
+                            cartBadge.innerText = currentQty + 1;
+                            cartBadge.classList.add('has-items');
+                        }
+
                         if (typeof window.showToast === 'function') window.showToast("Sản phẩm đã được thêm vào Giỏ hàng", "success");
-                        setTimeout(() => { btn.innerHTML = originalText; btn.style.background = ''; btn.style.color = ''; }, 2000);
-                    } else { if (typeof window.showToast === 'function') window.showToast(data.message, "error"); }
-                }).catch(err => { if (typeof window.showToast === 'function') window.showToast("Mất kết nối máy chủ.", "error"); })
-                .finally(() => { btn.innerHTML = originalText; btn.style.background = ''; btn.style.color = ''; });
+                        
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.style.background = '';
+                            btn.style.color = '';
+                        }, 2000);
+                    } else {
+                        if (typeof window.showToast === 'function') window.showToast(data.message, "error");
+                    }
+                }).catch(err => {
+                    if (typeof window.showToast === 'function') window.showToast("Mất kết nối máy chủ.", "error");
+                }).finally(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                });
             });
         });
     </script>

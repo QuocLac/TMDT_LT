@@ -36,6 +36,12 @@ public partial class Orders
     public virtual ICollection<Shipping> Shipping { get; set; } = new List<Shipping>();
     public virtual ICollection<OrderHistory> OrderHistories { get; set; } = new List<OrderHistory>();
 
+    // THÊM DÒNG NÀY ĐỂ LIÊN KẾT NGƯỢC
+    public virtual ICollection<OrderReturns> OrderReturns { get; set; } = new List<OrderReturns>();
+
     public string? CancellationReason { get; set; }
     public string? CancellationRequestedBy { get; set; }
+
+    // Mốc thời gian để tính hạn 3 tháng đánh giá và 7 ngày hoàn trả
+    public DateTime? CompletedDate { get; set; }
 }

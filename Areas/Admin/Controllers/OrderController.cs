@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
-using TMDT_LT.Services; // Thêm thư viện gọi VnPayService
+using TMDT_LT.Services;
 
 namespace TMDT_LT.Areas.Admin.Controllers
 {
@@ -30,6 +30,13 @@ namespace TMDT_LT.Areas.Admin.Controllers
         // ====================================================================
         public async Task<IActionResult> Index(string searchKeyword, string status, DateTime? fromDate, DateTime? toDate)
         {
+            // TẢI THÔNG BÁO HOÀN TRẢ CHƯA ĐỌC ĐỂ HIỂN THỊ LÊN WIDGET
+            ViewBag.ReturnAlerts = await _context.OrderReturns
+                .Include(r => r.Order)
+                .Where(r => r.Status == "Chờ duyệt" && r.IsAlertAdminRead == false)
+                .OrderBy(r => r.CreatedAt)
+                .ToListAsync();
+
             ViewBag.Keyword = searchKeyword;
             ViewBag.Status = status;
             ViewBag.FromDate = fromDate?.ToString("yyyy-MM-dd");
@@ -44,16 +51,31 @@ namespace TMDT_LT.Areas.Admin.Controllers
             if (hasSearch)
             {
                 kw = searchKeyword.Trim().ToLower();
-                if (kw.StartsWith("#")) kw = kw.Replace("#", "");
+                if (kw.StartsWith("#"))
+                {
+                    kw = kw.Replace("#", "");
+                }
+
                 isNumeric = int.TryParse(kw, out exactOrderId);
 
                 query = query.Where(o => o.OrderId.ToString().Contains(kw) ||
                                         (o.ShippingPhone != null && o.ShippingPhone.Contains(kw)));
             }
 
-            if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
-            if (fromDate.HasValue) query = query.Where(o => o.OrderDate >= fromDate.Value);
-            if (toDate.HasValue) query = query.Where(o => o.OrderDate <= toDate.Value.AddDays(1));
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(o => o.Status == status);
+            }
+
+            if (fromDate.HasValue)
+            {
+                query = query.Where(o => o.OrderDate >= fromDate.Value);
+            }
+
+            if (toDate.HasValue)
+            {
+                query = query.Where(o => o.OrderDate <= toDate.Value.AddDays(1));
+            }
 
             if (hasSearch)
             {
@@ -78,7 +100,22 @@ namespace TMDT_LT.Areas.Admin.Controllers
         }
 
         // ====================================================================
-        // 2. XEM CHI TIẾT ĐƠN HÀNG
+        // API: TẮT THÔNG BÁO (KÍCH HOẠT KHI CLICK VÀO WIDGET)
+        // ====================================================================
+        [HttpPost]
+        public async Task<IActionResult> MarkReturnAlertAsRead(int returnId)
+        {
+            var ret = await _context.OrderReturns.FindAsync(returnId);
+            if (ret != null)
+            {
+                ret.IsAlertAdminRead = true;
+                await _context.SaveChangesAsync();
+            }
+            return Ok();
+        }
+
+        // ====================================================================
+        // 2. XEM CHI TIẾT ĐƠN HÀNG (ĐÃ INCLUDE KHIẾU NẠI)
         // ====================================================================
         public async Task<IActionResult> Details(int id)
         {
@@ -87,14 +124,16 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 .Include(o => o.OrderHistories)
                 .Include(o => o.Payments)
                 .Include(o => o.Shipping)
+                .Include(o => o.OrderReturns)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
             if (order == null) return NotFound();
+
             return View(order);
         }
 
         // ====================================================================
-        // 3. TRUNG TÂM XỬ LÝ TRẠNG THÁI (ĐỘNG CƠ CỐT LÕI)
+        // 3. ĐỘNG CƠ CẬP NHẬT TRẠNG THÁI GIAO HÀNG (TÁCH BIỆT HỦY VÀ HOÀN TRẢ)
         // ====================================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -104,111 +143,102 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 .Include(o => o.OrderDetails).ThenInclude(d => d.Variant).ThenInclude(v => v.Product)
                 .Include(o => o.Shipping)
                 .Include(o => o.Customer)
-                .Include(o => o.Payments) // Nạp thêm thông tin thanh toán để xử lý hoàn tiền
+                .Include(o => o.Payments)
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
-            if (order == null) return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
+            if (order == null)
+            {
+                return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
+            }
 
             var payment = order.Payments.FirstOrDefault();
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // -------------------------------------------------------------
-                // LUỒNG 1: DUYỆT ĐƠN HÀNG (TRỪ KHO & GỌI API GIAO HÀNG)
-                // -------------------------------------------------------------
+                // BƯỚC 1: XÁC NHẬN -> ĐANG XỬ LÝ
                 if (newStatus == "Đang xử lý" && order.Status == "Chờ xác nhận")
                 {
-                    // 1.1 Kiểm tra và trừ tồn kho
                     foreach (var detail in order.OrderDetails)
                     {
                         if (detail.Variant != null)
                         {
                             if (detail.Variant.Stock < detail.Quantity)
-                                return Json(new { success = false, message = $"Sản phẩm mã #{detail.VariantId} không đủ tồn kho." });
-
+                            {
+                                return Json(new { success = false, message = $"Hết tồn kho mã #{detail.VariantId}." });
+                            }
                             detail.Variant.Stock -= detail.Quantity;
                         }
                     }
 
-                    // 1.2 Gọi API Đơn vị vận chuyển (GHTK/GHN)
                     var defaultCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
-                    if (defaultCarrier == null)
-                    {
-                        return Json(new { success = false, message = "Lỗi vận hành: Chưa cấu hình đơn vị vận chuyển mặc định." });
-                    }
-
-                    // Mock Gọi API và lấy mã vận đơn về
-                    string returnedTrackingNumber = "3PL" + defaultCarrier.CarrierCode + DateTime.Now.Ticks.ToString().Substring(11);
                     var shipInfo = order.Shipping?.FirstOrDefault();
-                    if (shipInfo != null)
+
+                    if (shipInfo != null && defaultCarrier != null)
                     {
-                        shipInfo.TrackingNumber = returnedTrackingNumber;
+                        shipInfo.TrackingNumber = "3PL" + defaultCarrier.CarrierCode + DateTime.Now.Ticks.ToString().Substring(11);
                         shipInfo.Carrier = defaultCarrier.CarrierName;
                     }
                 }
 
-                // -------------------------------------------------------------
-                // LUỒNG 2: HỦY ĐƠN / HOÀN ĐƠN (HOÀN TIỀN & HOÀN KHO)
-                // -------------------------------------------------------------
-                else if (newStatus == "Đã hủy" || newStatus == "Trả hàng/Hoàn tiền")
+                // BƯỚC 2: ĐANG XỬ LÝ -> ĐANG GIAO
+                else if (newStatus == "Đang giao" && order.Status == "Đang xử lý")
                 {
-                    // 2.1 KIỂM TRA LUỒNG TIỀN VÀ GỌI API BANK REFUND (Nếu đã thanh toán)
-                    if (payment != null && payment.PaymentStatus == "Đã thanh toán")
-                    {
-                        string transactionDateStr = payment.PaymentDate?.ToString("yyyyMMddHHmmss") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
-                        string adminEmail = User.Identity?.Name ?? "admin_system";
-
-                        // Lấy Service VNPay để gọi hàm Hoàn tiền tự động
-                        var vnPayService = HttpContext.RequestServices.GetRequiredService<VnPayService>();
-                        bool isRefundSuccess = await vnPayService.RequestBankRefundAsync(order.OrderId, order.TotalAmount ?? 0, transactionDateStr, adminEmail);
-
-                        if (!isRefundSuccess)
-                        {
-                            return Json(new { success = false, message = "Cổng ngân hàng từ chối lệnh hoàn tiền tự động. Vui lòng đối soát lại số dư hoặc mã giao dịch." });
-                        }
-
-                        payment.PaymentStatus = "Đã hoàn tiền";
-                        note = (note ?? "") + " [Hệ thống: Đã kích hoạt lệnh Refund hoàn trả tiền về tài khoản ngân hàng của khách thành công].";
-                    }
-
-                    // 2.2 ĐỀN BÙ LẠI TỒN KHO 
-                    // (Chỉ đền bù nếu đơn hàng đã chuyển qua trạng thái 'Đang xử lý' vì lúc đó kho mới bị trừ)
-                    if (order.Status == "Đang xử lý" || order.Status == "Đang giao")
-                    {
-                        foreach (var detail in order.OrderDetails)
-                        {
-                            if (detail.Variant != null) detail.Variant.Stock += detail.Quantity ?? 0;
-                        }
-                    }
+                    note = note ?? "Đã xuất kho và bàn giao kiện hàng cho Shipper.";
                 }
 
-                // -------------------------------------------------------------
-                // LUỒNG 3: HOÀN THÀNH ĐƠN (TÍCH ĐIỂM THÀNH VIÊN)
-                // -------------------------------------------------------------
-                else if (newStatus == "Hoàn thành" && order.Status == "Đang giao")
+                // BƯỚC 3: ĐANG GIAO -> ĐÃ GIAO
+                else if (newStatus == "Đã giao" && order.Status == "Đang giao")
+                {
+                    note = note ?? "Đơn vị vận chuyển báo phát hàng thành công. Bắt đầu thời hạn 7 ngày kiểm tra đổi trả.";
+                }
+
+                // BƯỚC 4: ĐÃ GIAO -> HOÀN THÀNH
+                else if (newStatus == "Hoàn thành" && order.Status == "Đã giao")
                 {
                     if (order.Customer != null)
                     {
-                        decimal totalAmount = order.TotalAmount ?? 0;
-                        int pointsEarned = (int)(totalAmount / 100000); // 100k = 1 điểm
-
+                        int pointsEarned = (int)((order.TotalAmount ?? 0) / 100000);
                         if (pointsEarned > 0)
                         {
                             order.Customer.RewardPoints += pointsEarned;
-                            int currentPoints = order.Customer.RewardPoints;
-
-                            if (currentPoints >= 600) order.Customer.CustomerType = "Kim Cương";
-                            else if (currentPoints >= 300) order.Customer.CustomerType = "Vàng";
-                            else if (currentPoints >= 100) order.Customer.CustomerType = "Bạc";
-                            else order.Customer.CustomerType = "Newbie";
-
-                            note = (note ?? "") + $" [Hệ thống: Tích lũy +{pointsEarned} điểm thành viên. Hạng: {order.Customer.CustomerType}].";
+                            int cp = order.Customer.RewardPoints;
+                            order.Customer.CustomerType = cp >= 600 ? "Kim Cương" : cp >= 300 ? "Vàng" : cp >= 100 ? "Bạc" : "Newbie";
+                            note = (note ?? "") + $" [Hệ thống: +{pointsEarned} điểm].";
                         }
                     }
                 }
 
-                // Cập nhật trạng thái và ghi vết (Log)
+                // HỦY ĐƠN (CHỈ DÀNH CHO ĐƠN CHƯA GIAO THÀNH CÔNG)
+                else if (newStatus == "Đã hủy")
+                {
+                    if (payment != null && payment.PaymentStatus == "Đã thanh toán" && payment.PaymentMethod == "VNPAY")
+                    {
+                        var vnPayService = HttpContext.RequestServices.GetRequiredService<VnPayService>();
+                        string transactionDateStr = payment.PaymentDate?.ToString("yyyyMMddHHmmss") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
+                        bool isRefundSuccess = await vnPayService.RequestBankRefundAsync(order.OrderId, order.TotalAmount ?? 0, transactionDateStr, User.Identity?.Name ?? "admin");
+
+                        if (!isRefundSuccess)
+                        {
+                            return Json(new { success = false, message = "Lệnh hoàn tiền VNPay thất bại." });
+                        }
+                        payment.PaymentStatus = "Đã hoàn tiền";
+                        note = (note ?? "") + " [Đã kích hoạt lệnh Refund VNPAY thành công].";
+                    }
+
+                    // Hoàn lại kho nếu đã xuất đi
+                    if (order.Status == "Đang xử lý" || order.Status == "Đang giao" || order.Status == "Đã giao")
+                    {
+                        foreach (var detail in order.OrderDetails)
+                        {
+                            if (detail.Variant != null)
+                            {
+                                detail.Variant.Stock += detail.Quantity ?? 0;
+                            }
+                        }
+                    }
+                }
+
                 order.Status = newStatus;
 
                 _context.OrderHistories.Add(new OrderHistory
@@ -216,22 +246,23 @@ namespace TMDT_LT.Areas.Admin.Controllers
                     OrderId = order.OrderId,
                     Status = newStatus,
                     UpdatedAt = DateTime.Now,
-                    Note = note ?? $"Hành động điều phối trạng thái: {newStatus}" // Lý do hủy đơn hoặc ghi chú sẽ được điền vào đây
+                    Note = note ?? $"Hành động điều phối trạng thái: {newStatus}"
                 });
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
                 return Json(new { success = true });
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return Json(new { success = false, message = "Lỗi luồng nghiệp vụ: " + ex.Message });
+                return Json(new { success = false, message = ex.Message });
             }
         }
 
         // ====================================================================
-        // 4. XUẤT EXCEL BÁO CÁO DOANH THU
+        // 4. XUẤT EXCEL BÁO CÁO TÀI CHÍNH
         // ====================================================================
         public async Task<IActionResult> ExportToExcel(string searchKeyword, string status, DateTime? fromDate, DateTime? toDate)
         {
@@ -239,13 +270,21 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
             if (!string.IsNullOrWhiteSpace(searchKeyword))
             {
-                string kw = searchKeyword.Trim().ToLower();
-                if (kw.StartsWith("#")) kw = kw.Replace("#", "");
+                string kw = searchKeyword.Trim().ToLower().Replace("#", "");
                 query = query.Where(o => o.OrderId.ToString().Contains(kw) || o.ShippingPhone.Contains(kw));
             }
-            if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
-            if (fromDate.HasValue) query = query.Where(o => o.OrderDate >= fromDate.Value);
-            if (toDate.HasValue) query = query.Where(o => o.OrderDate <= toDate.Value.AddDays(1));
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(o => o.Status == status);
+            }
+            if (fromDate.HasValue)
+            {
+                query = query.Where(o => o.OrderDate >= fromDate.Value);
+            }
+            if (toDate.HasValue)
+            {
+                query = query.Where(o => o.OrderDate <= toDate.Value.AddDays(1));
+            }
 
             var orders = await query.OrderByDescending(o => o.OrderDate).ToListAsync();
 
@@ -259,11 +298,12 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
             var bom = new byte[] { 0xEF, 0xBB, 0xBF };
             var csvBytes = Encoding.UTF8.GetBytes(csvBuilder.ToString());
+
             return File(bom.Concat(csvBytes).ToArray(), "text/csv", $"BaoCao_DonHang_{DateTime.Now:yyyyMMdd}.csv");
         }
 
         // ====================================================================
-        // 5. IN HÓA ĐƠN ĐIỆN TỬ
+        // 5. MÀN HÌNH IN HÓA ĐƠN
         // ====================================================================
         public async Task<IActionResult> PrintInvoice(int id)
         {
@@ -273,11 +313,12 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
             if (order == null) return NotFound();
+
             return View(order);
         }
 
         // ====================================================================
-        // 6. WEBHOOK DỰ PHÒNG CHUYỂN KHOẢN NGÂN HÀNG (Giữ nguyên gốc)
+        // 6. WEBHOOK DỰ PHÒNG CHUYỂN KHOẢN NGÂN HÀNG TRỰC TIẾP
         // ====================================================================
         [HttpPost]
         [IgnoreAntiforgeryToken]
@@ -289,8 +330,10 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 .Include(o => o.Shipping)
                 .FirstOrDefaultAsync(o => o.OrderId == gatewayData.OrderIdReference);
 
-            if (order == null || order.Status == "Hoàn thành" || order.Status == "Đã hủy")
+            if (order == null || order.Status == "Hoàn thành" || order.Status == "Đã hủy" || order.Status == "Đã hoàn trả")
+            {
                 return Json(new { success = false });
+            }
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -333,8 +376,10 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+
                     return Json(new { success = true });
                 }
+
                 return Json(new { success = false, message = "Thiếu tiền thanh toán." });
             }
             catch (Exception ex)

@@ -1,4 +1,5 @@
 ﻿@model TMDT_LT.Models.ViewModels.DashboardVM
+@using System.Text.Json
 @{
     Layout = "_LayoutAdmin";
     ViewData["Title"] = "BI Dashboard Cao Cấp";
@@ -7,6 +8,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+    /* HỆ THỐNG LƯỚI PHẲNG HIGH-END BI */
+    .dashboard-grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
     .dashboard-grid-3 {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -21,37 +30,46 @@
         margin-bottom: 24px;
     }
 
+    /* KPI THẺ PHẲNG KHỐI TRẮNG NAVY */
     .kpi-card {
         background: #FFFFFF;
         border: 1px solid #E5E7EB;
-        padding: 22px;
+        padding: 20px;
         border-radius: 4px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        transition: all 0.2s ease;
     }
 
+        .kpi-card:hover {
+            border-color: #0F172A;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.04);
+        }
+
     .kpi-label {
-        font-size: 11px;
+        font-size: 10px;
         text-transform: uppercase;
         color: #6B7280;
         font-weight: 700;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.8px;
     }
 
     .kpi-value {
-        font-size: 26px;
+        font-size: 22px;
         font-weight: 800;
         color: #111827;
-        margin: 8px 0;
+        margin: 6px 0;
         font-family: monospace;
     }
 
     .kpi-sub {
-        font-size: 12px;
+        font-size: 11px;
         color: #4B5563;
+        font-weight: 600;
     }
 
+    /* KHUNG CẤU TRÚC CONTAINER CHỨA BIỂU ĐỒ */
     .chart-container {
         background: #FFFFFF;
         border: 1px solid #E5E7EB;
@@ -60,162 +78,310 @@
     }
 
     .chart-title {
-        font-size: 13px;
-        font-weight: 700;
+        font-size: 11px;
+        font-weight: 800;
         text-transform: uppercase;
         color: #111827;
         margin: 0 0 20px 0;
         border-bottom: 1px solid #F3F4F6;
         padding-bottom: 12px;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
+
+    .table-container {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 4px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .stats-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+        .stats-table th {
+            background: #F9FAFB;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #6B7280;
+            border-bottom: 2px solid #E5E7EB;
+        }
+
+        .stats-table td {
+            padding: 12px 15px;
+            font-size: 13px;
+            border-bottom: 1px solid #F3F4F6;
+            color: #111827;
+        }
+
+        .stats-table tr:hover {
+            background: #F8FAFC;
+        }
 </style>
 
+@* KHU VỰC TIÊU ĐỀ ĐIỀU HÀNH & BỘ LỌC NGÀY THÁNG *@
 <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 1px solid #E5E7EB; padding-bottom: 20px;">
     <div>
-        <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;">Báo cáo vận hành tổng quan sàn</h1>
-        <p style="color: #6B7280; font-size: 13px; margin-top: 4px;">Phân tích sâu phễu hành vi khách hàng, tỷ lệ churn tài chính và lưu lượng tăng trưởng mạng lưới.</p>
+        <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;">Trung tâm điều hành kinh doanh</h1>
+        <p style="color: #6B7280; font-size: 13px; margin-top: 4px;">Hệ thống trực quan hóa luồng tài chính, hiệu suất vận chuyển và phễu hành vi khách hàng.</p>
     </div>
-    <form method="get" style="display: flex; gap: 12px; align-items: flex-end; background: #F9FAFB; padding: 12px; border-radius: 4px; border: 1px solid #E5E7EB;">
+    <form method="get" style="display: flex; gap: 12px; align-items: flex-end; background: #F9FAFB; padding: 10px; border-radius: 4px; border: 1px solid #E5E7EB;">
         <div>
-            <label style="display: block; font-size: 10px; text-transform: uppercase; font-weight: 700; color: #6B7280; margin-bottom: 4px;">Ngày bắt đầu biểu đồ</label>
-            <input type="date" name="startDate" value="@Model.FilterStartDate" class="form-control" style="padding: 6px 10px; font-size: 13px;" />
+            <label style="display: block; font-size: 9px; text-transform: uppercase; font-weight: 800; color: #6B7280; margin-bottom: 4px;">Từ ngày</label>
+            <input type="date" name="startDate" value="@Model.FilterStartDate" style="padding: 5px 8px; font-size: 12px; border: 1px solid #D1D5DB; border-radius: 4px;" />
         </div>
         <div>
-            <label style="display: block; font-size: 10px; text-transform: uppercase; font-weight: 700; color: #6B7280; margin-bottom: 4px;">Ngày kết thúc biểu đồ</label>
-            <input type="date" name="endDate" value="@Model.FilterEndDate" class="form-control" style="padding: 6px 10px; font-size: 13px;" />
+            <label style="display: block; font-size: 9px; text-transform: uppercase; font-weight: 800; color: #6B7280; margin-bottom: 4px;">Đến ngày</label>
+            <input type="date" name="endDate" value="@Model.FilterEndDate" style="padding: 5px 8px; font-size: 12px; border: 1px solid #D1D5DB; border-radius: 4px;" />
         </div>
-        <button type="submit" class="btn-dark" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">ÁP DỤNG MỐC</button>
+        <button type="submit" style="padding: 7px 15px; font-size: 11px; font-weight: 700; background:#0F172A; color:white; border:none; border-radius:4px; cursor:pointer;">LỌC DỮ LIỆU</button>
     </form>
 </div>
 
-<div class="dashboard-grid-3">
-    <div class="kpi-card">
-        <span class="kpi-label">Doanh thu tháng này</span>
-        <div class="kpi-value">@string.Format("{0:N0}", Model.RevenueThisMonth) đ</div>
-        <div class="kpi-sub">
-            Tháng trước: <span style="font-family: monospace;">@string.Format("{0:N0}", Model.RevenueLastMonth) đ</span>
-            (Biến động: <strong style="color: @(Model.RevenueMoMGrowth >= 0 ? "#059669" : "#DC2626")">@string.Format("{0:F1}", Model.RevenueMoMGrowth)%</strong>)
+@* DÒNG KPI 1: THỐNG KÊ DOANH THU MoM VÀ CHỈ SỐ KHÁCH HÀNG / SẢN PHẨM *@
+<div class="dashboard-grid-4">
+    <div class="kpi-card" style="border-top: 3px solid #0F172A;">
+        <span class="kpi-label">Tổng khách hàng</span>
+        <div class="kpi-value">@Model.TotalCustomersCount</div>
+        <div class="kpi-sub">Tài khoản người dùng đăng ký</div>
+    </div>
+    <div class="kpi-card" style="border-top: 3px solid #0F172A;">
+        <span class="kpi-label">Sản phẩm đăng bán</span>
+        <div class="kpi-value">@Model.TotalProductsCount</div>
+        <div class="kpi-sub">Các mẫu máy đang Active hệ thống</div>
+    </div>
+    <div class="kpi-card" style="border-top: 3px solid #2563EB;">
+        <span class="kpi-label">So sánh doanh thu (MoM)</span>
+        <div class="kpi-value" style="font-size: 16px; margin: 10px 0;">
+            Tháng này: <strong>@string.Format("{0:N0}", Model.RevenueThisMonth) đ</strong>
+        </div>
+        <div class="kpi-sub" style="color: @(Model.RevenueMoMGrowth >= 0 ? "#059669" : "#DC2626")">
+            <i class="fas fa-arrow-@(Model.RevenueMoMGrowth >= 0 ? "up" : "down")"></i> @string.Format("{0:F1}", Model.RevenueMoMGrowth)% biến động
         </div>
     </div>
-
-    <div class="kpi-card">
+    <div class="kpi-card" style="border-top: 3px solid #DC2626;">
         <span class="kpi-label">Tỷ lệ rời bỏ (Churn Rate)</span>
-        <div class="kpi-value">@Model.ChurnRate%</div>
-        <div class="kpi-sub">
-            Mất tương tác (2 tháng): <strong>@Model.ChurnedCustomersCount</strong> / Hoạt động: <strong>@Model.ActiveCustomersCount</strong>
-        </div>
-    </div>
-
-    <div class="kpi-card">
-        <span class="kpi-label">Tỷ lệ chuyển đổi cuối (CR)</span>
-        <div class="kpi-value">@Model.ConversionRate%</div>
-        <div class="kpi-sub">
-            Tổng đơn hàng phát sinh trong kỳ lọc: <strong>@Model.FunnelOrders</strong> đơn
-        </div>
+        <div class="kpi-value" style="color:#DC2626;">@Model.ChurnRate.ToString("0.0")%</div>
+        <div class="kpi-sub">Gồm <strong>@Model.ChurnedCustomersCount</strong> KH ngưng mua sắm</div>
     </div>
 </div>
 
-<div class="dashboard-grid-2">
-    <div class="chart-container">
-        <h3 class="chart-title">Diễn tiến doanh thu theo bộ lọc thời gian cụ thể</h3>
-        <div style="position: relative; height: 260px;"><canvas id="revenueChart"></canvas></div>
+@* DÒNG KPI 2: CHI TIẾT SỐ LƯỢNG ĐƠN HỦY VÀ HOÀN TRẢ TRONG KỲ *@
+<div class="dashboard-grid-4">
+    <div class="kpi-card" style="border-left: 4px solid #DC2626;">
+        <span class="kpi-label">Số đơn hàng đã hủy</span>
+        <div class="kpi-value" style="color:#DC2626;">@Model.CancelledOrdersCount đơn</div>
+        <div class="kpi-sub">Khách tự hủy hoặc hệ thống hủy</div>
     </div>
+    <div class="kpi-card" style="border-left: 4px solid #EA580C;">
+        <span class="kpi-label">Số đơn hàng hoàn trả</span>
+        <div class="kpi-value" style="color:#EA580C;">@Model.ReturnedOrdersCount đơn</div>
+        <div class="kpi-sub">Yêu cầu trả hàng đổi trả thành công</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #059669;">
+        <span class="kpi-label">Lợi nhuận ròng lũy kế</span>
+        <div class="kpi-value" style="color:#059669;">@string.Format("{0:N0}", Model.TotalNetProfit) đ</div>
+        <div class="kpi-sub">Không bao gồm giá nhập kho</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #475569;">
+        <span class="kpi-label">Hao hụt kho ước tính</span>
+        <div class="kpi-value">@Model.InventoryShrinkage</div>
+        <div class="kpi-sub">Sản phẩm trích lập dự phòng rủi ro</div>
+    </div>
+</div>
+
+@* PHÂN KHU BIỂU ĐỒ 1: TÁCH RIÊNG 3 BIỂU ĐỒ TÀI CHÍNH (DOANH THU - LỢI NHUẬN - TIỀN NHẬP KHO) *@
+<div class="dashboard-grid-3">
+    <div class="chart-container">
+        <h3 class="chart-title">Tổng Doanh Thu Bán Được</h3>
+        <div style="position: relative; height: 240px;"><canvas id="revenueChart"></canvas></div>
+    </div>
+    <div class="chart-container">
+        <h3 class="chart-title">Lợi Nhuận Ròng (Thực Tế)</h3>
+        <div style="position: relative; height: 240px;"><canvas id="profitChart"></canvas></div>
+    </div>
+    <div class="chart-container">
+        <h3 class="chart-title">Tổng Tiền Nhập Kho (Giá Vốn)</h3>
+        <div style="position: relative; height: 240px;"><canvas id="costChart"></canvas></div>
+    </div>
+</div>
+
+@* PHÂN KHU BIỂU ĐỒ 2: TRAFFIC VÀ PHỄU CHUYỂN ĐỔI *@
+<div class="dashboard-grid-2">
     <div class="chart-container">
         <h3 class="chart-title">Biểu đồ tăng trưởng lượt tham quan trang (Page Views)</h3>
         <div style="position: relative; height: 260px;"><canvas id="trafficChart"></canvas></div>
     </div>
+    <div class="chart-container">
+        <h3 class="chart-title">Phễu hành vi và tỷ lệ chuyển đổi khách hàng toàn sàn</h3>
+        <div style="position: relative; height: 260px;"><canvas id="conversionFunnelChart"></canvas></div>
+    </div>
 </div>
 
-<div class="dashboard-grid-2">
-    <div class="chart-container">
-        <h3 class="chart-title">Mô hình phễu hành vi khách hàng thương mại</h3>
-        <div style="position: relative; height: 260px;"><canvas id="funnelChart"></canvas></div>
-    </div>
-    <div class="chart-container" style="display: flex; flex-direction: column;">
-        <h3 class="chart-title">Cơ cấu lưu giữ và rời bỏ người dùng (60 Ngày)</h3>
-        <div style="position: relative; height: 220px; flex: 1; display: flex; align-items: center; justify-content: center;">
-            <canvas id="churnChart"></canvas>
-        </div>
-    </div>
+@* BẢNG DANH SÁCH: THỐNG KÊ SẢN PHẨM CỤ THỂ VÀ THÔNG SỐ LƯỢNG BÁN RA *@
+<div class="table-container">
+    <h3 class="chart-title" style="border:none; margin-bottom:0;">Bảng theo dõi hiệu suất bán ra và biên lợi nhuận của từng dòng sản phẩm cụ thể</h3>
+    <table class="stats-table">
+        <thead>
+            <tr>
+                <th>Tên dòng máy thiết bị</th>
+                <th style="text-align:center;">Số lượng bán ra</th>
+                <th>Tổng doanh thu thu về</th>
+                <th>Tổng chi phí nhập kho</th>
+                <th>Lợi nhuận thực tế thu được</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.ProductSalesStats.Any())
+            {
+                foreach (var p in Model.ProductSalesStats)
+                {
+                    <tr>
+                        <td style="font-weight:700; color:#0F172A;">@p.ProductName</td>
+                        <td style="text-align:center;"><strong>@p.QuantitySold máy</strong></td>
+                        <td style="font-family:monospace; font-weight:600;">@string.Format("{0:N0}", p.TotalRevenue) đ</td>
+                        <td style="font-family:monospace; color:#6B7280;">@string.Format("{0:N0}", p.TotalCost) đ</td>
+                        <td style="font-family:monospace; color:#059669; font-weight:700;">+@string.Format("{0:N0}", p.NetProfit) đ</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="5" style="text-align:center; padding:30px; color:#9CA3AF;">Chưa có dữ liệu xuất bán thiết bị phát sinh trong khoảng thời gian tìm kiếm.</td></tr>
+            }
+        </tbody>
+    </table>
 </div>
 
 @section Scripts {
     <script>
-        // Phân tách dữ liệu mảng thô sang JSON Client
-        const dateLabels = @Html.Raw(Json.Serialize(Model.RevenueChartData.Select(x => x.DateLabel)));
-        const revData = @Html.Raw(Json.Serialize(Model.RevenueChartData.Select(x => x.DailyTotal)));
-        const trafficData = @Html.Raw(Json.Serialize(Model.TrafficChartData.Select(x => x.PageViews)));
+        // TRÍCH XUẤT CÁC MẢNG DỮ LIỆU TÀI CHÍNH TỪ VIEWMODEL
+        const dates = @Html.Raw(Json.Serialize(Model.FinancialChartData.Select(x => x.DateLabel)));
+        const revenues = @Html.Raw(Json.Serialize(Model.FinancialChartData.Select(x => (double)x.Revenue)));
+        const netProfits = @Html.Raw(Json.Serialize(Model.FinancialChartData.Select(x => (double)x.NetProfit)));
+        const purchaseCosts = @Html.Raw(Json.Serialize(Model.FinancialChartData.Select(x => (double)x.PurchaseCost)));
 
-        const globalChartOptions = {
+        // TRÍCH XUẤT DỮ LIỆU ANALYTICS
+        const pageViews = @Html.Raw(Json.Serialize(Model.TrafficChartData.Select(x => x.PageViews)));
+
+        // CẤU HÌNH DÙNG CHUNG CHO CÁC BIỂU ĐỒ LINE ĐỂ CODE GỌN GÀNG
+        const fontConfig = { family: 'Plus Jakarta Sans', size: 10 };
+        const commonLineOptions = {
             responsive: true,
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 10 } } },
-                y: { grid: { color: '#F3F4F6' }, ticks: { color: '#9CA3AF', font: { size: 10 } } }
+                x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: fontConfig, maxRotation: 45, minRotation: 45 } },
+                y: { grid: { color: '#F1F5F9' }, ticks: { color: '#9CA3AF', font: fontConfig } }
             }
         };
 
-        // 1. BIỂU ĐỒ DOANH THU CỤ THỂ
+        // 1. BIỂU ĐỒ DOANH THU BÁN ĐƯỢC (XANH DƯƠNG)
         new Chart(document.getElementById('revenueChart'), {
             type: 'line',
             data: {
-                labels: dateLabels,
-                datasets: [{ data: revData, borderColor: '#111827', borderWidth: 2, pointRadius: 1, fill: true, backgroundColor: 'rgba(17,24,39,0.02)', tension: 0.1 }]
+                labels: dates,
+                datasets: [{
+                    data: revenues,
+                    borderColor: '#2563EB',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#2563EB',
+                    tension: 0.3
+                }]
             },
-            options: globalChartOptions
+            options: commonLineOptions
         });
 
-        // 2. BIỂU ĐỒ LƯỢT THAM QUAN TRANG (PAGE VIEWS)
-        new Chart(document.getElementById('trafficChart'), {
+        // 2. BIỂU ĐỒ LỢI NHUẬN RÒNG (XANH LỤC)
+        new Chart(document.getElementById('profitChart'), {
             type: 'line',
             data: {
-                labels: dateLabels,
-                datasets: [{ data: trafficData, borderColor: '#4B5563', borderWidth: 2, pointRadius: 1, fill: true, backgroundColor: 'rgba(75,85,99,0.02)', tension: 0.1 }]
+                labels: dates,
+                datasets: [{
+                    data: netProfits,
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#059669',
+                    tension: 0.3
+                }]
             },
-            options: globalChartOptions
+            options: commonLineOptions
         });
 
-        // 3. BIỂU ĐỒ PHỄU CHUYỂN ĐỔI (BAR NGANG PHÂN CẤP)
-        new Chart(document.getElementById('funnelChart'), {
+        // 3. BIỂU ĐỒ TIỀN NHẬP KHO / GIÁ VỐN (CAM)
+        new Chart(document.getElementById('costChart'), {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    data: purchaseCosts,
+                    borderColor: '#EA580C',
+                    backgroundColor: 'rgba(234, 88, 12, 0.1)',
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#EA580C',
+                    tension: 0.3
+                }]
+            },
+            options: commonLineOptions
+        });
+
+        // 4. BIỂU ĐỒ LƯỢT THAM QUAN TRANG (PAGE VIEWS)
+        new Chart(document.getElementById('trafficChart'), {
             type: 'bar',
             data: {
-                labels: ['1. Xem Sản phẩm', '2. Thêm Giỏ hàng', '3. Đặt hàng'],
+                labels: dates,
                 datasets: [{
-                    data: [@Model.FunnelViews, @Model.FunnelCarts, @Model.FunnelOrders],
-                    backgroundColor: ['#111827', '#4B5563', '#9CA3AF'],
-                    barThickness: 30
+                    data: pageViews,
+                    backgroundColor: '#0F172A',
+                    borderRadius: 3
                 }]
             },
             options: {
-                indexAxis: 'y', // Đảo trục thành Bar ngang hiển thị cấu trúc phễu thu hẹp dần
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                ...commonLineOptions,
                 scales: {
-                    x: { grid: { color: '#F3F4F6' }, ticks: { color: '#9CA3AF' } },
-                    y: { grid: { display: false }, ticks: { color: '#111827', font: { weight: '600' } } }
+                    x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: fontConfig } },
+                    y: { grid: { color: '#F1F5F9' }, ticks: { color: '#9CA3AF', font: fontConfig } }
                 }
             }
         });
 
-        // 4. BIỂU ĐỒ TRÒN KHÁCH HÀNG RỜI BỎ
-        new Chart(document.getElementById('churnChart'), {
-            type: 'pie',
+        // 5. BIỂU ĐỒ PHỄU CHUYỂN ĐỔI CHẶNG HÀNH VI KHÁCH HÀNG
+        new Chart(document.getElementById('conversionFunnelChart'), {
+            type: 'bar',
             data: {
-                labels: ['Khách hàng giữ chân (Active)', 'Khách hàng rời bỏ (Churned)'],
+                labels: ['1. Lượt xem trang', '2. Thêm vào giỏ', '3. Chốt đơn hàng'],
                 datasets: [{
-                    data: [@Model.ActiveCustomersCount, @Model.ChurnedCustomersCount],
-                    backgroundColor: ['#111827', '#E5E7EB'],
-                    borderWidth: 1,
-                    borderColor: '#FFFFFF'
+                    data: [@Model.FunnelViews, @Model.FunnelCarts, @Model.FunnelOrders],
+                    backgroundColor: ['#475569', '#334155', '#0F172A'],
+                    borderRadius: 4,
+                    barThickness: 25
                 }]
             },
             options: {
+                indexAxis: 'y', // Ép thanh phễu chuyển đổi nằm ngang thu hẹp dần
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: '#F1F5F9' }, ticks: { color: '#9CA3AF', font: fontConfig } },
+                    y: { grid: { display: false }, ticks: { color: '#0F172A', font: { family: 'Plus Jakarta Sans', size: 11, weight: '700' } } }
+                }
             }
         });
     </script>

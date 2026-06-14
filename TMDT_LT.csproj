@@ -11,6 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="Models\Product.cshtml" />
+    <Content Remove="Models\ProductReviews.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Data\" />
     <Folder Include="wwwroot\uploads\banners\" />
   </ItemGroup>

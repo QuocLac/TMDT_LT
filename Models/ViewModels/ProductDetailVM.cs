@@ -15,6 +15,6 @@ namespace TMDT_LT.Models.ViewModels.Storefront
         public int TotalReviews { get; set; }
 
         // Mảng đếm số lượng đánh giá theo từng mức sao (Index 0: 1 sao, Index 4: 5 sao)
-        public int[] StarCounts { get; set; } = new int[5];
+        public Dictionary<int, int> StarCounts { get; set; } = new Dictionary<int, int>();
     }
 }

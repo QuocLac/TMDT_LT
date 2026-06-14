@@ -18,4 +18,7 @@ public partial class OrderDetails
     public virtual Orders? Order { get; set; }
 
     public virtual ProductVariants? Variant { get; set; }
+
+    // Cờ xác nhận khách hàng đã đánh giá sản phẩm này trong đơn hàng này chưa
+    public bool IsReviewed { get; set; } = false;
 }
