@@ -1,31 +1,32 @@
 ﻿@model TMDT_LT.Models.ViewModels.ProfileVM
 @{
     Layout = "_Layout";
-    ViewData["Title"] = "Thông tin tài khoản";
+    ViewData["Title"] = "Quản lý tài khoản";
 }
 
 @section Styles {
     <style>
         .profile-container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 40px auto;
             display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 24px;
+            grid-template-columns: 280px 1fr;
+            gap: 32px;
             padding: 0 16px;
         }
 
         .profile-card {
             background: #fff;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         }
 
-        /* Thẻ thành viên (Bên trái) */
+        /* Sidebar */
         .member-card {
             text-align: center;
+            padding: 32px 24px;
         }
 
         .member-avatar {
@@ -83,9 +84,99 @@
             color: #6B7280;
         }
 
-        /* Form nhập liệu (Bên phải) */
+        /* Menu Điều Hướng Tab */
+        .tab-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 24px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 16px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            text-align: left;
+            padding: 14px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748B;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+            .tab-btn i {
+                width: 20px;
+                text-align: center;
+                font-size: 16px;
+            }
+
+            .tab-btn:hover {
+                background: #F8FAFC;
+                color: var(--navy-deep);
+            }
+
+            .tab-btn.active {
+                background: #EEF2FF;
+                color: var(--navy-deep);
+            }
+
+        /* Nội dung Tab */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+            .tab-content.active {
+                display: block;
+            }
+
+ 
+        {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        
+
+        /* Form Chung & Bố cục Box */
+        .form-section {
+            background: #F8FAFC; /* Màu nền xám nhẹ cho từng khối */
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--navy-deep);
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed #CBD5E1; /* Dòng kẻ đứt */
+        }
+
+        /* Chia 2 cột bằng Grid để đều nhau hoàn hảo */
+        .form-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .form-label {
@@ -93,53 +184,85 @@
             font-size: 13px;
             font-weight: 600;
             color: var(--navy-deep);
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
         .form-control {
             width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border-color);
+            padding: 12px 16px;
+            border: 1px solid #CBD5E1;
             border-radius: 6px;
             font-size: 14px;
-            box-sizing: border-box;
             transition: border-color 0.2s;
+            background: #fff;
+            box-sizing: border-box;
         }
 
             .form-control:focus {
                 outline: none;
                 border-color: var(--navy-deep);
+                box-shadow: 0 0 0 3px rgba(15,23,42,0.05);
             }
 
             .form-control:read-only {
-                background: #F3F4F6;
-                color: #6B7280;
+                background: #F1F5F9;
+                color: #64748B;
                 cursor: not-allowed;
+                border-color: #E2E8F0;
             }
 
         .btn-submit {
             background: var(--navy-deep);
             color: #fff;
-            padding: 12px 24px;
+            padding: 12px 32px;
             border: none;
             border-radius: 6px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
 
             .btn-submit:hover {
                 background: #0f172a;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             }
+
+        /* Giao diện Address */
+        .address-item {
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+            .address-item:hover {
+                border-color: #94A3B8;
+            }
+
+        .badge-default {
+            background: #10B981;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+            font-weight: 600;
+        }
     </style>
 }
 
+<input type="hidden" id="initialTab" value="@Model.ActiveTab" />
+
 <div class="profile-container">
     <div class="profile-card member-card">
-        <div class="member-avatar">
-            <i class="fas fa-user"></i>
-        </div>
+        <div class="member-avatar"><i class="fas fa-user"></i></div>
         <div class="member-name">@Model.FullName</div>
         <div class="member-tier"><i class="fas fa-crown"></i> Hạng: @Model.CustomerType</div>
 
@@ -153,56 +276,200 @@
                 <div class="stat-label">Tham gia</div>
             </div>
         </div>
+
+        <div class="tab-menu">
+            <button class="tab-btn" data-target="profile"><i class="fas fa-user-edit"></i> Hồ sơ cá nhân</button>
+            <button class="tab-btn" data-target="address"><i class="fas fa-map-marker-alt"></i> Sổ địa chỉ</button>
+            <button class="tab-btn" data-target="password"><i class="fas fa-lock"></i> Đổi mật khẩu</button>
+        </div>
     </div>
 
-    <div class="profile-card">
-        <h3 style="color: var(--navy-deep); margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">Hồ sơ cá nhân</h3>
+    <div class="profile-card" style="padding: 40px;">
 
-        <form asp-action="UpdateProfile" asp-controller="Account" method="post">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div class="form-group" style="grid-column: span 2;">
-                    <label class="form-label">Địa chỉ Email (Tài khoản đăng nhập)</label>
-                    <input type="text" class="form-control" value="@Model.Email" readonly />
-                    <span style="font-size: 11px; color: #10B981; margin-top: 4px; display: block;"><i class="fas fa-check-circle"></i> Đã xác thực</span>
+        <div id="tab-profile" class="tab-content">
+            <h2 style="margin-top:0; margin-bottom: 24px; color: var(--navy-deep); font-size: 22px;">Hồ sơ cá nhân</h2>
+
+            <form asp-action="UpdateProfile" asp-controller="Account" method="post">
+
+                <div class="form-section">
+                    <div class="section-title">Thông tin liên hệ</div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Địa chỉ Email (Tài khoản đăng nhập)</label>
+                            <input type="text" class="form-control" value="@Model.Email" readonly />
+                            <span style="font-size: 13px; color: #10B981; margin-top: 8px; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                                <i class="fas fa-check-circle"></i> Đã xác thực
+                            </span>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Số điện thoại</label>
+                            <input type="text" asp-for="Phone" class="form-control" placeholder="Nhập số điện thoại" />
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Họ và tên</label>
-                    <input type="text" asp-for="FullName" class="form-control" placeholder="Nhập họ và tên..." required />
+                <div class="form-section">
+                    <div class="section-title">Thông tin định danh</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Họ và tên</label>
+                        <input type="text" asp-for="FullName" class="form-control" required placeholder="Nhập họ và tên hiển thị" />
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Giới tính</label>
+                            <select asp-for="Gender" class="form-control">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                                <option value="Khác">Khác</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Ngày sinh</label>
+                            <input type="date" asp-for="BirthDate" class="form-control" value="@(Model.BirthDate?.ToString("yyyy-MM-dd"))" />
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Số điện thoại</label>
-                    <input type="text" asp-for="Phone" class="form-control" placeholder="Nhập số điện thoại..." />
+                <div style="text-align: right; margin-top: 32px;">
+                    <button type="submit" class="btn-submit"><i class="fas fa-save" style="margin-right: 8px;"></i> LƯU THAY ĐỔI</button>
                 </div>
+            </form>
+        </div>
 
-                <div class="form-group">
-                    <label class="form-label">Giới tính</label>
-                    <select asp-for="Gender" class="form-control">
-                        <option value="">-- Chọn giới tính --</option>
-                        <option value="Nam">Nam</option>
-                        <option value="Nữ">Nữ</option>
-                        <option value="Khác">Khác</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Ngày sinh</label>
-                    <input type="date" asp-for="BirthDate" class="form-control" value="@(Model.BirthDate?.ToString("yyyy-MM-dd"))" />
-                </div>
+        <div id="tab-address" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
+                <h2 style="margin: 0; color: var(--navy-deep); font-size: 22px;">Địa chỉ nhận hàng</h2>
+                <button type="button" class="btn-submit" style="background:#10B981; padding: 10px 20px;" onclick="document.getElementById('addAddressForm').style.display='block'">
+                    <i class="fas fa-plus" style="margin-right: 6px;"></i> Thêm địa chỉ mới
+                </button>
             </div>
 
-            <div style="margin-top: 24px; text-align: right;">
-                <button type="submit" class="btn-submit">LƯU THAY ĐỔI</button>
+            <div id="addAddressForm" class="form-section" style="display: none; background: #F8FAFC; border-color: #94A3B8;">
+                <div class="section-title" style="border-bottom-color: #CBD5E1;">Thông tin địa chỉ mới</div>
+                <form asp-action="AddAddress" asp-controller="Account" method="post">
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Tỉnh / Thành phố</label>
+                            <select id="apiCity" asp-for="NewAddress.City" class="form-control" required>
+                                <option value="">-- Chọn Tỉnh/Thành --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quận / Huyện</label>
+                            <select id="apiDistrict" asp-for="NewAddress.District" class="form-control" required>
+                                <option value="">-- Chọn Quận/Huyện --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Phường / Xã</label>
+                            <select id="apiWard" class="form-control" required>
+                                <option value="">-- Chọn Phường/Xã --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Tên đường, Toà nhà, Số nhà</label>
+                            <input type="text" id="apiHouse" class="form-control" placeholder="Ví dụ: Số 10, Ngõ 2" required />
+                        </div>
+                    </div>
+
+                    <input type="hidden" asp-for="NewAddress.Street" id="hiddenStreet" />
+
+                    <div class="form-group" style="margin-top: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--navy-deep);">
+                            <input type="checkbox" asp-for="NewAddress.IsDefault" style="width: 18px; height: 18px; accent-color: #10B981;" />
+                            Đặt làm địa chỉ mặc định
+                        </label>
+                    </div>
+
+                    <div style="text-align: right; margin-top: 24px; display: flex; gap: 16px; justify-content: flex-end;">
+                        <button type="button" class="btn-submit" style="background:#fff; color: #64748B; border: 1px solid #CBD5E1;" onclick="document.getElementById('addAddressForm').style.display='none'">HỦY BỎ</button>
+                        <button type="submit" class="btn-submit" id="btnSaveAddress"><i class="fas fa-save" style="margin-right: 8px;"></i> LƯU ĐỊA CHỈ</button>
+                    </div>
+                </form>
             </div>
-        </form>
+
+            @if (Model.Addresses.Any())
+            {
+                @foreach (var addr in Model.Addresses)
+                {
+                    <div class="address-item">
+                        <div>
+                            <div style="font-weight: 700; font-size: 15px; color: var(--navy-deep); margin-bottom: 6px;">
+                                @Model.FullName <span style="color: #94A3B8; font-weight: 400; margin: 0 8px;">|</span> @Model.Phone
+                                @if (addr.IsDefault)
+                                {
+                                    <span class="badge-default"><i class="fas fa-check"></i> Mặc định</span>
+                                }
+                            </div>
+                            <div style="font-size: 14px; color: #475569; margin-bottom: 4px; line-height: 1.5;">@addr.Street</div>
+                            <div style="font-size: 14px; color: #475569;">@addr.District, @addr.City</div>
+                        </div>
+                        <div style="display: flex; gap: 16px; flex-direction: column; align-items: flex-end;">
+                            <form asp-action="DeleteAddress" asp-controller="Account" method="post" onsubmit="return confirm('Bạn chắc chắn muốn xóa địa chỉ này?');">
+                                <input type="hidden" name="addressId" value="@addr.AddressId" />
+                                <button type="submit" style="background: none; border: none; color: var(--accent-red); cursor: pointer; font-weight: 600; font-size: 14px; transition: opacity 0.2s;"><i class="fas fa-trash-alt" style="margin-right: 4px;"></i> Xóa</button>
+                            </form>
+                            @if (!addr.IsDefault)
+                            {
+                                <form asp-action="SetDefaultAddress" asp-controller="Account" method="post">
+                                    <input type="hidden" name="addressId" value="@addr.AddressId" />
+                                    <button type="submit" style="background: #fff; border: 1px solid var(--border-color); padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--navy-deep); transition: all 0.2s;">Thiết lập mặc định</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div style="text-align: center; padding: 40px; background: #F8FAFC; border-radius: 8px; color: #94A3B8;">
+                    <i class="fas fa-map-marker-alt" style="font-size: 40px; margin-bottom: 16px; color: #CBD5E1;"></i>
+                    <p style="margin: 0; font-size: 14px;">Bạn chưa có địa chỉ nhận hàng nào được lưu.</p>
+                </div>
+            }
+        </div>
+
+        <div id="tab-password" class="tab-content">
+            <h2 style="margin-top:0; margin-bottom: 24px; color: var(--navy-deep); font-size: 22px;">Đổi mật khẩu bảo mật</h2>
+
+            <form asp-action="ChangePassword" asp-controller="Account" method="post">
+                <div class="form-section" style="max-width: 500px;">
+                    <div class="form-group">
+                        <label class="form-label">Mật khẩu hiện tại</label>
+                        <input type="password" asp-for="PasswordData.OldPassword" class="form-control" required placeholder="Nhập mật khẩu đang sử dụng" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mật khẩu mới</label>
+                        <input type="password" asp-for="PasswordData.NewPassword" class="form-control" required minlength="6" placeholder="Tối thiểu 6 ký tự" />
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Xác nhận mật khẩu mới</label>
+                        <input type="password" asp-for="PasswordData.ConfirmPassword" class="form-control" required minlength="6" placeholder="Nhập lại mật khẩu mới" />
+                    </div>
+                </div>
+
+                <div style="margin-top: 24px;">
+                    <button type="submit" class="btn-submit"><i class="fas fa-key" style="margin-right: 8px;"></i> XÁC NHẬN ĐỔI MẬT KHẨU</button>
+                </div>
+            </form>
+        </div>
+
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Đọc thông báo từ TempData và gọi hàm showToast của _Layout.cshtml
+
+            // 1. HIỂN THỊ TOAST TỪ TEMPDATA
             @if (TempData["Success"] != null)
             {
                     <text>window.showToast('@TempData["Success"]', 'success');</text>
@@ -211,6 +478,74 @@
             {
                     <text>window.showToast('@TempData["Error"]', 'error');</text>
             }
+
+            // 2. XỬ LÝ CHUYỂN TAB
+            const tabs = document.querySelectorAll('.tab-btn');
+            const contents = document.querySelectorAll('.tab-content');
+            const initialTab = document.getElementById('initialTab').value || 'profile';
+
+            function activateTab(tabName) {
+                tabs.forEach(t => t.classList.remove('active'));
+                contents.forEach(c => c.classList.remove('active'));
+
+                const targetBtn = document.querySelector(`.tab-btn[data-target="${tabName}"]`);
+                const targetContent = document.getElementById(`tab-${tabName}`);
+
+                if (targetBtn && targetContent) {
+                    targetBtn.classList.add('active');
+                    targetContent.classList.add('active');
+                }
+            }
+
+            activateTab(initialTab);
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    activateTab(tab.getAttribute('data-target'));
+                });
+            });
+
+            // 3. API VIỆT NAM PROVINCES
+            const cit = document.getElementById("apiCity");
+            const dis = document.getElementById("apiDistrict");
+            const ward = document.getElementById("apiWard");
+
+            axios.get('https://provinces.open-api.vn/api/?depth=3')
+            .then(function (response) {
+                renderCity(response.data);
+            });
+
+            function renderCity(data) {
+                for (const x of data) {
+                    cit.options[cit.options.length] = new Option(x.name, x.name);
+                }
+                cit.onchange = function () {
+                    dis.length = 1; ward.length = 1;
+                    if(this.value !== "") {
+                        const result = data.filter(n => n.name === this.value);
+                        for (const k of result[0].districts) {
+                            dis.options[dis.options.length] = new Option(k.name, k.name);
+                        }
+                    }
+                };
+                dis.onchange = function () {
+                    ward.length = 1;
+                    const dataCity = data.filter((n) => n.name === cit.value);
+                    if (this.value !== "") {
+                        const dataWards = dataCity[0].districts.filter(n => n.name === this.value)[0].wards;
+                        for (const w of dataWards) {
+                            ward.options[ward.options.length] = new Option(w.name, w.name);
+                        }
+                    }
+                };
+            }
+
+            // Gộp chuỗi Phường + Tên Đường
+            document.getElementById('btnSaveAddress').addEventListener('click', function() {
+                const w = document.getElementById('apiWard').value;
+                const h = document.getElementById('apiHouse').value;
+                document.getElementById('hiddenStreet').value = h + ", " + w;
+            });
         });
     </script>
 }

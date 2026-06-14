@@ -236,7 +236,7 @@
                             <a href="/Account/Favorites" class="dropdown-item"><i class="fas fa-heart"></i> Sản phẩm yêu thích</a>
                             <a href="/Account/Notifications" class="dropdown-item"><i class="fas fa-bell"></i> Thông báo hệ thống</a>
                             <div class="dropdown-divider"></div>
-                            <form action="/Home/Index" method="post" style="margin: 0;">
+                            <form action="/Auth/Logout" method="post" style="margin: 0;">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
                             </form>
