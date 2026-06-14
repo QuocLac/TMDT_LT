@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
 using TMDT_LT.Models.ViewModels;
@@ -94,6 +95,12 @@ namespace TMDT_LT.Controllers
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
                 new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTime.UtcNow.AddDays(7) });
 
+            // BỔ SUNG: Gọi hàm gộp giỏ hàng vãng lai vào Database
+            if (int.TryParse(customerId, out int cusIdParsed))
+            {
+                await MergeCartAfterLogin(cusIdParsed);
+            }
+
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
 
@@ -158,29 +165,46 @@ namespace TMDT_LT.Controllers
             }
         }
 
+        // CẬP NHẬT: Hàm gộp giỏ hàng đọc từ Cookie thay vì Session
         private async Task MergeCartAfterLogin(int customerId)
         {
-            var sessionCart = HttpContext.Session.Get<List<CartItemSession>>("PhoneStore_Cart");
-            if (sessionCart != null && sessionCart.Any())
+            var cartCookie = HttpContext.Request.Cookies["PhoneStCartCookie"];
+            if (!string.IsNullOrEmpty(cartCookie))
             {
-                var existing = _context.CartItems.Where(c => c.CustomerId == customerId);
-                _context.CartItems.RemoveRange(existing);
-
-                foreach (var item in sessionCart)
+                try
                 {
-                    _context.CartItems.Add(new CartItems
+                    var guestCart = JsonSerializer.Deserialize<List<CartItemVM>>(cartCookie);
+                    if (guestCart != null && guestCart.Any())
                     {
-                        CustomerId = customerId,
-                        VariantId = item.VariantId,
-                        Quantity = item.Quantity,
-                        CreatedDate = DateTime.Now
-                    });
+                        var dbCart = await _context.CartItems.Where(c => c.CustomerId == customerId).ToListAsync();
+
+                        foreach (var item in guestCart)
+                        {
+                            var exist = dbCart.FirstOrDefault(c => c.VariantId == item.VariantId);
+                            if (exist != null)
+                            {
+                                exist.Quantity += item.Quantity;
+                            }
+                            else
+                            {
+                                _context.CartItems.Add(new CartItems
+                                {
+                                    CustomerId = customerId,
+                                    VariantId = item.VariantId,
+                                    Quantity = item.Quantity,
+                                    CreatedDate = DateTime.Now
+                                });
+                            }
+                        }
+                        await _context.SaveChangesAsync();
+                    }
                 }
-                await _context.SaveChangesAsync();
-                HttpContext.Session.Remove("PhoneStore_Cart");
+                catch { }
+
+                // Xóa Cookie sau khi đã gộp vào Database thành công
+                HttpContext.Response.Cookies.Delete("PhoneStCartCookie");
             }
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()

@@ -1,7 +1,10 @@
 ﻿@using Microsoft.AspNetCore.Http
 @using System.Text.Json
 @using TMDT_LT.Models.ViewModels.Storefront
+@using System.Security.Claims
 @inject IHttpContextAccessor HttpContextAccessor
+@inject IHttpContextAccessor HttpContextAccessor
+
 
 <!DOCTYPE html>
 <html lang="vi">
@@ -160,12 +163,32 @@
 </head>
 <body>
     @{
+        // ĐẾM SỐ LƯỢNG VẬT PHẨM TRONG GIỎ HÀNG
         int totalCartItems = 0;
-        var cartSession = HttpContextAccessor.HttpContext?.Session.GetString("PhoneStCartSession");
-        if (!string.IsNullOrEmpty(cartSession))
+
+        if (User.Identity != null && User.Identity.IsAuthenticated)
         {
-            var cart = JsonSerializer.Deserialize<List<CartItemVM>>(cartSession);
-            totalCartItems = cart?.Sum(x => x.Quantity) ?? 0;
+            // Nếu đã đăng nhập: Đếm trong DB
+            var dbContext = Context.RequestServices.GetService<TMDT_LT.Data.ApplicationDbContext>();
+            var customerIdStr = User.FindFirstValue("CustomerId");
+            if (int.TryParse(customerIdStr, out int cusId) && dbContext != null)
+            {
+                totalCartItems = dbContext.CartItems.Where(c => c.CustomerId == cusId).Sum(c => c.Quantity) ?? 0;
+            }
+        }
+        else
+        {
+            // Nếu khách vãng lai: Đếm trong Cookie
+            var cartCookie = HttpContextAccessor.HttpContext?.Request.Cookies["PhoneStCartCookie"];
+            if (!string.IsNullOrEmpty(cartCookie))
+            {
+                try
+                {
+                    var cart = JsonSerializer.Deserialize<List<CartItemVM>>(cartCookie);
+                    totalCartItems = cart?.Sum(x => x.Quantity) ?? 0;
+                }
+                catch { }
+            }
         }
     }
 
@@ -213,7 +236,7 @@
                             <a href="/Account/Favorites" class="dropdown-item"><i class="fas fa-heart"></i> Sản phẩm yêu thích</a>
                             <a href="/Account/Notifications" class="dropdown-item"><i class="fas fa-bell"></i> Thông báo hệ thống</a>
                             <div class="dropdown-divider"></div>
-                            <form action="/Auth/Logout" method="post" style="margin: 0;">
+                            <form action="/Home/Index" method="post" style="margin: 0;">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
                             </form>
