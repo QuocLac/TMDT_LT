@@ -34,12 +34,29 @@ namespace TMDT_LT.Controllers
             if (account == null) return RedirectToAction("Login", "Auth");
 
             var customer = account.Customer.FirstOrDefault();
-            if (customer == null) return NotFound("Lỗi dữ liệu khách hàng.");
+
+            // ========================================================
+            // TỰ ĐỘNG CHỮA LÀNH DỮ LIỆU: Kích hoạt nếu Account thiếu Customer
+            // ========================================================
+            if (customer == null)
+            {
+                customer = new Customer
+                {
+                    AccountId = account.AccountId,
+                    FullName = account.Role == "Admin" ? "Quản trị viên" : "Thành viên PHONE.ST",
+                    CustomerType = "Newbie",
+                    RewardPoints = 0,
+                    Phone = account.Phone
+                };
+                _context.Customer.Add(customer);
+                await _context.SaveChangesAsync();
+            }
+            // ========================================================
 
             var model = new ProfileVM
             {
                 Email = account.Email,
-                FullName = customer.FullName,
+                FullName = customer.FullName ?? "",
                 Phone = customer.Phone,
                 Gender = customer.Gender,
                 BirthDate = customer.BirthDate,
@@ -47,7 +64,9 @@ namespace TMDT_LT.Controllers
                 RewardPoints = customer.RewardPoints,
                 CreatedAt = account.CreatedAt,
                 ActiveTab = TempData["ActiveTab"]?.ToString() ?? "profile", // Nhớ tab cũ
-                Addresses = customer.Address.Select(a => new AddressVM
+
+                // Dùng (customer.Address ?? new List<Address>()) để tránh lỗi Null với Customer mới tạo
+                Addresses = (customer.Address ?? new List<Address>()).Select(a => new AddressVM
                 {
                     AddressId = a.AddressId,
                     City = a.City ?? "",
