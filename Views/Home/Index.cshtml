@@ -46,6 +46,20 @@
             position: relative;
         }
 
+        /* THÊM MỚI: CSS CHO THẺ HIỂN THỊ BIẾN THỂ (GIỐNG ẢNH BẠN GỬI) */
+        .product-variant-badge {
+            font-size: 12px;
+            color: #475569;
+            background: #F1F5F9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 6px;
+            margin-bottom: 8px;
+            width: fit-content;
+        }
+
+        /* NÚT YÊU THÍCH HOÀN THIỆN */
         .btn-favorite {
             position: absolute;
             top: 12px;
@@ -53,7 +67,7 @@
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: #FFFFFF;
+            background: rgba(255, 255, 255, 0.95);
             border: 1px solid var(--border-color);
             color: #9CA3AF;
             display: flex;
@@ -65,10 +79,14 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
-            .btn-favorite:hover, .btn-favorite.active {
+            .btn-favorite:hover {
+                transform: scale(1.1);
+            }
+            /* KHI ACTIVE SẼ CÓ MÀU ĐỎ RỰC */
+            .btn-favorite.active {
                 color: var(--accent-red, #DC2626);
                 border-color: var(--accent-red, #DC2626);
-                transform: scale(1.1);
+                background: #FEF2F2;
             }
 
         .voucher-grid {
@@ -228,6 +246,22 @@
                     <a href="/Store/Product/@item.ProductId" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; flex: 1;">
                         <img src="@item.MainImage" alt="@item.Name" class="product-card-img" onerror="this.src='https://via.placeholder.com/200?text=No+Image'" />
                         <div class="product-card-name">@item.Name</div>
+
+                        @if (defaultVariant != null)
+                        {
+                            var attrs = new List<string>();
+                            if (!string.IsNullOrEmpty(defaultVariant.Color)) attrs.Add(defaultVariant.Color);
+                            if (!string.IsNullOrEmpty(defaultVariant.Ram)) attrs.Add(defaultVariant.Ram);
+                            if (!string.IsNullOrEmpty(defaultVariant.Storage)) attrs.Add(defaultVariant.Storage);
+
+                            if (attrs.Any())
+                            {
+                                <div class="product-variant-badge">
+                                    @string.Join(" | ", attrs)
+                                </div>
+                            }
+                        }
+
                         <div class="price-group-market">
                             @if (defaultVariant != null)
                             {
@@ -287,13 +321,29 @@
                 var defaultVariant = item.ProductVariants?.OrderBy(v => v.Price).FirstOrDefault();
 
                 <div class="market-product-card">
-                    <button class="btn-favorite" onclick="toggleFavorite(event, @item.ProductId)" title="Thêm vào yêu thích">
+                    <button class="btn-favorite" onclick="toggleFavorite(event, this, @(defaultVariant?.VariantId ?? 0))" title="Thêm vào yêu thích">
                         <i class="far fa-heart"></i>
                     </button>
 
                     <a href="/Store/Product/@item.ProductId" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; flex: 1;">
                         <img src="@item.MainImage" alt="@item.Name" class="product-card-img" onerror="this.src='https://via.placeholder.com/200?text=No+Image'" />
                         <div class="product-card-name">@item.Name</div>
+
+                        @if (defaultVariant != null)
+                        {
+                            var attrs = new List<string>();
+                            if (!string.IsNullOrEmpty(defaultVariant.Color)) attrs.Add(defaultVariant.Color);
+                            if (!string.IsNullOrEmpty(defaultVariant.Ram)) attrs.Add(defaultVariant.Ram);
+                            if (!string.IsNullOrEmpty(defaultVariant.Storage)) attrs.Add(defaultVariant.Storage);
+
+                            if (attrs.Any())
+                            {
+                                <div class="product-variant-badge">
+                                    @string.Join(" | ", attrs)
+                                </div>
+                            }
+                        }
+
                         <div class="price-group-market">
                             @if (defaultVariant != null)
                             {
@@ -336,7 +386,6 @@
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // [CÁC LOGIC CŨ CỦA BẠN ĐƯỢC GIỮ NGUYÊN]
 
             // 1. SLIDER
             const track = document.getElementById('mainSliderTrack');
@@ -414,82 +463,78 @@
                 });
             });
 
-            // 3. YÊU THÍCH SẢN PHẨM
-       
-        window.toggleFavorite = async function(event, btnElement, variantId) {
-            event.preventDefault();
-            event.stopPropagation();
+            // =========================================================
+            // 3. XỬ LÝ YÊU THÍCH (THÊM / HỦY) BẰNG AJAX (DUY NHẤT 1 HÀM)
+            // =========================================================
+            window.toggleFavorite = async function(event, btnElement, variantId) {
+                event.preventDefault();
+                event.stopPropagation();
 
-            if (variantId === 0) {
-                window.showToast("Sản phẩm này hiện chưa có biến thể cụ thể.", "error");
-                return;
-            }
+                if (variantId === 0) {
+                    window.showToast("Sản phẩm này hiện chưa có cấu hình cụ thể.", "error");
+                    return;
+                }
 
-            const icon = btnElement.querySelector('i');
+                const icon = btnElement.querySelector('i');
 
-            // Đảo trạng thái UI tạm thời để tạo cảm giác mượt mà tức thì cho người dùng
-            const isCurrentlyActive = btnElement.classList.contains('active');
-            btnElement.classList.toggle('active');
-            icon.className = isCurrentlyActive ? 'far fa-heart' : 'fas fa-heart';
+                // Tạm thời bật tắt UI ngay lập tức cho trải nghiệm nhanh
+                const isCurrentlyActive = btnElement.classList.contains('active');
+                btnElement.classList.toggle('active');
+                icon.className = isCurrentlyActive ? 'far fa-heart' : 'fas fa-heart';
 
-            try {
-                const formData = new FormData();
-                formData.append('variantId', variantId);
+                try {
+                    const formData = new FormData();
+                    formData.append('variantId', variantId);
 
-                // Gửi request tới FavoriteController vừa tạo
-                const response = await fetch('/Favorite/Toggle', {
-                    method: 'POST',
-                    body: formData
-                });
+                    // Gọi Database qua Controller
+                    const response = await fetch('/Favorite/Toggle', {
+                        method: 'POST',
+                        body: formData
+                    });
 
-                const data = await response.json();
+                    const data = await response.json();
 
-                if (data.success) {
-                    // Nếu thành công, hiện Toast thông báo
-                    window.showToast(data.message, 'success');
+                    if (data.success) {
+                        window.showToast(data.message, 'success');
 
-                    // Đảm bảo icon đồng bộ với kết quả từ server
-                    if (data.isAdded) {
-                        btnElement.classList.add('active');
-                        icon.className = 'fas fa-heart';
-                    } else {
-                        btnElement.classList.remove('active');
-                        icon.className = 'far fa-heart';
-                    }
-                } else {
-                    // Nếu thất bại (chưa đăng nhập), trả lại trạng thái trái tim ban đầu
-                    btnElement.classList.toggle('active');
-                    icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
-
-                    if (data.requireLogin) {
-                        if (confirm(data.message + " Chuyển đến trang đăng nhập?")) {
-                            window.location.href = '/Account/Login?returnUrl=/';
+                        // Chốt UI dựa trên dữ liệu thật (Màu đỏ = Đã thêm)
+                        if (data.isAdded) {
+                            btnElement.classList.add('active');
+                            icon.className = 'fas fa-heart';
+                        } else {
+                            btnElement.classList.remove('active');
+                            icon.className = 'far fa-heart';
                         }
                     } else {
-                        window.showToast(data.message, 'error');
-                    }
-                }
-            } catch (e) {
-                // Nếu lỗi mạng, trả lại trạng thái trái tim ban đầu
-                btnElement.classList.toggle('active');
-                icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
-                window.showToast('Lỗi kết nối đến máy chủ.', 'error');
-            }
-        };
+                        // Thất bại -> trả lại UI cũ
+                        btnElement.classList.toggle('active');
+                        icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
 
-            // =========================================================
-            // 4. BỔ SUNG: XỬ LÝ AJAX THÊM VÀO GIỎ HÀNG KHÔNG RELOAD TRANG
-            // =========================================================
+                        if (data.requireLogin) {
+                            if (confirm(data.message + " Chuyển đến trang đăng nhập?")) {
+                                window.location.href = '/Account/Login?returnUrl=/';
+                            }
+                        } else {
+                            window.showToast(data.message, 'error');
+                        }
+                    }
+                } catch (e) {
+                    btnElement.classList.toggle('active');
+                    icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
+                    window.showToast('Lỗi kết nối đến máy chủ.', 'error');
+                }
+            };
+
+            // 4. XỬ LÝ AJAX THÊM VÀO GIỎ HÀNG KHÔNG RELOAD TRANG
             document.querySelectorAll('.ajax-cart-form').forEach(form => {
                 form.addEventListener('submit', async function (e) {
-                    e.preventDefault(); // Ngăn trình duyệt chuyển trang
+                    e.preventDefault();
 
                     const btnSubmit = this.querySelector('.btn-home-cart');
                     if (btnSubmit.disabled) return;
 
                     const originalContent = btnSubmit.innerHTML;
 
-                    // Đổi trạng thái nút thành Đang xử lý
                     btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ĐANG XỬ LÝ';
                     btnSubmit.disabled = true;
 
@@ -497,23 +542,17 @@
                         const formData = new FormData(this);
                         const url = this.action;
 
-                        // Gửi request Fetch đến CartController
                         const response = await fetch(url, {
                             method: 'POST',
                             body: formData,
                             headers: {
-                                'X-Requested-With': 'XMLHttpRequest' // Khai báo đây là AJAX
+                                'X-Requested-With': 'XMLHttpRequest'
                             }
                         });
 
-                        // Vì ASP.NET Core mặc định có thể trả về RedirectToAction (HTML) khi AddToCart
-                        // Chạy đến bước này không ném lỗi là đã add thành công vào Session
                         if (response.ok || response.redirected) {
-
-                            // Gọi hàm Toast hiển thị thông báo
                             window.showToast("Đã thêm sản phẩm vào giỏ hàng!", "success");
 
-                            // Tìm badge giỏ hàng trên Header và cập nhật số lượng trực tiếp
                             const cartBadge = document.getElementById('header-cart-badge');
                             if (cartBadge) {
                                 let currentQty = parseInt(cartBadge.innerText) || 0;
@@ -529,7 +568,6 @@
                         console.error("Lỗi AJAX giỏ hàng:", error);
                         window.showToast("Mất kết nối máy chủ.", "error");
                     } finally {
-                        // Trả lại trạng thái nút ban đầu
                         btnSubmit.innerHTML = originalContent;
                         btnSubmit.disabled = false;
                     }
