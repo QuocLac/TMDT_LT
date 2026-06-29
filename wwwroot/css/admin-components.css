@@ -1,14 +1,15 @@
-﻿/* Card Container */
+﻿/* ==========================================================
+   1. CARD & TABLE (GIAO DIỆN BẢNG)
+========================================================== */
 .admin-card {
-    background: var(--admin-bg-card);
+    background: var(--admin-bg-card, #FFFFFF);
     border-radius: 8px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--admin-border, #E5E7EB);
     padding: 24px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     margin-bottom: 24px;
 }
 
-/* Data Tables */
 .data-table {
     width: 100%;
     border-collapse: collapse;
@@ -22,20 +23,22 @@
         font-weight: 600;
         color: #6B7280;
         text-transform: uppercase;
-        border-bottom: 1px solid var(--admin-border);
+        border-bottom: 1px solid var(--admin-border, #E5E7EB);
     }
 
     .data-table td {
         padding: 16px;
         font-size: 14px;
-        border-bottom: 1px solid var(--admin-border);
+        border-bottom: 1px solid var(--admin-border, #E5E7EB);
         vertical-align: middle;
     }
 
-/* Buttons */
+/* ==========================================================
+   2. NÚT BẤM (BUTTONS)
+========================================================== */
 .btn-dark {
-    background: var(--admin-bg-sidebar);
-    color: var(--admin-text-light);
+    background: var(--admin-bg-sidebar, #111827);
+    color: var(--admin-text-light, #FFFFFF);
     border: none;
     padding: 8px 16px;
     border-radius: 6px;
@@ -43,7 +46,11 @@
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background-color 0.2s ease;
 }
 
     .btn-dark:hover {
@@ -53,15 +60,19 @@
 
 .btn-outline {
     background: transparent;
-    color: var(--admin-text-dark);
-    border: 1px solid var(--admin-border);
+    color: var(--admin-text-dark, #111827);
+    border: 1px solid var(--admin-border, #E5E7EB);
     padding: 8px 16px;
     border-radius: 6px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
 }
 
     .btn-outline:hover {
@@ -69,7 +80,9 @@
         border-color: #D1D5DB;
     }
 
-/* Forms */
+/* ==========================================================
+   3. Ô NHẬP LIỆU (FORMS) ĐÃ FIX LỖI TRÀN VIỀN
+========================================================== */
 .form-row {
     margin-bottom: 20px;
 }
@@ -79,23 +92,121 @@
     font-size: 13px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: var(--admin-text-dark);
+    color: var(--admin-text-dark, #111827);
 }
 
 .form-control {
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--admin-border);
-    border-radius: 6px;
+    padding: 10px 14px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px; /* Bo góc mềm mại hơn */
     font-size: 14px;
-    font-family: var(--admin-font);
+    font-family: inherit;
+    background-color: #FFFFFF;
+    box-sizing: border-box !important; /* BẮT BUỘC: Chống tràn viền Modal */
+    transition: all 0.2s ease;
 }
 
     .form-control:focus {
         outline: none;
-        border-color: var(--admin-bg-sidebar);
+        border-color: #111827;
+        box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1); /* Hiệu ứng vòng sáng cực đẹp khi click vào */
     }
-/* Custom Scrollbar tối giản */
+
+/* ==========================================================
+   4. MODAL (CỬA SỔ NỔI) ĐÃ FIX LỖI "SÁT LÊN MODAL"
+========================================================== */
+.modal-overlay {
+    position: fixed !important;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.75) !important;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999 !important;
+    padding: 20px; /* Tránh modal chạm sát viền màn hình nếu thu nhỏ web */
+}
+
+.modal-content {
+    background: #FFFFFF !important;
+    width: 100%;
+    max-width: 520px;
+    border-radius: 16px !important; /* TĂNG ĐỘ BO GÓC LÊN 16PX */
+    overflow: hidden !important; /* Ép các thành phần con không được tràn ra khỏi góc bo */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35) !important;
+    position: relative !important;
+    z-index: 100000 !important;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box !important;
+    border: none !important; /* Xóa viền xám cứng nhắc mặc định của trình duyệt */
+}
+
+.modal-header {
+    padding: 20px 28px !important;
+    border-bottom: 1px solid #E5E7EB !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #FFFFFF !important;
+    border-top-left-radius: 16px !important; /* Ép bo góc Header khớp với khung mẹ */
+    border-top-right-radius: 16px !important;
+}
+
+.modal-title {
+    font-size: 17px;
+    font-weight: 800;
+    margin: 0;
+    color: #111827 !important;
+}
+
+/* Nút X đóng cửa sổ màu Navy Deep cao cấp */
+.btn-close {
+    background: #0F172A !important; /* Nền màu Navy Deep */
+    border: none;
+    cursor: pointer;
+    color: #FFFFFF !important; /* Icon dấu X màu trắng tinh */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 1 !important; /* Vô hiệu hóa độ mờ (opacity) mặc định của trình duyệt/Bootstrap */
+}
+
+    .btn-close:hover {
+        background: #1E293B !important; /* Sáng hơn một chút khi di chuột vào */
+        color: #FFFFFF !important;
+        transform: scale(1.05); /* Hiệu ứng nảy nhẹ tạo cảm giác tương tác mượt mà */
+        box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2); /* Đổ bóng nhẹ cùng tone Navy */
+    }
+
+.modal-body {
+    padding: 28px !important; /* RỘNG RÃI HƠN: Cứu tinh của việc bị sát viền */
+    max-height: 70vh;
+    overflow-y: auto;
+    background: #FFFFFF !important;
+    box-sizing: border-box !important;
+}
+
+.modal-footer {
+    padding: 16px 28px !important;
+    border-top: 1px solid #E5E7EB !important;
+    background: #F9FAFB !important;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-bottom-left-radius: 16px !important; /* Ép bo góc Footer khớp với khung mẹ */
+    border-bottom-right-radius: 16px !important;
+}
+
+/* ==========================================================
+   5. CÁC THÀNH PHẦN PHỤ TRỢ (SCROLLBAR, SEARCH, EXPAND ROW)
+========================================================== */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -114,7 +225,6 @@
         background: #9CA3AF;
     }
 
-/* Autocomplete Search Bar */
 .search-container {
     position: relative;
     width: 100%;
@@ -131,14 +241,14 @@
 .search-input {
     width: 100%;
     padding: 10px 12px 10px 36px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--admin-border, #E5E7EB);
     border-radius: 6px;
     font-size: 14px;
     outline: none;
 }
 
     .search-input:focus {
-        border-color: var(--admin-bg-sidebar);
+        border-color: var(--admin-bg-sidebar, #111827);
     }
 
 .search-dropdown {
@@ -147,7 +257,7 @@
     left: 0;
     right: 0;
     background: white;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--admin-border, #E5E7EB);
     border-radius: 6px;
     margin-top: 4px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -172,7 +282,7 @@
 .search-item-title {
     font-weight: 600;
     font-size: 13px;
-    color: var(--admin-text-dark);
+    color: var(--admin-text-dark, #111827);
 }
 
 .search-item-sub {
@@ -180,70 +290,6 @@
     color: #6B7280;
 }
 
-/* Modal Box (Cửa sổ nổi) */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(17, 24, 39, 0.7);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-}
-
-.modal-content {
-    background: var(--admin-bg-card);
-    width: 100%;
-    max-width: 600px;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
-.modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--admin-border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-title {
-    font-size: 16px;
-    font-weight: 700;
-    margin: 0;
-}
-
-.btn-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #9CA3AF;
-    display: flex;
-    align-items: center;
-    padding: 4px;
-}
-
-    .btn-close:hover {
-        color: var(--admin-text-dark);
-    }
-
-.modal-body {
-    padding: 24px;
-    max-height: 70vh;
-    overflow-y: auto;
-}
-
-.modal-footer {
-    padding: 16px 24px;
-    border-top: 1px solid var(--admin-border);
-    background: #F9FAFB;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-/* Icon đơn sắc tối giản */
 .svg-icon {
     width: 16px;
     height: 16px;
@@ -254,40 +300,38 @@
     stroke-linejoin: round;
 }
 
-/* Expandable Table Row Mechanics */
 .master-row {
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
 
     .master-row:hover {
-        background-color: #F9FAFB;
+        background: #F9FAFB;
     }
 
     .master-row.expanded {
-        background-color: #F3F4F6;
-        border-left: 3px solid var(--admin-bg-sidebar);
+        background: #F3F4F6;
+        border-left: 3px solid var(--admin-bg-sidebar, #111827);
     }
 
 .detail-row {
-    display: none; /* Ẩn mặc định */
-    background-color: #F9FAFB;
+    display: none;
+    background: #F9FAFB;
 }
 
     .detail-row.open {
-        display: table-row; /* Mở ra khi có class open */
+        display: table-row;
     }
 
-/* Detail Panel Styling */
 .variant-panel {
     padding: 20px 40px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid var(--admin-border, #E5E7EB);
 }
 
 .variant-table {
     width: 100%;
     background: #FFFFFF;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--admin-border, #E5E7EB);
     border-radius: 8px;
     overflow: hidden;
 }

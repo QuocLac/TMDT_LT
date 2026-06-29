@@ -46,8 +46,43 @@
         .qa-modal-overlay.show .qa-modal-content { transform: translateY(0); }
         .qa-close-btn { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 20px; color: #9CA3AF; cursor: pointer; }
         .qa-close-btn:hover { color: var(--accent-red); }
+
+        /* KHUNG ĐỔ XUỐNG GỢI Ý TỪ KHÓA CHUẨN SHOPEE STYLE */
+        .shopee-search-dropdown-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #FFFFFF;
+            border: 1px solid #E8E8E8;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            display: none;
+            max-height: 380px;
+            overflow-y: auto;
+        }
+        .shopee-suggestion-row {
+            padding: 12px 16px;
+            font-size: 14px;
+            color: #212121;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background 0.15s ease;
+        }
+        .shopee-suggestion-row:hover {
+            background: #FAFAFA;
+        }
+        .shopee-suggestion-row i.fa-search {
+            color: #757575;
+            margin-right: 12px;
+            font-size: 13px;
+        }
     </style>
 }
+
+
 
 <div class="pdp-container" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
     
@@ -55,7 +90,6 @@
        KHU VỰC 1: HÌNH ẢNH & MUA HÀNG
        ======================================================= *@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 50px;">
-        <!-- Ảnh Sản Phẩm -->
         <div>
             <div style="border: 1px solid #E2E8F0; border-radius: 12px; padding: 30px; text-align: center; background: #FFFFFF; height: 450px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
                 <img id="mainProductImage" src="@(Model.Product.MainImage ?? "/images/productDefault.png")" style="max-height: 100%; max-width: 100%; object-fit: contain; transition: all 0.25s;" />
@@ -77,7 +111,6 @@
             }
         </div>
 
-        <!-- Chọn Biến Thể & Nút Mua -->
         <div>
             <span style="font-size: 11px; font-weight: 800; background: #0F172A; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-transform: uppercase;">
                 @Model.Product.Brand?.BrandName
@@ -149,11 +182,9 @@
     </div>
 
     @* =======================================================
-       KHU VỰC 2: BÀI VIẾT MÔ TẢ & BẢNG THÔNG SỐ (MỚI)
+       KHU VỰC 2: BÀI VIẾT MÔ TẢ & BẢNG THÔNG SỐ
        ======================================================= *@
     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 40px; margin-top: 50px; padding-top: 40px; border-top: 1px solid #E2E8F0;">
-        
-        <!-- Cột Bài viết -->
         <div>
             <h3 style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 20px; text-transform: uppercase;">Mô tả sản phẩm</h3>
             <div class="product-html-content" style="font-size: 15px; color: #334155; line-height: 1.8;">
@@ -165,7 +196,6 @@
             </div>
         </div>
 
-        <!-- Cột Bảng Thông Số -->
         <div>
             <div style="background: #FFFFFF; padding: 24px; border-radius: 8px; border: 1px solid #E2E8F0; position: sticky; top: 100px;">
                 <h3 style="font-size: 16px; font-weight: 800; color: var(--navy-deep, #0F172A); margin-bottom: 16px; text-transform: uppercase; border-bottom: 2px solid #F1F5F9; padding-bottom: 12px;">Thông số kỹ thuật</h3>
@@ -203,7 +233,6 @@
                 </table>
             </div>
         </div>
-
     </div>
 
     @* =======================================================
@@ -265,10 +294,7 @@
                             }
                         </div>
                         
-                        @* TÁCH DÒNG BÌNH LUẬN VÀ HIỂN THỊ MULTIMEDIA (SHOPEE STYLE) *@
-                        @{
-                            var commentLines = rev.Comment?.Split('\n') ?? new string[0];
-                        }
+                        @{ var commentLines = rev.Comment?.Split('\n') ?? new string[0]; }
                         <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #F1F5F9;">
                             @foreach(var line in commentLines)
                             {
@@ -333,12 +359,11 @@
                 @foreach (var item in Model.UpSellProducts)
                 {
                     var activeVariants = item.ProductVariants.Where(v => v.IsActive == true).ToList();
-                    var defaultVariant = activeVariants.OrderBy(v => v.DiscountPrice > 0 ? v.DiscountPrice : v.Price).FirstOrDefault();
+                    var defaultVariant = activeVariants.OrderBy(v => v.Price).FirstOrDefault();
                     
                     decimal rawPrice = defaultVariant?.Price ?? 0;
                     decimal salePrice = defaultVariant?.DiscountPrice ?? 0;
                     
-                    // JSON Biến thể nạp cho Modal Quick View
                     var variantJson = System.Text.Json.JsonSerializer.Serialize(activeVariants.Select(v => new
                     {
                         variantId = v.VariantId,
@@ -351,8 +376,8 @@
                         imageUrl = !string.IsNullOrEmpty(v.ImageUrl) ? v.ImageUrl : item.MainImage
                     }));
 
-                    <div class="market-product-card" style="flex: 0 0 230px; scroll-snap-align: start;">
-                        <button type="button" class="btn-favorite" onclick="toggleFavorite(event, @item.ProductId)" title="Thêm vào yêu thích">
+                    <div class="market-product-card track-pdp-click" style="flex: 0 0 230px; scroll-snap-align: start;" data-target-id="@item.ProductId">
+                        <button type="button" class="btn-favorite" onclick="toggleFavorite(event, this, @(defaultVariant?.VariantId ?? 0))" title="Thêm vào yêu thích">
                             <i class="far fa-heart"></i>
                         </button>
 
@@ -433,10 +458,137 @@
 @section Scripts {
     <script>
         // =====================================================================
-        // PHẦN 1: LOGIC TRANG CHI TIẾT SẢN PHẨM CHÍNH (MAIN PDP)
+        // TRUY XUẤT CÁC CỤM TỪ GỢI Ý DỌC REAL-TIME CHUẨN SHOPEE DROPDOWN
+        // =====================================================================
+        (function() {
+            const searchInput = document.getElementById("pdpShopeeSearchField");
+            const suggestionsBox = document.getElementById("pdpShopeeSuggestionsDropdown");
+            const searchForm = document.getElementById("pdp-search-form");
+            let shopeeDebounceTimer;
+
+            if (!searchInput || !suggestionsBox) {
+                console.warn('PDP search elements not found');
+                return;
+            }
+
+            function fetchShopeeSuggestions(queryVal) {
+                const url = `/Store/GetSearchSuggestions?q=${encodeURIComponent(queryVal)}`;
+                fetch(url)
+                    .then(res => {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.json();
+                    })
+                    .then(data => {
+                        let html = '';
+                        if (data.phrases && data.phrases.length > 0) {
+                            data.phrases.forEach(phrase => {
+                                const safePhrase = phrase.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                html += `
+                                    <div class="shopee-suggestion-row" onclick="window.applyPdpSuggestion('${safePhrase}')">
+                                        <i class="fas fa-search"></i>
+                                        <span>${phrase}</span>
+                                    </div>`;
+                            });
+                            suggestionsBox.innerHTML = html;
+                            suggestionsBox.style.display = 'block';
+                        } else {
+                            suggestionsBox.style.display = 'none';
+                        }
+                    })
+                    .catch(err => {
+                        console.error("PDP Suggestions Fail:", err);
+                        suggestionsBox.style.display = 'none';
+                    });
+            }
+
+            window.applyPdpSuggestion = function(selectedKw) {
+                searchInput.value = selectedKw;
+                suggestionsBox.style.display = 'none';
+                if (searchForm) searchForm.submit();
+            };
+
+            searchInput.addEventListener("focus", function() {
+                const val = this.value.trim();
+                fetchShopeeSuggestions(val);
+            });
+
+            searchInput.addEventListener("input", function() {
+                clearTimeout(shopeeDebounceTimer);
+                const val = this.value.trim();
+                shopeeDebounceTimer = setTimeout(() => {
+                    fetchShopeeSuggestions(val);
+                }, 300);
+            });
+
+            document.addEventListener("click", function(e) {
+                if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                    suggestionsBox.style.display = "none";
+                }
+            });
+
+            searchInput.addEventListener("keydown", function(e) {
+                if (e.key === 'Escape') {
+                    suggestionsBox.style.display = "none";
+                }
+            });
+
+            if (searchForm) {
+                searchForm.addEventListener('submit', function() {
+                    suggestionsBox.style.display = 'none';
+                });
+            }
+        })();
+
+        // =====================================================================
+        // LƯU VẾT HÀNH VI NGƯỜI DÙNG PHỤC VỤ CÁ NHÂN HÓA HỆ THỐNG (TRACKING CONTEXT)
+        // =====================================================================
+        const trackingConfig = {
+            productId: @Model.Product.ProductId,
+            startTime: Date.now(),
+            targetEndpoint: "/Store/TrackUserBehavior"
+        };
+
+        const currentUrlParams = new URLSearchParams(window.location.search);
+        const urlTrackedKeyword = currentUrlParams.get('keyword') || "";
+
+        window.addEventListener("beforeunload", () => {
+            const durationSec = Math.round((Date.now() - trackingConfig.startTime) / 1000);
+            const payload = JSON.stringify({
+                ProductId: trackingConfig.productId,
+                ViewDuration: durationSec,
+                SearchKeyword: urlTrackedKeyword,
+                ActionType: "ViewDuration"
+            });
+
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(trackingConfig.targetEndpoint, new Blob([payload], { type: 'application/json' }));
+            } else {
+                fetch(trackingConfig.targetEndpoint, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' }, keepalive: true });
+            }
+        });
+
+        document.querySelectorAll('.track-pdp-click').forEach(card => {
+            card.addEventListener('click', function() {
+                const targetProdId = this.getAttribute('data-target-id');
+                fetch(trackingConfig.targetEndpoint, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        ProductId: trackingConfig.productId,
+                        TargetProductId: parseInt(targetProdId),
+                        SearchKeyword: urlTrackedKeyword,
+                        ActionType: "ProductClick"
+                    }),
+                    headers: { 'Content-Type': 'application/json' }
+                }).catch(err => console.error("Track click fail:", err));
+            });
+        });
+
+        // =====================================================================
+        // LOGIC CHỌN BIẾN THỂ & ĐỘNG CƠ TÌM KIẾM CHI TIẾT CẤU HÌNH (PDP MATRIX)
         // =====================================================================
         const variantMatrix = @Html.Raw(JsonSerializer.Serialize(Model.Product.ProductVariants.Where(v => v.IsActive == true).Select(v => new {
-            v.VariantId, v.Color, v.Storage, v.Ram, v.Price, v.DiscountPrice, v.Stock, v.ImageUrl
+            v.VariantId, v.Color, v.Storage, v.Ram, v.Price,
+            v.DiscountPrice, v.Stock, v.ImageUrl
         })));
 
         let selectedRam = "", selectedStorage = "", selectedColor = "";
@@ -466,13 +618,11 @@
                 const exists = variantMatrix.some(v => v.Ram === val && (!selectedStorage || v.Storage === selectedStorage) && (!selectedColor || v.Color === selectedColor));
                 if (exists) chip.classList.remove('disabled-chip'); else chip.classList.add('disabled-chip');
             });
-
             document.querySelectorAll('#mainStorageOptions .storage-chip').forEach(chip => {
                 const val = chip.getAttribute('data-storage');
                 const exists = variantMatrix.some(v => v.Storage === val && (!selectedRam || v.Ram === selectedRam) && (!selectedColor || v.Color === selectedColor));
                 if (exists) chip.classList.remove('disabled-chip'); else chip.classList.add('disabled-chip');
             });
-
             document.querySelectorAll('#mainColorOptions .color-chip').forEach(chip => {
                 const val = chip.getAttribute('data-color');
                 const exists = variantMatrix.some(v => v.Color === val && (!selectedRam || v.Ram === selectedRam) && (!selectedStorage || v.Storage === selectedStorage));
@@ -482,7 +632,6 @@
 
         function evaluateCurrentSelection() {
             const matched = variantMatrix.find(v => v.Ram === selectedRam && v.Storage === selectedStorage && v.Color === selectedColor);
-            
             const priceText = document.getElementById('pdpDisplayPrice');
             const rawPriceText = document.getElementById('pdpRawPrice');
             const stockStatus = document.getElementById('pdpStockStatus');
@@ -516,7 +665,8 @@
                     btnCart.disabled = true; btnBuyNow.disabled = true;
                 }
             } else {
-                hiddenInput.value = "0"; globalMaxStock = 1;
+                hiddenInput.value = "0";
+                globalMaxStock = 1;
                 btnCart.disabled = true; btnBuyNow.disabled = true;
                 rawPriceText.style.display = 'none';
                 stockStatus.innerHTML = (!selectedRam || !selectedStorage || !selectedColor) 
@@ -591,8 +741,8 @@
 
         async function executeAddToCart() {
             const variantId = document.getElementById('selectedVariantIdHidden').value;
-            const quantity = document.getElementById('pdpMainQty').value;
-            if(variantId === "0") return;
+            const quantity = document.getElementById('pdpMainQty');
+            if(variantId === "0" || !quantity) return;
 
             const btnCart = document.getElementById('btnAddToCartMain');
             const originalContent = btnCart.innerHTML;
@@ -601,14 +751,12 @@
 
             const formData = new FormData();
             formData.append('variantId', variantId);
-            formData.append('quantity', quantity);
+            formData.append('quantity', quantity.value);
             formData.append('actionType', 'add');
-
             try {
                 const response = await fetch('/Cart/AddToCart', { 
                     method: 'POST', body: formData, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                
                 if(response.ok || response.redirected) {
                     const data = await response.json();
                     if(data.success) {
@@ -622,14 +770,15 @@
             } catch {
                 if (typeof window.showToast === 'function') window.showToast("Lỗi kết nối máy chủ.", "error");
             } finally {
-                btnCart.disabled = false; btnCart.innerHTML = originalContent;
+                btnCart.disabled = false;
+                btnCart.innerHTML = originalContent;
             }
         }
 
         async function executeBuyNowAction() {
             const variantId = document.getElementById('selectedVariantIdHidden').value;
-            const quantity = document.getElementById('pdpMainQty').value;
-            if(variantId === "0") return;
+            const quantity = document.getElementById('pdpMainQty');
+            if(variantId === "0" || !quantity) return;
 
             const btnBuyNow = document.getElementById('btnBuyNowMain');
             const originalContent = btnBuyNow.innerHTML;
@@ -638,9 +787,8 @@
 
             const formData = new FormData();
             formData.append('variantId', variantId);
-            formData.append('quantity', quantity);
+            formData.append('quantity', quantity.value);
             formData.append('actionType', 'add');
-
             try {
                 const response = await fetch('/Cart/AddToCart', { 
                     method: 'POST', body: formData, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -653,20 +801,48 @@
             } catch {
                 if (typeof window.showToast === 'function') window.showToast("Lỗi kết nối máy chủ.", "error");
             } finally {
-                btnBuyNow.disabled = false; btnBuyNow.innerHTML = originalContent;
+                btnBuyNow.disabled = false;
+                btnBuyNow.innerHTML = originalContent;
             }
         }
 
-        window.toggleFavorite = function(event, productId) {
-            event.preventDefault(); event.stopPropagation();
-            const btn = event.currentTarget; const icon = btn.querySelector('i');
-            btn.classList.toggle('active');
-            if (btn.classList.contains('active')) { icon.classList.remove('far'); icon.classList.add('fas'); }
-            else { icon.classList.remove('fas'); icon.classList.add('far'); }
+        window.toggleFavorite = async function(event, btnElement, variantId) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (variantId === 0) {
+                alert("Sản phẩm này hiện chưa có biến thể cụ thể.");
+                return;
+            }
+
+            const icon = btnElement.querySelector('i');
+            const isCurrentlyActive = btnElement.classList.contains('active');
+            btnElement.classList.toggle('active');
+            icon.className = isCurrentlyActive ? 'far fa-heart' : 'fas fa-heart';
+            try {
+                const formData = new FormData();
+                formData.append('variantId', variantId);
+
+                const response = await fetch('/Favorite/Toggle', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (data.success) {
+                    if(typeof window.showToast === 'function') window.showToast(data.message, 'success');
+                } else {
+                    btnElement.classList.toggle('active');
+                    icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
+                    if (data.requireLogin && confirm(data.message + " Đi tới trang đăng nhập?")) {
+                        window.location.href = '/Auth/Login?returnUrl=' + encodeURIComponent(window.location.pathname);
+                    }
+                }
+            } catch (e) {
+                btnElement.classList.toggle('active');
+                icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
+            }
         };
 
         // =====================================================================
-        // PHẦN 2: LOGIC QUICK ADD MODAL CHUẨN XÁC
+        // PHẦN 4: THAO TÁC MODAL QUICK ADD PHÂN LOẠI PHỤ (UPSELL PRODUCTS)
         // =====================================================================
         let qaVariantMatrix = [];
         let qaCurrentSelection = { storage: null, ram: null, color: null };
@@ -702,11 +878,9 @@
             }
 
             document.getElementById('qa-options-container').innerHTML = html;
-
             const modal = document.getElementById('qa-modal');
             modal.style.display = 'flex';
             setTimeout(() => modal.classList.add('show'), 10);
-
             qaEvaluateMatrix();
         }
 
@@ -746,18 +920,15 @@
                 document.getElementById('qa-price').innerText = formatVND(price);
                 if (exactMatch.stock > 0) {
                     document.getElementById('qa-stock').innerText = `Kho: ${exactMatch.stock}`;
-                    document.getElementById('qa-stock').style.color = "#6B7280";
                     btnSubmit.disabled = false;
                 } else {
                     document.getElementById('qa-stock').innerText = "Hết hàng";
-                    document.getElementById('qa-stock').style.color = "var(--accent-red)";
                     btnSubmit.disabled = true;
                 }
                 if (exactMatch.imageUrl) document.getElementById('qa-image').src = exactMatch.imageUrl;
             } else {
                 document.getElementById('qa-price').innerText = qaMinPrice > 0 ? formatVND(qaMinPrice) : "Liên hệ";
                 document.getElementById('qa-stock').innerText = "Vui lòng chọn phân loại";
-                document.getElementById('qa-stock').style.color = "#6B7280";
                 btnSubmit.disabled = true;
                 document.getElementById('qa-variantId').value = "";
             }
@@ -788,11 +959,9 @@
                     btn.innerHTML = 'ĐÃ THÊM'; btn.style.background = '#10B981';
                     const cartBadge = document.getElementById('header-cart-badge');
                     if (cartBadge) { let currentQty = parseInt(cartBadge.innerText) || 0; let qtyToAdd = parseInt(formData.get('quantity')) || 1; cartBadge.innerText = currentQty + qtyToAdd; cartBadge.classList.add('has-items'); }
-                    if (typeof window.showToast === 'function') window.showToast("Đã thêm vào giỏ hàng!", "success");
                     setTimeout(() => { closeQuickAddModal(); btn.innerHTML = originalText; btn.style.background = ''; }, 800);
-                } else { if (typeof window.showToast === 'function') window.showToast(data.message, "error"); }
-            }).catch(err => { if (typeof window.showToast === 'function') window.showToast("Mất kết nối máy chủ.", "error"); })
-            .finally(() => { btn.innerHTML = originalText; btn.style.background = ''; });
+                }
+            }).catch(err => console.error(err));
         });
 
         document.querySelectorAll('.ajax-cart-form:not(#qa-form)').forEach(form => {
@@ -809,11 +978,9 @@
                         btn.innerHTML = 'ĐÃ THÊM'; btn.style.background = '#10B981'; btn.style.color = 'white';
                         const cartBadge = document.getElementById('header-cart-badge');
                         if (cartBadge) { let currentQty = parseInt(cartBadge.innerText) || 0; cartBadge.innerText = currentQty + 1; cartBadge.classList.add('has-items'); }
-                        if (typeof window.showToast === 'function') window.showToast("Sản phẩm đã được thêm vào Giỏ hàng", "success");
                         setTimeout(() => { btn.innerHTML = originalText; btn.style.background = ''; btn.style.color = ''; }, 2000);
-                    } else { if (typeof window.showToast === 'function') window.showToast(data.message, "error"); }
-                }).catch(err => { if (typeof window.showToast === 'function') window.showToast("Mất kết nối máy chủ.", "error"); })
-                .finally(() => { btn.innerHTML = originalText; btn.style.background = ''; btn.style.color = ''; });
+                    }
+                }).catch(err => console.error(err));
             });
         });
     </script>

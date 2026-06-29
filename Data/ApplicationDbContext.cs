@@ -15,7 +15,7 @@ public partial class ApplicationDbContext : DbContext
         : base(options)
     {
     }
-
+    public DbSet<UserBehaviorLog> UserBehaviorLogs { get; set; }
     public virtual DbSet<Account> Account { get; set; }
 
     public virtual DbSet<Address> Address { get; set; }

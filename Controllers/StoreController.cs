@@ -13,6 +13,16 @@ using TMDT_LT.Models.ViewModels;
 
 namespace TMDT_LT.Controllers
 {
+    // Cấu trúc nhận dữ liệu Tracking ngầm từ Client gửi lên
+    public class UserBehaviorTrackingDto
+    {
+        public int ProductId { get; set; }
+        public int? TargetProductId { get; set; }
+        public int ViewDuration { get; set; }
+        public string? SearchKeyword { get; set; }
+        public string ActionType { get; set; } = "ViewDuration";
+    }
+
     public class StoreController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -34,9 +44,39 @@ namespace TMDT_LT.Controllers
                     decimal? minPrice,
                     decimal? maxPrice,
                     string sort = "newest",
-                    int page = 1) // Biến page mặc định là 1
+                    int page = 1)
         {
-            // 1. Tải toàn bộ dữ liệu thô hợp lệ lên RAM
+            int currentCustomerId = 0;
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0";
+                int.TryParse(userIdStr, out currentCustomerId);
+            }
+
+            List<int> preferredCategoryIds = new List<int>();
+            List<int> preferredBrandIds = new List<int>();
+
+            if (currentCustomerId > 0)
+            {
+                var userInteractedProductIds = await _context.UserBehaviorLogs
+                    .Where(log => log.CustomerId == currentCustomerId && (log.ViewDuration > 5 || log.ActionType == "ProductClick"))
+                    .Select(log => log.ProductId)
+                    .Distinct()
+                    .Take(50)
+                    .ToListAsync();
+
+                if (userInteractedProductIds.Any())
+                {
+                    var productDetails = await _context.Products
+                        .Where(p => userInteractedProductIds.Contains(p.ProductId))
+                        .Select(p => new { p.CategoryId, p.BrandId })
+                        .ToListAsync();
+
+                    preferredCategoryIds = productDetails.Select(x => x.CategoryId).Distinct().ToList();
+                    preferredBrandIds = productDetails.Select(x => x.BrandId).Distinct().ToList();
+                }
+            }
+
             var rawProducts = await _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
@@ -46,20 +86,17 @@ namespace TMDT_LT.Controllers
 
             var scoredResults = new List<SearchResultItemVM>();
 
-            // 2. TẦNG LỌC 1: THUẬT TOÁN FUZZY SEARCH KẾT HỢP BIẾN THỂ (SMART ENGINE)
             if (!string.IsNullOrWhiteSpace(keyword))
             {
                 string kw = keyword.Trim().ToLower();
                 string kwNoMark = StringHelper.RemoveDiacritics(kw);
 
-                // Tách từ khóa thành các mảng từ rời để tìm kiếm chéo (VD: "iphone 256gb đỏ")
                 var kwParts = kwNoMark.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
                 scoredResults = rawProducts.Select(p =>
                 {
                     int score = 0;
 
-                    // Lấy dữ liệu cơ bản
                     string pName = (p.Name ?? "").ToLower();
                     string pNameNoMark = StringHelper.RemoveDiacritics(pName);
                     string cName = (p.Category?.CategoryName ?? "").ToLower();
@@ -69,18 +106,10 @@ namespace TMDT_LT.Controllers
                     string chip = (p.Chipset ?? "").ToLower();
                     string chipNoMark = StringHelper.RemoveDiacritics(chip);
 
-                    // ========================================================
-                    // BƯỚC 1: QUÉT THÔNG SỐ TỪ DANH SÁCH BIẾN THỂ (VARIANTS)
-                    // ========================================================
                     var activeVariants = p.ProductVariants.Where(v => v.IsActive == true).ToList();
-
-                    // Gom tất cả Màu, RAM, ROM của máy này thành 1 chuỗi dài
                     string variantData = string.Join(" ", activeVariants.Select(v => $"{v.Color} {v.Ram} {v.Storage}")).ToLower();
                     string variantDataNoMark = StringHelper.RemoveDiacritics(variantData);
 
-                    // ========================================================
-                    // BƯỚC 2: CHẤM ĐIỂM TÌM KIẾM NGUYÊN CỤM
-                    // ========================================================
                     if (pName.Contains(kw)) score += 100;
                     else if (pNameNoMark.Contains(kwNoMark)) score += 70;
 
@@ -93,40 +122,25 @@ namespace TMDT_LT.Controllers
                     if (chip.Contains(kw)) score += 20;
                     else if (chipNoMark.Contains(kwNoMark)) score += 10;
 
-                    // Điểm cho Màu, RAM, Bộ nhớ nếu gõ chính xác nguyên cụm
                     if (variantData.Contains(kw)) score += 40;
                     else if (variantDataNoMark.Contains(kwNoMark)) score += 20;
 
-                    // ========================================================
-                    // BƯỚC 3: CHẤM ĐIỂM CHÉO TỪ KHÓA (CROSS-MATCHING TOKENIZER)
-                    // ========================================================
-                    // Giải quyết bài toán gõ: "tên máy + thông số" (Vd: "Samsung 512GB")
                     if (kwParts.Length > 1)
                     {
-                        // Tạo một "hồ chứa" toàn bộ văn bản của sản phẩm này
                         string fullProductText = $"{pNameNoMark} {cNameNoMark} {bNameNoMark} {chipNoMark} {variantDataNoMark}";
                         int matchCount = 0;
 
-                        // Kiểm tra xem hồ chứa có chứa ĐỦ các từ khóa khách gõ không
                         foreach (var part in kwParts)
                         {
-                            if (fullProductText.Contains(part))
-                            {
-                                matchCount++;
-                            }
+                            if (fullProductText.Contains(part)) matchCount++;
                         }
 
-                        // Nếu khớp TẤT CẢ các từ (Vd: Vừa có chữ samsung, vừa có chữ 512gb) -> Đẩy lên top
-                        if (matchCount == kwParts.Length)
-                        {
-                            score += 85;
-                        }
-                        // Nếu khớp một phần, cộng điểm khuyến khích
-                        else if (matchCount > 0)
-                        {
-                            score += (matchCount * 5);
-                        }
+                        if (matchCount == kwParts.Length) score += 85;
+                        else if (matchCount > 0) score += (matchCount * 5);
                     }
+
+                    if (preferredCategoryIds.Contains(p.CategoryId)) score += 15;
+                    if (preferredBrandIds.Contains(p.BrandId)) score += 15;
 
                     return new SearchResultItemVM { Product = p, RelevanceScore = score };
                 })
@@ -135,11 +149,14 @@ namespace TMDT_LT.Controllers
             }
             else
             {
-                // Nếu không gõ tìm kiếm, lấy tất cả sản phẩm (Điểm mặc định = 1)
-                scoredResults = rawProducts.Select(p => new SearchResultItemVM { Product = p, RelevanceScore = 1 }).ToList();
+                scoredResults = rawProducts.Select(p => {
+                    int score = 1;
+                    if (preferredCategoryIds.Contains(p.CategoryId)) score += 10;
+                    if (preferredBrandIds.Contains(p.BrandId)) score += 10;
+                    return new SearchResultItemVM { Product = p, RelevanceScore = score };
+                }).ToList();
             }
 
-            // 3. TẦNG LỌC 2: CÁC TIÊU CHÍ CHECKBOX BÊN SIDEBAR
             if (brandIds != null && brandIds.Any())
             {
                 scoredResults = scoredResults.Where(x => brandIds.Contains(x.Product.BrandId)).ToList();
@@ -157,9 +174,7 @@ namespace TMDT_LT.Controllers
                     var activeVariants = x.Product.ProductVariants.Where(v => v.IsActive == true);
                     if (!activeVariants.Any()) return false;
 
-                    // Tìm giá biến thể rẻ nhất (chính là giá hiển thị trên card)
                     var minVariantPrice = activeVariants.Min(v => v.DiscountPrice > 0 ? v.DiscountPrice : v.Price);
-
                     bool matchMin = !minPrice.HasValue || minVariantPrice >= minPrice.Value;
                     bool matchMax = !maxPrice.HasValue || minVariantPrice <= maxPrice.Value;
 
@@ -167,10 +182,8 @@ namespace TMDT_LT.Controllers
                 }).ToList();
             }
 
-            // 4. TẦNG LỌC 3: SẮP XẾP KẾT QUẢ
             if (!string.IsNullOrWhiteSpace(keyword))
             {
-                // Ưu tiên tuyệt đối sắp xếp theo Điểm trọng số từ cao xuống thấp khi tìm kiếm
                 scoredResults = scoredResults.OrderByDescending(x => x.RelevanceScore).ToList();
             }
             else
@@ -186,51 +199,176 @@ namespace TMDT_LT.Controllers
                     case "bestseller-desc":
                         scoredResults = scoredResults.OrderByDescending(x => x.Product.ProductVariants.SelectMany(v => _context.OrderDetails.Where(od => od.VariantId == v.VariantId)).Sum(od => (int?)od.Quantity) ?? 0).ToList();
                         break;
-                    default: // newest
-                        scoredResults = scoredResults.OrderByDescending(x => x.Product.CreatedDate).ToList();
+                    default:
+                        scoredResults = scoredResults.OrderByDescending(x => x.RelevanceScore).ThenByDescending(x => x.Product.CreatedDate).ToList();
                         break;
                 }
             }
 
-            // 5. TẦNG LỌC 4: THUẬT TOÁN PHÂN TRANG (PAGINATION)
-            int pageSize = 12; // Số sản phẩm trên 1 trang (12 chia hết cho 3 và 4, rất đẹp)
+            int pageSize = 12;
             int totalItems = scoredResults.Count;
             int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
             if (page < 1) page = 1;
             if (page > totalPages && totalPages > 0) page = totalPages;
 
-            // Cắt lấy dữ liệu của trang hiện tại
             var pagedResults = scoredResults.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
-            // 6. ĐÓNG GÓI DỮ LIỆU ĐƯA RA VIEW GIAO DIỆN
+            var dbBrands = await _context.Brands.Select(b => b.BrandName).Take(5).ToListAsync();
+            var dbCategories = await _context.Categories.Where(c => c.IsActive == true).Select(c => c.CategoryName).Take(4).ToListAsync();
+
+            var popularSearches = await _context.UserBehaviorLogs
+                .Where(log => !string.IsNullOrEmpty(log.SearchKeyword))
+                .GroupBy(log => log.SearchKeyword)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .Take(3)
+                .ToListAsync();
+
+            var tags = new List<string>();
+            if (popularSearches.Any()) tags.AddRange(popularSearches!);
+            tags.AddRange(dbBrands);
+            tags.AddRange(dbCategories);
+
+            if (!tags.Any())
+            {
+                tags = new List<string> { "iPhone", "Samsung", "Oppo", "Laptop", "iPad" };
+            }
+
             var vm = new CatalogVM
             {
                 Keyword = keyword,
                 AvailableBrands = await _context.Brands.ToListAsync(),
                 AvailableCategories = await _context.Categories.ToListAsync(),
-
-                Products = pagedResults, // Trả ra dữ liệu ĐÃ BỊ CẮT TRANG
-                TotalResults = totalItems, // Trả ra tổng số lượng thực tế
-
+                Products = pagedResults,
+                TotalResults = totalItems,
                 SelectedBrandIds = brandIds ?? new List<int>(),
                 SelectedCategoryIds = categoryIds ?? new List<int>(),
                 MinPrice = minPrice,
                 MaxPrice = maxPrice,
                 SortBy = sort,
-
-                // Gắn dữ liệu phân trang
                 CurrentPage = page,
                 TotalPages = totalPages,
-                PageSize = pageSize
+                PageSize = pageSize,
+                SuggestionTags = tags.Distinct().ToList()
             };
 
             return View(vm);
         }
 
         // =====================================================================
-        // 1. CHI TIẾT SẢN PHẨM (PDP) - ĐÃ SỬA LỖI KHÔNG HIỂN THỊ SẢN PHẨM LIÊN QUAN
+        // API LẤY CỤM TỪ GỢI Ý DANH SÁCH DỌC ĐÚNG KIỂU SHOPEE (IMAGE_ED099A.PNG)
         // =====================================================================
+       [HttpGet]
+[Route("Store/GetSearchSuggestions")]
+public async Task<IActionResult> GetSearchSuggestions(string q)
+{
+    var suggestedPhrases = new List<string>();
+
+    // Trường hợp 1: Ô tìm kiếm trống -> gợi ý từ khóa hot hoặc danh mục nổi bật
+    if (string.IsNullOrWhiteSpace(q))
+    {
+        // Lấy 7 từ khóa hot từ UserBehaviorLogs
+        var hotKeywords = await _context.UserBehaviorLogs
+            .Where(log => !string.IsNullOrEmpty(log.SearchKeyword))
+            .GroupBy(log => log.SearchKeyword)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .Take(7)
+            .ToListAsync();
+
+        // Nếu chưa có lịch sử, dùng danh sách gợi ý mặc định
+        if (hotKeywords == null || !hotKeywords.Any())
+        {
+            hotKeywords = new List<string> { "iPhone", "Samsung", "Oppo", "Xiaomi", "Laptop", "Tai nghe", "Phụ kiện" };
+        }
+
+        return Json(new { isBlank = true, phrases = hotKeywords });
+    }
+
+    // Trường hợp 2: Có từ khóa nhập vào
+    string query = q.Trim().ToLower();
+    string queryNoMark = StringHelper.RemoveDiacritics(query);
+
+    // 1. Lấy danh mục phù hợp
+    var matchedCategories = await _context.Categories
+        .Where(c => c.IsActive == true)
+        .Select(c => c.CategoryName)
+        .ToListAsync();
+    suggestedPhrases.AddRange(matchedCategories
+        .Where(c => c.ToLower().Contains(query) || StringHelper.RemoveDiacritics(c.ToLower()).Contains(queryNoMark))
+        .Take(2));
+
+    // 2. Lấy thương hiệu phù hợp
+    var matchedBrands = await _context.Brands
+        .Select(b => b.BrandName)
+        .ToListAsync();
+    suggestedPhrases.AddRange(matchedBrands
+        .Where(b => b.ToLower().Contains(query) || StringHelper.RemoveDiacritics(b.ToLower()).Contains(queryNoMark))
+        .Take(2));
+
+    // 3. Lấy tên sản phẩm phù hợp (cắt ngắn để dễ nhìn)
+    var matchedProducts = await _context.Products
+        .Where(p => p.IsActive == true)
+        .Select(p => p.Name)
+        .ToListAsync();
+    suggestedPhrases.AddRange(matchedProducts
+        .Where(n => n.ToLower().Contains(query) || StringHelper.RemoveDiacritics(n.ToLower()).Contains(queryNoMark))
+        .Take(5));
+
+    // 4. Lấy lịch sử tìm kiếm phù hợp
+    var matchedHistory = await _context.UserBehaviorLogs
+        .Where(log => !string.IsNullOrEmpty(log.SearchKeyword))
+        .Select(log => log.SearchKeyword)
+        .Distinct()
+        .ToListAsync();
+    suggestedPhrases.AddRange(matchedHistory!
+        .Where(h => h!.ToLower().Contains(query) || StringHelper.RemoveDiacritics(h.ToLower()).Contains(queryNoMark))
+        .Take(2));
+
+    // Loại bỏ trùng và giới hạn 8 kết quả
+    var finalResult = suggestedPhrases
+        .Where(p => !string.IsNullOrWhiteSpace(p))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(8)
+        .ToList();
+
+    return Json(new { isBlank = false, phrases = finalResult });
+}
+
+        [HttpPost]
+        [Route("Store/TrackUserBehavior")]
+        public async Task<IActionResult> TrackUserBehavior([FromBody] UserBehaviorTrackingDto dto)
+        {
+            if (dto == null) return BadRequest();
+
+            int? customerId = null;
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0";
+                if (int.TryParse(userIdStr, out int id) && id > 0)
+                {
+                    customerId = id;
+                }
+            }
+
+            var logEntry = new UserBehaviorLog
+            {
+                CustomerId = customerId,
+                ProductId = dto.ProductId,
+                TargetProductId = dto.TargetProductId,
+                ViewDuration = dto.ViewDuration,
+                SearchKeyword = string.IsNullOrWhiteSpace(dto.SearchKeyword) ? null : dto.SearchKeyword.Trim(),
+                ActionType = dto.ActionType,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.UserBehaviorLogs.Add(logEntry);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
+        }
+
         [Route("Store/Product/{id}")]
         public async Task<IActionResult> Product(int id)
         {
@@ -243,14 +381,12 @@ namespace TMDT_LT.Controllers
 
             if (product == null) return RedirectToAction("Index");
 
-            // --- THUẬT TOÁN GỢI Ý SẢN PHẨM LIÊN QUAN CHUẨN DOANH NGHIỆP ---
             var upSellProducts = await _context.Products
                 .Include(p => p.ProductVariants.Where(v => v.IsActive == true))
                 .Where(p => p.CategoryId == product.CategoryId && p.ProductId != id && p.IsActive == true)
                 .Take(10)
                 .ToListAsync();
 
-            // Lấy tất cả đánh giá công khai phục vụ thống kê số sao
             var allReviews = await _context.Reviews
                 .Include(r => r.Customer)
                 .Include(r => r.ReviewDetails).ThenInclude(rd => rd.Variant)
@@ -268,20 +404,18 @@ namespace TMDT_LT.Controllers
 
             var displayReviews = allReviews.Take(3).ToList();
 
-            // ĐÓNG GÓI VIEW MODEL TOÀN DIỆN DỮ LIỆU
             var model = new ProductDetailVM
             {
                 Product = product,
-                UpSellProducts = upSellProducts, // FIX CHÍ MẠNG: Đổ dữ liệu thuật toán vào đây để không bị mất giao diện
+                UpSellProducts = upSellProducts,
                 ApprovedReviews = displayReviews,
                 AverageRating = avgRating,
                 TotalReviews = allReviews.Count,
                 StarCounts = starCounts
             };
 
-            // Ràng buộc kiểm tra quyền viết đánh giá của khách
             bool hasPurchased = false;
-            if (User.Identity.IsAuthenticated)
+            if (User.Identity != null && User.Identity.IsAuthenticated)
             {
                 string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0";
                 int customerId = int.Parse(userIdStr);
@@ -295,16 +429,12 @@ namespace TMDT_LT.Controllers
             return View(model);
         }
 
-        // =====================================================================
-        // TRANG CHI TIẾT DANH SÁCH ĐÁNH GIÁ SẢN PHẨM (REVIEWS PAGE)
-        // =====================================================================
         [Route("Store/Product/{id}/Reviews")]
         public async Task<IActionResult> ProductReviews(int id, int? starFilter)
         {
             var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == id);
             if (product == null) return NotFound();
 
-            // Lấy toàn bộ đánh giá công khai của sản phẩm này
             var query = _context.Reviews
                 .Include(r => r.Customer)
                 .Include(r => r.ReviewDetails).ThenInclude(rd => rd.Variant)
@@ -312,7 +442,6 @@ namespace TMDT_LT.Controllers
 
             var allReviews = await query.ToListAsync();
 
-            // Tính toán tổng quan (Số sao trung bình, phân bổ phần trăm)
             double avgRating = allReviews.Any() ? (double)allReviews.Average(r => r.Rating ?? 0) : 0;
             var starCounts = new Dictionary<int, int> { { 5, 0 }, { 4, 0 }, { 3, 0 }, { 2, 0 }, { 1, 0 } };
 
@@ -322,13 +451,11 @@ namespace TMDT_LT.Controllers
                 if (starCounts.ContainsKey(star)) starCounts[star]++;
             }
 
-            // Nếu người dùng click vào nút lọc theo số sao
             if (starFilter.HasValue && starFilter.Value >= 1 && starFilter.Value <= 5)
             {
                 query = query.Where(r => r.Rating == starFilter.Value);
             }
 
-            // Lấy dữ liệu cuối cùng đưa ra View
             var displayReviews = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
 
             ViewBag.Product = product;
@@ -337,23 +464,18 @@ namespace TMDT_LT.Controllers
             ViewBag.StarCounts = starCounts;
             ViewBag.SelectedStar = starFilter;
 
-            return View(displayReviews); // Đổ dữ liệu vào file ProductReviews.cshtml
+            return View(displayReviews);
         }
     }
 
-    // ======================================================================
-    // LỚP TIỆN ÍCH (HELPER): XỬ LÝ KÝ TỰ UNICODE TIẾNG VIỆT
-    // ======================================================================
     public static class StringHelper
     {
         public static string RemoveDiacritics(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return text;
 
-            // Xử lý thủ công chữ 'Đ/đ' vì bộ Normalize của C# không thể tách rời ký tự này
             text = text.Replace('đ', 'd').Replace('Đ', 'D');
 
-            // Lột bỏ các dấu thanh (Sắc, huyền, hỏi, ngã, nặng, mũ...)
             var normalizedString = text.Normalize(NormalizationForm.FormD);
             var stringBuilder = new StringBuilder(capacity: normalizedString.Length);
 

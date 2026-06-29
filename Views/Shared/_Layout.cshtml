@@ -3,8 +3,6 @@
 @using TMDT_LT.Models.ViewModels.Storefront
 @using System.Security.Claims
 @inject IHttpContextAccessor HttpContextAccessor
-@inject IHttpContextAccessor HttpContextAccessor
-
 
 <!DOCTYPE html>
 <html lang="vi">
@@ -22,7 +20,7 @@
     <link rel="stylesheet" href="~/css/storefront/store-layout.css" asp-append-version="true" />
 
     <style>
-        /* [Giữ nguyên CSS User Menu của bạn] */
+        /* User Menu */
         .user-menu-wrapper {
             position: relative;
             display: inline-block;
@@ -108,7 +106,7 @@
             margin: 6px 0;
         }
 
-        /* BỔ SUNG: CSS CHO TOAST NOTIFICATION */
+        /* Toast */
         #toast-container {
             position: fixed;
             bottom: 24px;
@@ -157,18 +155,54 @@
                 color: #EF4444;
                 font-size: 18px;
             }
+
+        /* Cart Badge */
+        .cart-badge {
+            transition: all 0.3s ease;
+            position: absolute;
+            top: -6px;
+            right: -10px;
+            background: var(--navy-deep);
+            color: var(--white);
+            font-size: 10px;
+            font-weight: 700;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+        }
+
+            .cart-badge.has-items {
+                background-color: var(--accent-red);
+                animation: popBadge 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            }
+
+        @@keyframes popBadge {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.4);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
     </style>
 
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
     @{
-        // ĐẾM SỐ LƯỢNG VẬT PHẨM TRONG GIỎ HÀNG
+        // Đếm số lượng vật phẩm trong giỏ hàng
         int totalCartItems = 0;
-
         if (User.Identity != null && User.Identity.IsAuthenticated)
         {
-            // Nếu đã đăng nhập: Đếm trong DB
             var dbContext = Context.RequestServices.GetService<TMDT_LT.Data.ApplicationDbContext>();
             var customerIdStr = User.FindFirstValue("CustomerId");
             if (int.TryParse(customerIdStr, out int cusId) && dbContext != null)
@@ -178,7 +212,6 @@
         }
         else
         {
-            // Nếu khách vãng lai: Đếm trong Cookie
             var cartCookie = HttpContextAccessor.HttpContext?.Request.Cookies["PhoneStCartCookie"];
             if (!string.IsNullOrEmpty(cartCookie))
             {
@@ -196,10 +229,15 @@
         <div class="header-container">
             <a href="/" class="brand-logo">KingPhone</a>
 
-            <form action="/Store" method="get" class="search-bar-form">
+            <form action="/Store" method="get" class="search-bar-form" id="global-search-form">
                 <div class="search-input-group">
-                    <input type="text" name="keyword" placeholder="Tìm tên máy, thương hiệu, danh mục..." autocomplete="off">
-                    <button type="submit" class="search-submit-btn"><i class="fas fa-search"></i></button>
+                    <input type="text" name="keyword" id="global-search-input"
+                           placeholder="Tìm tên máy, thương hiệu, danh mục..." autocomplete="off">
+                    <button type="submit" class="search-submit-btn">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <!-- Dropdown gợi ý -->
+                    <div id="global-suggestions-box" class="shopee-search-dropdown-box"></div>
                 </div>
             </form>
 
@@ -211,7 +249,7 @@
             </nav>
 
             <div class="action-menu">
-                <a href="/Cart" class="action-item" title="Giỏ hàng cá nhân">
+                <a href="/Cart" class="action-item" title="Giỏ hàng cá nhân" style="position:relative;">
                     <i class="fas fa-shopping-bag"></i>
                     <span id="header-cart-badge" class="cart-badge @(totalCartItems > 0 ? "has-items" : "")">@totalCartItems</span>
                 </a>
@@ -258,20 +296,20 @@
     <footer class="main-footer">
         <div class="footer-container">
             <div>
-                <h4 style="color:var(--navy-deep); margin-bottom:16px;">PHONE.ST STORE</h4>
+                <h4>PHONE.ST STORE</h4>
                 <p>Hệ thống bán lẻ thiết bị di động chuẩn công nghệ cao.</p>
             </div>
             <div>
-                <h4 style="color:var(--navy-deep); margin-bottom:16px;">Chính sách</h4>
+                <h4>Chính sách</h4>
                 <p>Bảo hành 12 tháng chính hãng quốc tế.</p>
             </div>
             <div>
-                <h4 style="color:var(--navy-deep); margin-bottom:16px;">Liên kết</h4>
+                <h4>Liên kết</h4>
                 <p>Tuyển dụng nhân sự bảo trì mạng máy tính.</p>
             </div>
             <div>
-                <h4 style="color:var(--navy-deep); margin-bottom:16px;">Tổng đài</h4>
-                <p style="font-weight:700;">1900.xxxx (8:00 - 21:30)</p>
+                <h4>Tổng đài</h4>
+                <p style="font-weight:700; color:#fff;">1900.xxxx (8:00 - 21:30)</p>
             </div>
         </div>
     </footer>
@@ -279,23 +317,124 @@
     <div id="toast-container"></div>
 
     <script>
+        // Toast
         window.showToast = function(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast-msg ${type}`;
-
             const icon = type === 'success' ? '<i class="fas fa-check-circle success-icon"></i>' : '<i class="fas fa-exclamation-circle error-icon"></i>';
-
             toast.innerHTML = `${icon} <span>${message}</span>`;
             container.appendChild(toast);
-
             setTimeout(() => toast.classList.add('show'), 10);
-
             setTimeout(() => {
                 toast.classList.remove('show');
                 setTimeout(() => toast.remove(), 400);
             }, 3000);
         };
+
+        // ================================================================
+        // TÌM KIẾM GỢI Ý DROPDOWN (KIỂU SHOPEE) - TOÀN CỤC
+        // ================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('global-search-input');
+            const suggestionsBox = document.getElementById('global-suggestions-box');
+            const searchForm = document.getElementById('global-search-form');
+            let debounceTimer;
+
+            if (!searchInput || !suggestionsBox) {
+                console.warn('Không tìm thấy input hoặc dropdown gợi ý');
+                return;
+            }
+
+            // Hàm fetch gợi ý từ API
+            function fetchSuggestions(query) {
+                const url = `/Store/GetSearchSuggestions?q=${encodeURIComponent(query)}`;
+                fetch(url)
+                    .then(res => {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.json();
+                    })
+                    .then(data => {
+                        let html = '';
+                        if (data.phrases && data.phrases.length > 0) {
+                            data.phrases.forEach(phrase => {
+                                const safePhrase = phrase.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                html += `
+                                    <div class="shopee-suggestion-row" onclick="window.applySuggestion('${safePhrase}')">
+                                        <i class="fas fa-search"></i>
+                                        <span>${phrase}</span>
+                                    </div>`;
+                            });
+                            suggestionsBox.innerHTML = html;
+                            suggestionsBox.style.display = 'block';
+                        } else {
+                            suggestionsBox.style.display = 'none';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Lỗi fetch gợi ý:', err);
+                        suggestionsBox.style.display = 'none';
+                    });
+            }
+
+            // Hàm áp dụng gợi ý (global)
+            window.applySuggestion = function(phrase) {
+                if (!searchInput) return;
+                searchInput.value = phrase;
+                suggestionsBox.style.display = 'none';
+                if (searchForm) {
+                    searchForm.submit();
+                } else {
+                    const submitBtn = document.querySelector('.search-submit-btn');
+                    if (submitBtn) submitBtn.click();
+                }
+            };
+
+            // Sự kiện focus: hiển thị gợi ý
+            searchInput.addEventListener('focus', function() {
+                const val = this.value.trim();
+                if (val !== '') {
+                    fetchSuggestions(val);
+                } else {
+                    fetchSuggestions(''); // gợi ý hot
+                }
+            });
+
+            // Sự kiện input: debounce 300ms
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                const val = this.value.trim();
+                debounceTimer = setTimeout(() => {
+                    fetchSuggestions(val);
+                }, 300);
+            });
+
+            // Ẩn dropdown khi click ra ngoài
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                    suggestionsBox.style.display = 'none';
+                }
+            });
+
+            // Phím ESC để đóng dropdown
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    suggestionsBox.style.display = 'none';
+                }
+            });
+
+            // Khi submit form (Enter), đóng dropdown
+            if (searchForm) {
+                searchForm.addEventListener('submit', function() {
+                    suggestionsBox.style.display = 'none';
+                });
+            }
+
+            // Tự động mở dropdown khi trang load với từ khóa có sẵn (trên trang kết quả)
+            if (searchInput.value.trim() !== '') {
+                fetchSuggestions(searchInput.value.trim());
+            }
+        });
     </script>
 
     @await RenderSectionAsync("Scripts", required: false)

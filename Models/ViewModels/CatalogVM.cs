@@ -22,5 +22,6 @@ namespace TMDT_LT.Models.ViewModels.Storefront
         public int CurrentPage { get; set; } = 1;
         public int TotalPages { get; set; }
         public int PageSize { get; set; } = 12; // Mặc định hiển thị 12 sản phẩm/trang (hợp với lưới 3 cột)
+        public List<string> SuggestionTags { get; set; } = new List<string>();
     }
 }

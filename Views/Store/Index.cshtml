@@ -95,7 +95,7 @@
                 color: var(--accent-red);
             }
 
-        /* BỔ SUNG: CSS CHO NÚT YÊU THÍCH */
+        /* CSS CHO NÚT YÊU THÍCH */
         .btn-favorite {
             position: absolute;
             top: 10px;
@@ -120,17 +120,73 @@
                 transform: scale(1.1);
             }
 
-            /* TRẠNG THÁI ACTIVE: TYM MÀU ĐỎ */
             .btn-favorite.active {
                 color: var(--accent-red);
                 border-color: var(--accent-red);
                 background: #FEF2F2;
             }
+
+        /* CSS MỚI BỔ SUNG: VÙNG HIỂN THỊ CÁC SUGGESTION SEARCH TAGS */
+        .search-suggestion-wrapper {
+            background: #FFFFFF;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border: 1px solid #E2E8F0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #64748B;
+            text-transform: uppercase;
+        }
+
+        .suggestion-tag-item {
+            background: #F1F5F9;
+            color: #334155;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+            .suggestion-tag-item:hover {
+                background: #FEF2F2;
+                color: var(--accent-red);
+                border-color: var(--accent-red);
+            }
+
+        /* CSS KHU VỰC TAG THÔNG SỐ CẤU HÌNH BIẾN THỂ TRÊN CARD SẢN PHẨM */
+        .product-variant-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 6px 12px;
+            min-height: 22px;
+        }
+
+        .variant-spec-badge {
+            background: #F1F5F9;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #E2E8F0;
+        }
     </style>
 }
 
 <form id="catalogMainForm" method="get" action="/Store">
-    <input type="hidden" name="keyword" value="@Model.Keyword" />
+    <input type="hidden" name="keyword" id="catalogKeywordInput" value="@Model.Keyword" />
     <input type="hidden" name="page" id="pageInput" value="@Model.CurrentPage" />
 
     <div class="catalog-layout-grid">
@@ -192,6 +248,8 @@
         </aside>
 
         <main class="catalog-content-area">
+
+
             <div class="catalog-toolbar-top">
                 <div class="result-counter-txt">
                     @if (!string.IsNullOrWhiteSpace(Model.Keyword))
@@ -225,7 +283,6 @@
                         var defaultVariant = activeVariants.OrderBy(v => v.Price).FirstOrDefault();
 
                         <div class="market-product-card">
-
                             <button type="button" class="btn-favorite" onclick="toggleFavorite(event, this, @(defaultVariant?.VariantId ?? 0))" title="Thêm vào yêu thích">
                                 <i class="far fa-heart"></i>
                             </button>
@@ -233,6 +290,23 @@
                             <a href="/Store/Product/@item.ProductId" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; flex: 1;">
                                 <img src="@item.MainImage" alt="@item.Name" class="product-card-img" onerror="this.src='https://via.placeholder.com/200?text=No+Image'" />
                                 <div class="product-card-name">@item.Name</div>
+
+                                <div class="product-variant-badges">
+                                    @{
+                                        // Gộp tất cả RAM, Storage hợp lệ không phải N/A hoặc rỗng
+                                        var specBadges = activeVariants
+                                        .SelectMany(v => new[] { v.Ram, v.Storage })
+                                        .Where(s => !string.IsNullOrWhiteSpace(s) && !s.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+                                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                                        .ToList();
+
+                                        foreach (var spec in specBadges)
+                                        {
+                                            <span class="variant-spec-badge">@spec</span>
+                                        }
+                                    }
+                                </div>
+
                                 <div class="price-group-market">
                                     @if (defaultVariant != null)
                                     {
@@ -263,7 +337,6 @@
                                     stock = v.Stock,
                                     imageUrl = !string.IsNullOrEmpty(v.ImageUrl) ? v.ImageUrl : item.MainImage
                                 }));
-
                                 <button type="button" class="btn-home-cart" onclick="openQuickAddModal(this)" data-name="@item.Name" data-img="@item.MainImage" data-variants="@variantJson">
                                     <i class="fas fa-shopping-cart"></i> THÊM VÀO GIỎ
                                 </button>
@@ -310,7 +383,6 @@
                             <button type="button" class="page-btn" onclick="goToPage(1)">1</button>
                             if (startPage > 2)
                             {
-
                                 <span class="page-dots">...</span>
                             }
                         }
@@ -374,9 +446,12 @@
         function triggerSubmitForm() { document.getElementById('pageInput').value = 1; document.getElementById('catalogMainForm').submit(); }
         function goToPage(pageNum) { document.getElementById('pageInput').value = pageNum; document.getElementById('catalogMainForm').submit(); }
 
-        // =========================================================
-        // ĐỘNG CƠ XỬ LÝ GIAO DIỆN CHỌN PHÂN LOẠI NHANH (QUICK ADD)
-        // =========================================================
+        function submitSearchWithTag(tagText) {
+            document.getElementById('catalogKeywordInput').value = tagText;
+            document.getElementById('pageInput').value = 1;
+            document.getElementById('catalogMainForm').submit();
+        }
+
         let qaVariantMatrix = [];
         let qaCurrentSelection = { storage: null, ram: null, color: null };
         let qaMinPrice = 0;
@@ -442,7 +517,6 @@
             document.querySelectorAll('.attr-qa-storage').forEach(el => qaCheckAvailability('storage', el.getAttribute('data-val'), el));
             document.querySelectorAll('.attr-qa-ram').forEach(el => qaCheckAvailability('ram', el.getAttribute('data-val'), el));
             document.querySelectorAll('.attr-qa-color').forEach(el => qaCheckAvailability('color', el.getAttribute('data-val'), el));
-
             const exactMatch = qaVariantMatrix.find(v =>
                 (!qaCurrentSelection.storage || v.storage === qaCurrentSelection.storage) &&
                 (!qaCurrentSelection.ram || v.ram === qaCurrentSelection.ram) &&
@@ -451,15 +525,12 @@
                 (qaCurrentSelection.ram !== null || v.ram === "") &&
                 (qaCurrentSelection.color !== null || v.color === "")
             );
-
             const formatVND = (num) => new Intl.NumberFormat('vi-VN').format(num) + " đ";
             const btnSubmit = document.getElementById('qa-btn-submit');
-
             if (exactMatch) {
                 document.getElementById('qa-variantId').value = exactMatch.variantId;
                 const price = (exactMatch.discountPrice > 0) ? exactMatch.discountPrice : exactMatch.price;
                 document.getElementById('qa-price').innerText = formatVND(price);
-
                 if (exactMatch.stock > 0) {
                     document.getElementById('qa-stock').innerText = `Kho: ${exactMatch.stock}`;
                     btnSubmit.disabled = false;
@@ -490,7 +561,6 @@
                 (!testSelection.ram || v.ram === testSelection.ram) &&
                 (!testSelection.color || v.color === testSelection.color)
             );
-
             if (isAvailable) {
                 element.classList.remove('disabled-chip');
             } else {
@@ -506,7 +576,6 @@
             if (newQty >= 1) input.value = newQty;
         }
 
-        // ĐỘNG CƠ GỬI DỮ LIỆU TỪ MODAL QUICK ADD
         document.getElementById('qa-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(this);
@@ -537,7 +606,6 @@
             }).catch(err => console.error('Lỗi kết nối API:', err));
         });
 
-        // ĐỘNG CƠ GỬI DỮ LIỆU TỪ NÚT BẤM CỦA SẢN PHẨM CÓ 1 BIẾN THỂ (GIỮ NGUYÊN)
         document.querySelectorAll('.ajax-cart-form:not(#qa-form)').forEach(form => {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -560,7 +628,6 @@
                         btn.style.color = 'white';
                         updateCartBadge(data.cartCount);
                         showShopeeToast("Sản phẩm đã được thêm vào Giỏ hàng");
-
                         setTimeout(() => {
                             btn.innerHTML = originalText;
                             btn.style.background = '';
@@ -574,7 +641,8 @@
         function updateCartBadge(count) {
             const badge = document.querySelector('.cart-badge');
             if (badge) {
-                badge.innerText = count; badge.classList.add('has-items'); badge.style.animation = 'none';
+                badge.innerText = count;
+                badge.classList.add('has-items'); badge.style.animation = 'none';
                 badge.offsetHeight; badge.style.animation = 'popBadge 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
             }
         }
@@ -582,24 +650,22 @@
         function showShopeeToast(message) {
             let toast = document.getElementById('shopee-toast');
             if (!toast) {
-                toast = document.createElement('div'); toast.id = 'shopee-toast';
+                toast = document.createElement('div');
+                toast.id = 'shopee-toast';
                 toast.innerHTML = `<i class="fas fa-check-circle" style="font-size:36px; color:#10B981; margin-bottom:12px; display:block;"></i><span style="font-size:14px; font-weight:700;">${message}</span>`;
                 toast.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); color:#fff; padding:30px 40px; border-radius:8px; text-align:center; z-index:9999; opacity:0; visibility:hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
                 document.body.appendChild(toast);
             }
-            toast.style.visibility = 'visible'; toast.style.opacity = '1'; toast.style.transform = 'translate(-50%, -50%) scale(1.05)';
+            toast.style.visibility = 'visible'; toast.style.opacity = '1';
+            toast.style.transform = 'translate(-50%, -50%) scale(1.05)';
             setTimeout(() => { toast.style.transform = 'translate(-50%, -50%) scale(1)'; }, 50);
             setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.style.visibility = 'hidden', 300); }, 1800);
         }
 
-        // =========================================================
-        // THÊM SẢN PHẨM VÀO YÊU THÍCH (BẰNG AJAX)
-        // =========================================================
         window.toggleFavorite = async function(event, btnElement, variantId) {
             event.preventDefault();
             event.stopPropagation();
 
-            // Nếu sản phẩm không có biến thể mặc định để lưu
             if (variantId === 0) {
                 if(typeof window.showToast === 'function') window.showToast("Sản phẩm này hiện chưa có biến thể cụ thể.", "error");
                 else alert("Sản phẩm này hiện chưa có biến thể cụ thể.");
@@ -607,29 +673,21 @@
             }
 
             const icon = btnElement.querySelector('i');
-
-            // 1. Đảo trạng thái UI tạm thời để tạo cảm giác mượt mà tức thì cho người dùng
             const isCurrentlyActive = btnElement.classList.contains('active');
             btnElement.classList.toggle('active');
             icon.className = isCurrentlyActive ? 'far fa-heart' : 'fas fa-heart';
-
             try {
                 const formData = new FormData();
                 formData.append('variantId', variantId);
 
-                // 2. Gửi request tới FavoriteController (AJAX)
                 const response = await fetch('/Favorite/Toggle', {
                     method: 'POST',
                     body: formData
                 });
-
                 const data = await response.json();
 
                 if (data.success) {
-                    // Nếu thành công, hiện Toast thông báo
                     if(typeof window.showToast === 'function') window.showToast(data.message, 'success');
-
-                    // Đồng bộ UI với server response
                     if (data.isAdded) {
                         btnElement.classList.add('active');
                         icon.className = 'fas fa-heart';
@@ -638,7 +696,6 @@
                         icon.className = 'far fa-heart';
                     }
                 } else {
-                    // Nếu server trả về lỗi (VD: Chưa đăng nhập), Rollback lại UI
                     btnElement.classList.toggle('active');
                     icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
 
@@ -651,16 +708,12 @@
                     }
                 }
             } catch (e) {
-                // Lỗi mạng -> Rollback UI
                 btnElement.classList.toggle('active');
                 icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
                 if(typeof window.showToast === 'function') window.showToast('Lỗi kết nối đến máy chủ.', 'error');
             }
         };
 
-        // =========================================================
-        // ĐỘNG CƠ LỌC GIÁ KẾT HỢP DROPDOWN & CUSTOM INPUT
-        // =========================================================
         function toggleCustomPrice() {
             const selector = document.getElementById('priceRangeSelector').value;
             const customContainer = document.getElementById('customPriceInputs');
