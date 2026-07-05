@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TMDT_LT.Data;
 
@@ -11,9 +12,11 @@ using TMDT_LT.Data;
 namespace TMDT_LT.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260701033758_UpgradeWmsChainStoreModuleComplete")]
+    partial class UpgradeWmsChainStoreModuleComplete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1608,9 +1611,6 @@ namespace TMDT_LT.Migrations
                         .HasMaxLength(50)
                         .IsUnicode(false)
                         .HasColumnType("varchar(50)");
-
-                    b.Property<int?>("Type")
-                        .HasColumnType("int");
 
                     b.HasKey("SupplierId")
                         .HasName("PK__Supplier__4BE666B4CD56E1BE");

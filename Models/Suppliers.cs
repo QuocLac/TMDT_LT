@@ -5,6 +5,8 @@ namespace TMDT_LT.Models;
 
 public partial class Suppliers
 {
+    // 1 = Nhà cung cấp (Nhập), 2 = Đại lý sỉ (Xuất)
+    public int? Type { get; set; }
     public int SupplierId { get; set; }
 
     public string SupplierName { get; set; } = null!;

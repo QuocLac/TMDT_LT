@@ -1,0 +1,180 @@
+﻿@model List<TMDT_LT.Models.InventoryLots>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Canh bao hang ton dong";
+    int threshold = ViewBag.DaysThreshold ?? 30;
+}
+
+<div style="font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto;">
+    <div style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+            <a href="/Admin/Inventory/Index" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #F3F4F6; color: #374151; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; border: 1px solid #E5E7EB; transition: all 0.2s;" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">
+                Quay lai trang kiem soat kho
+            </a>
+            <h2 style="color: #333; margin: 0;">DANH SACH HANG TON KHO LAU NGAY</h2>
+        </div>
+        <p style="color: #666;">Cac san pham ton kho qua @threshold ngay ke tu ngay nhap.</p>
+    </div>
+
+    <div style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <label style="font-weight: 600; color: #333;">Chon nguong ngay:</label>
+        <select id="daysFilter" onchange="window.location.href='/Admin/Inventory/AgedStock?days=' + this.value" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: white; font-size: 14px;">
+            <option value="30" selected="@(threshold == 30)">Tren 30 ngay</option>
+            <option value="60" selected="@(threshold == 60)">Tren 60 ngay</option>
+            <option value="90" selected="@(threshold == 90)">Tren 90 ngay</option>
+        </select>
+
+        <input type="text" id="searchInput" placeholder="Tim theo ten san pham..."
+               onkeyup="filterTable()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 300px; font-size: 14px;">
+
+        <span style="margin-left: auto; color: #666; font-size: 14px;">
+            Tong so luong: <strong style="color: #333;">@Model.Count</strong> lo hang
+        </span>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table id="agedTable" style="width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <thead>
+                <tr style="background: #f0f2f5; text-align: left; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px; border: 1px solid #ddd; font-weight: 700; color: #333;">Ten san pham</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; font-weight: 700; color: #333;">Ma lo</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; font-weight: 700; color: #333;">Ngay nhap</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; font-weight: 700; color: #333;">So ngay ton</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; font-weight: 700; color: #333; text-align: center;">So luong con</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; font-weight: 700; color: #333; text-align: right;">Gia von</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Any())
+                {
+                    @foreach (var item in Model)
+                    {
+                        var daysOld = (DateTime.Now - item.ReceivedDate).Days;
+                        var warningClass = daysOld > 90 ? "#DC3545" : (daysOld > 60 ? "#FD7E14" : "#FFC107");
+                        <tr class="data-row" style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s;" onmouseover="this.style.background='#F8F9FA'" onmouseout="this.style.background='#FFFFFF'">
+                            <td style="padding: 12px; border: 1px solid #ddd;">
+                                <strong>@item.Variant?.Product?.Name</strong>
+                                <span style="color: #666; font-size: 12px; display: block;">@item.Variant?.Color @item.Variant?.Storage</span>
+                            </td>
+                            <td style="padding: 12px; border: 1px solid #ddd; font-family: monospace; font-weight: 600; color: #495057;">#LOT-@item.LotId</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; color: #495057;">@item.ReceivedDate.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; color: @(daysOld > 90 ? "#DC3545" : (daysOld > 60 ? "#FD7E14" : "#FFC107")); font-weight: bold; text-align: center;">
+                                @daysOld ngay
+                                @if (daysOld > 90)
+                                {
+                                    <span style="background: #DC3545; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 5px;">CANH BAO</span>
+                                }
+                                else if (daysOld > 60)
+                                {
+                                    <span style="background: #FD7E14; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 5px;">CANH BAO</span>
+                                }
+                            </td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: 700; color: #333;">@item.RemainingQuantity</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: right; font-weight: 600; color: #495057;">@item.UnitCost.ToString("N0") d</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" style="padding: 40px; text-align: center; color: #6c757d; font-size: 16px; border: 1px solid #ddd;">
+                            <div style="font-size: 14px;">Khong co san pham ton kho lau ngay.</div>
+                            <div style="font-size: 12px; color: #adb5bd; margin-top: 5px;">Tat ca cac lo hang deu duoc luu chuyen trong vong @threshold ngay.</div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <strong style="color: #856404;">Thong ke canh bao:</strong>
+            <span style="color: #856404; margin-left: 10px;">
+                Do: <strong>@Model.Count(x => (DateTime.Now - x.ReceivedDate).Days > 90)</strong> lo
+            </span>
+            <span style="color: #856404; margin-left: 10px;">
+                Vang: <strong>@Model.Count(x => (DateTime.Now - x.ReceivedDate).Days > 60 && (DateTime.Now - x.ReceivedDate).Days <= 90)</strong> lo
+            </span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button onclick="exportTableToCSV()" style="padding: 6px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                Xuat CSV
+            </button>
+            <button onclick="window.print()" style="padding: 6px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                In danh sach
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterTable() {
+        var input = document.getElementById("searchInput");
+        var filter = input.value.toLowerCase();
+        var table = document.getElementById("agedTable");
+        var tr = table.getElementsByClassName("data-row");
+
+        for (var i = 0; i < tr.length; i++) {
+            var td = tr[i].getElementsByTagName("td")[0];
+            if (td) {
+                var txtValue = td.textContent || td.innerText;
+                tr[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "" : "none";
+            }
+        }
+    }
+
+    function exportTableToCSV() {
+        var table = document.getElementById("agedTable");
+        var rows = table.querySelectorAll("tr");
+        var csv = [];
+
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var rowData = [];
+            var cols = row.querySelectorAll("td, th");
+
+            for (var j = 0; j < cols.length; j++) {
+                var text = cols[j].innerText.replace(/,/g, '') || '';
+                rowData.push('"' + text.trim() + '"');
+            }
+            csv.push(rowData.join(","));
+        }
+
+        var csvContent = csv.join("\n");
+        var blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        var link = document.createElement("a");
+        var url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "DS_Ton_Kho_Lau_Ngay_" + new Date().toISOString().slice(0,10) + ".csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+<style>
+   
+
+    {
+        background: white !important;
+    }
+
+    #searchInput, #daysFilter, .export-actions {
+        display: none !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    table {
+        border-collapse: collapse !important;
+    }
+
+    th, td {
+        border: 1px solid #000 !important;
+    }
+
+    }
+</style>

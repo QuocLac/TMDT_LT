@@ -24,7 +24,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
         // 2. XỬ LÝ KHAI BÁO THÊM ĐỐI TÁC MỚI
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Suppliers model)
+        public async Task<IActionResult> Create(Suppliers model,int type)
         {
             // Kiểm tra thủ công vì model sinh từ DB không có [Required]
             if (string.IsNullOrWhiteSpace(model.SupplierName) || string.IsNullOrWhiteSpace(model.Phone))
@@ -32,7 +32,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 TempData["Error"] = "Tên nhà phân phối và số điện thoại không được để trống.";
                 return RedirectToAction(nameof(Index));
             }
-
+            model.Type = type; // Lưu loại (1 hoặc 2)
             model.SupplierName = model.SupplierName.Trim();
             model.Phone = model.Phone.Trim();
             model.CreatedAt = DateTime.Now;
@@ -75,6 +75,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 if (supplier == null) return Json(new { success = false, message = "Không tìm thấy dữ liệu đối tác." });
 
                 // Cập nhật tất cả các trường bao gồm cả Mã số thuế
+                supplier.Type = model.Type; // Cập nhật cả loại đối tác
                 supplier.SupplierName = model.SupplierName.Trim();
                 supplier.ContactName = model.ContactName?.Trim();
                 supplier.Phone = model.Phone.Trim();

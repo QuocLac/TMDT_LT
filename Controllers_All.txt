@@ -1,0 +1,2575 @@
+﻿
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\AccountController.cs ==========
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+using TMDT_LT.Models.ViewModels;
+using BCryptNet = BCrypt.Net.BCrypt;
+
+namespace TMDT_LT.Controllers
+{
+    [Authorize] // Bắt buộc đăng nhập mới được vào các hàm này
+    public class AccountController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+
+        public AccountController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // ==========================================
+        // 1. HIỂN THỊ TRANG PROFILE
+        // ==========================================
+        [HttpGet]
+        public async Task<IActionResult> Profile()
+        {
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var account = await _context.Account
+                .Include(a => a.Customer)
+                .ThenInclude(c => c.Address)
+                .FirstOrDefaultAsync(a => a.Email == email);
+
+            if (account == null) return RedirectToAction("Login", "Auth");
+
+            var customer = account.Customer.FirstOrDefault();
+
+            // ========================================================
+            // TỰ ĐỘNG CHỮA LÀNH DỮ LIỆU: Kích hoạt nếu Account thiếu Customer
+            // ========================================================
+            if (customer == null)
+            {
+                customer = new Customer
+                {
+                    AccountId = account.AccountId,
+                    FullName = account.Role == "Admin" ? "Quản trị viên" : "Thành viên PHONE.ST",
+                    CustomerType = "Newbie",
+                    RewardPoints = 0,
+                    Phone = account.Phone
+                };
+                _context.Customer.Add(customer);
+                await _context.SaveChangesAsync();
+            }
+            // ========================================================
+
+            var model = new ProfileVM
+            {
+                Email = account.Email,
+                FullName = customer.FullName ?? "",
+                Phone = customer.Phone,
+                Gender = customer.Gender,
+                BirthDate = customer.BirthDate,
+                CustomerType = customer.CustomerType ?? "Newbie",
+                RewardPoints = customer.RewardPoints,
+                CreatedAt = account.CreatedAt,
+                ActiveTab = TempData["ActiveTab"]?.ToString() ?? "profile", // Nhớ tab cũ
+
+                // Dùng (customer.Address ?? new List<Address>()) để tránh lỗi Null với Customer mới tạo
+                Addresses = (customer.Address ?? new List<Address>()).Select(a => new AddressVM
+                {
+                    AddressId = a.AddressId,
+                    City = a.City ?? "",
+                    District = a.District ?? "",
+                    Street = a.Street ?? "",
+                    IsDefault = a.IsDefault ?? false
+                }).OrderByDescending(a => a.IsDefault).ToList()
+            };
+
+            return View(model);
+        }
+
+        // ==========================================
+        // 2. CẬP NHẬT HỒ SƠ
+        // ==========================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateProfile(ProfileVM model)
+        {
+            TempData["ActiveTab"] = "profile";
+
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var customer = await _context.Customer.Include(c => c.Account).FirstOrDefaultAsync(c => c.Account.Email == email);
+
+            if (customer != null)
+            {
+                customer.FullName = model.FullName;
+                customer.Phone = model.Phone;
+                customer.Gender = model.Gender;
+                customer.BirthDate = model.BirthDate;
+
+                // Đồng bộ SDT qua bảng Account nếu cần
+                customer.Account.Phone = model.Phone;
+
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Cập nhật hồ sơ cá nhân thành công!";
+            }
+            else
+            {
+                TempData["Error"] = "Đã xảy ra lỗi, không tìm thấy thông tin khách hàng.";
+            }
+
+            return RedirectToAction(nameof(Profile));
+        }
+
+        // ==========================================
+        // 3. ĐỔI MẬT KHẨU (DÙNG BCRYPT)
+        // ==========================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ProfileVM model)
+        {
+            TempData["ActiveTab"] = "password";
+
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var account = await _context.Account.FirstOrDefaultAsync(a => a.Email == email);
+
+            if (account == null) return RedirectToAction("Login", "Auth");
+
+            // Kiểm tra mật khẩu cũ (Có tính tương thích ngược cho PlainText)
+            bool isOldPasswordValid = false;
+            if (account.Password.StartsWith("$2"))
+            {
+                try { isOldPasswordValid = BCryptNet.Verify(model.PasswordData.OldPassword, account.Password); }
+                catch { isOldPasswordValid = false; }
+            }
+            else
+            {
+                isOldPasswordValid = (account.Password == model.PasswordData.OldPassword);
+            }
+
+            if (!isOldPasswordValid)
+            {
+                TempData["Error"] = "Mật khẩu hiện tại không chính xác.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            // Lưu mật khẩu mới
+            account.Password = BCryptNet.HashPassword(model.PasswordData.NewPassword);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Đổi mật khẩu thành công!";
+            return RedirectToAction(nameof(Profile));
+        }
+
+        // ==========================================
+        // 4. QUẢN LÝ ĐỊA CHỈ
+        // ==========================================
+        [HttpPost]
+        public async Task<IActionResult> AddAddress(ProfileVM model)
+        {
+            TempData["ActiveTab"] = "address";
+
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var customer = await _context.Customer.Include(c => c.Address).FirstOrDefaultAsync(c => c.Account.Email == email);
+            if (customer == null) return NotFound();
+
+            var newAddr = model.NewAddress;
+            bool isFirstAddress = !customer.Address.Any();
+
+            // Nếu đây là địa chỉ đầu tiên hoặc được tick mặc định, tắt các mặc định khác
+            if (isFirstAddress || newAddr.IsDefault)
+            {
+                foreach (var addr in customer.Address) addr.IsDefault = false;
+            }
+
+            var address = new Address
+            {
+                CustomerId = customer.CustomerId,
+                City = newAddr.City,
+                District = newAddr.District,
+                Street = newAddr.Street,
+                Country = "Việt Nam",
+                IsDefault = isFirstAddress ? true : newAddr.IsDefault
+            };
+
+            _context.Address.Add(address);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Thêm địa chỉ giao hàng thành công!";
+            return RedirectToAction(nameof(Profile));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteAddress(int addressId)
+        {
+            TempData["ActiveTab"] = "address";
+            var address = await _context.Address.FindAsync(addressId);
+
+            if (address != null)
+            {
+                _context.Address.Remove(address);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Đã xóa địa chỉ.";
+            }
+            return RedirectToAction(nameof(Profile));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SetDefaultAddress(int addressId)
+        {
+            TempData["ActiveTab"] = "address";
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var customer = await _context.Customer.Include(c => c.Address).FirstOrDefaultAsync(c => c.Account.Email == email);
+
+            if (customer != null)
+            {
+                foreach (var addr in customer.Address)
+                {
+                    addr.IsDefault = (addr.AddressId == addressId);
+                }
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Đã thiết lập địa chỉ mặc định.";
+            }
+            return RedirectToAction(nameof(Profile));
+        }
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\AuthController.cs ==========
+// Controllers/AuthController.cs
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Text.Json;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+using TMDT_LT.Models.ViewModels;
+using TMDT_LT.Models.ViewModels.Storefront;
+using BCryptNet = BCrypt.Net.BCrypt;
+
+namespace TMDT_LT.Controllers
+{
+    public class AuthController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<AuthController> _logger;
+
+        public AuthController(ApplicationDbContext context, ILogger<AuthController> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        [HttpGet]
+        public IActionResult Login(string? returnUrl = null)
+        {
+            ViewBag.ReturnUrl = returnUrl;
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(string email, string password, string? returnUrl = null)
+        {
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+            {
+                ModelState.AddModelError("", "Vui lòng nhập email và mật khẩu.");
+                return View();
+            }
+
+            var account = await _context.Account
+                .Include(a => a.Customer)
+                .FirstOrDefaultAsync(a => a.Email == email && a.IsActive == true);
+
+            // ==========================================
+            // FIX: XỬ LÝ LỖI MẬT KHẨU CŨ CHƯA ĐƯỢC HASH
+            // ==========================================
+            bool isPasswordValid = false;
+
+            if (account != null)
+            {
+                // Mật khẩu hash bằng BCrypt luôn bắt đầu bằng "$2" (VD: $2a$, $2b$, $2y$)
+                if (account.Password.StartsWith("$2"))
+                {
+                    try
+                    {
+                        isPasswordValid = BCryptNet.Verify(password, account.Password);
+                    }
+                    catch (BCrypt.Net.SaltParseException)
+                    {
+                        isPasswordValid = false;
+                    }
+                }
+                else
+                {
+                    // Fallback: Dành cho các tài khoản cũ lưu bằng Plain Text (VD: "user789")
+                    isPasswordValid = (password == account.Password);
+                }
+            }
+
+            if (account == null || !isPasswordValid)
+            {
+                ModelState.AddModelError("", "Email hoặc mật khẩu không đúng.");
+                return View();
+            }
+            // ==========================================
+
+            var customerId = account.Customer.FirstOrDefault()?.CustomerId.ToString() ?? "";
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
+                new Claim(ClaimTypes.Email, account.Email),
+                new Claim(ClaimTypes.Role, account.Role ?? "Customer"),
+                new Claim("CustomerId", customerId)
+            };
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
+                new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTime.UtcNow.AddDays(7) });
+
+            // BỔ SUNG: Gọi hàm gộp giỏ hàng vãng lai vào Database
+            if (int.TryParse(customerId, out int cusIdParsed))
+            {
+                await MergeCartAfterLogin(cusIdParsed);
+            }
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return Redirect(returnUrl);
+
+            return account.Role == "Admin"
+                ? RedirectToAction("Index", "Dashboard", new { area = "Admin" })
+                : RedirectToAction("Index", "Home");
+        }
+
+        [HttpGet]
+        public IActionResult Register()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register(string email, string password, string fullName, string phone)
+        {
+            if (await _context.Account.AnyAsync(a => a.Email == email))
+            {
+                ModelState.AddModelError("", "Email đã được đăng ký.");
+                return View();
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var account = new Account
+                {
+                    Email = email,
+                    Password = BCryptNet.HashPassword(password),
+                    Role = "Customer",
+                    IsActive = true,
+                    CreatedAt = DateTime.Now,
+                    Phone = phone
+                };
+                _context.Account.Add(account);
+                await _context.SaveChangesAsync();
+
+                var customer = new Customer
+                {
+                    AccountId = account.AccountId,
+                    FullName = fullName,
+                    Phone = phone,
+                    CustomerType = "Thường",
+                    RewardPoints = 0
+                };
+                _context.Customer.Add(customer);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                TempData["Success"] = "Đăng ký thành công! Vui lòng đăng nhập.";
+                return RedirectToAction("Login");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Đăng ký thất bại cho email {Email}", email);
+                ModelState.AddModelError("", $"Đăng ký thất bại: {ex.InnerException?.Message ?? ex.Message}");
+                return View();
+            }
+        }
+
+        // CẬP NHẬT: Hàm gộp giỏ hàng đọc từ Cookie thay vì Session
+        private async Task MergeCartAfterLogin(int customerId)
+        {
+            var cartCookie = HttpContext.Request.Cookies["PhoneStCartCookie"];
+            if (!string.IsNullOrEmpty(cartCookie))
+            {
+                try
+                {
+                    var guestCart = JsonSerializer.Deserialize<List<CartItemVM>>(cartCookie);
+                    if (guestCart != null && guestCart.Any())
+                    {
+                        var dbCart = await _context.CartItems.Where(c => c.CustomerId == customerId).ToListAsync();
+
+                        foreach (var item in guestCart)
+                        {
+                            var exist = dbCart.FirstOrDefault(c => c.VariantId == item.VariantId);
+                            if (exist != null)
+                            {
+                                exist.Quantity += item.Quantity;
+                            }
+                            else
+                            {
+                                _context.CartItems.Add(new CartItems
+                                {
+                                    CustomerId = customerId,
+                                    VariantId = item.VariantId,
+                                    Quantity = item.Quantity,
+                                    CreatedDate = DateTime.Now
+                                });
+                            }
+                        }
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch { }
+
+                // Xóa Cookie sau khi đã gộp vào Database thành công
+                HttpContext.Response.Cookies.Delete("PhoneStCartCookie");
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Logout()
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("Index", "Home");
+        }
+
+        [HttpGet]
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ForgotPassword(string email)
+        {
+            var account = await _context.Account.FirstOrDefaultAsync(a => a.Email == email && a.IsActive == true);
+            if (account == null)
+            {
+                TempData["Error"] = "Email không tồn tại trong hệ thống.";
+                return View();
+            }
+
+            var resetToken = Guid.NewGuid().ToString();
+            HttpContext.Session.SetString("ResetToken_" + email, resetToken);
+            HttpContext.Session.SetString("ResetTokenExpiry_" + email, DateTime.Now.AddHours(1).ToString());
+
+            var resetLink = Url.Action("ResetPassword", "Auth", new { email = email, token = resetToken }, Request.Scheme);
+            TempData["Success"] = $"Link đặt lại mật khẩu: {resetLink} (chỉ hiển thị trong dev)";
+            return View();
+        }
+
+        [HttpGet]
+        public IActionResult ResetPassword(string email, string token)
+        {
+            var storedToken = HttpContext.Session.GetString("ResetToken_" + email);
+            var expiryStr = HttpContext.Session.GetString("ResetTokenExpiry_" + email);
+
+            if (string.IsNullOrEmpty(storedToken) || storedToken != token)
+            {
+                TempData["Error"] = "Link đặt lại mật khẩu không hợp lệ.";
+                return RedirectToAction("ForgotPassword");
+            }
+
+            if (DateTime.TryParse(expiryStr, out var expiry) && expiry < DateTime.Now)
+            {
+                TempData["Error"] = "Link đã hết hạn.";
+                return RedirectToAction("ForgotPassword");
+            }
+
+            ViewBag.Email = email;
+            ViewBag.Token = token;
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword(string email, string token, string newPassword, string confirmPassword)
+        {
+            var storedToken = HttpContext.Session.GetString("ResetToken_" + email);
+            if (string.IsNullOrEmpty(storedToken) || storedToken != token)
+            {
+                TempData["Error"] = "Link không hợp lệ.";
+                return RedirectToAction("ForgotPassword");
+            }
+
+            if (newPassword != confirmPassword)
+            {
+                ModelState.AddModelError("", "Mật khẩu xác nhận không khớp.");
+                ViewBag.Email = email;
+                ViewBag.Token = token;
+                return View();
+            }
+
+            if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+            {
+                ModelState.AddModelError("", "Mật khẩu phải có ít nhất 6 ký tự.");
+                ViewBag.Email = email;
+                ViewBag.Token = token;
+                return View();
+            }
+
+            var account = await _context.Account.FirstOrDefaultAsync(a => a.Email == email);
+            if (account == null) return NotFound();
+
+            account.Password = BCryptNet.HashPassword(newPassword);
+            await _context.SaveChangesAsync();
+
+            HttpContext.Session.Remove("ResetToken_" + email);
+            HttpContext.Session.Remove("ResetTokenExpiry_" + email);
+
+            TempData["Success"] = "Mật khẩu đã được đặt lại. Vui lòng đăng nhập.";
+            return RedirectToAction("Login");
+        }
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\CartController.cs ==========
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Text.Json;
+using System.Threading.Tasks;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+using TMDT_LT.Models.ViewModels.Storefront;
+using TMDT_LT.Services;
+
+namespace TMDT_LT.Controllers
+{
+    public class CartController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly PromotionEngine _promotionEngine;
+        private const string CART_COOKIE_KEY = "PhoneStCartCookie";
+
+        public CartController(ApplicationDbContext context, PromotionEngine promotionEngine)
+        {
+            _context = context;
+            _promotionEngine = promotionEngine;
+        }
+
+        public async Task<IActionResult> Index()
+        {
+            var cart = await GetCartAsync();
+
+            await RefreshCartMetadataAsync(cart);
+            await SaveCartAsync(cart);
+
+            decimal subtotal = 0;
+            var voucherStates = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
+
+            ViewBag.VoucherStates = voucherStates;
+            ViewBag.Subtotal = subtotal;
+
+            return View(cart);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddToCart(int variantId, int quantity = 1, string? actionType = "add")
+        {
+            var variant = await _context.ProductVariants
+                .Include(v => v.Product)
+                .FirstOrDefaultAsync(v => v.VariantId == variantId && v.IsActive == true);
+
+            if (variant == null) return NotFound();
+
+            var cart = await GetCartAsync();
+            var existingItem = cart.FirstOrDefault(x => x.VariantId == variantId);
+
+            int safeStock = variant.Stock ?? 0;
+            decimal safePrice = variant.DiscountPrice > 0 ? variant.DiscountPrice.Value : (variant.Price ?? 0);
+
+            if (existingItem != null)
+            {
+                existingItem.Quantity += quantity;
+                if (existingItem.Quantity > safeStock) existingItem.Quantity = safeStock;
+            }
+            else
+            {
+                cart.Add(new CartItemVM
+                {
+                    VariantId = variant.VariantId,
+                    ProductName = variant.Product?.Name ?? "Thiết bị di động",
+                    Color = variant.Color ?? "",
+                    Storage = variant.Storage ?? "",
+                    ImageUrl = !string.IsNullOrEmpty(variant.ImageUrl) ? variant.ImageUrl : (variant.Product?.MainImage ?? ""),
+                    Price = safePrice,
+                    Quantity = Math.Min(quantity, safeStock),
+                    Stock = safeStock
+                });
+            }
+
+            await SaveCartAsync(cart);
+
+            bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+                          Request.Headers["Accept"].ToString().Contains("application/json");
+
+            if (isAjax)
+            {
+                int totalCartItems = cart.Sum(x => x.Quantity);
+                if (actionType == "buy")
+                {
+                    return Json(new { success = true, action = "redirect", url = "/Cart/Checkout" });
+                }
+                return Json(new { success = true, action = "update", cartCount = totalCartItems });
+            }
+
+            if (actionType == "buy") return RedirectToAction("Checkout", "Cart");
+            string previousUrl = Request.Headers["Referer"].ToString();
+            if (!string.IsNullOrWhiteSpace(previousUrl)) return Redirect(previousUrl);
+            return RedirectToAction("Index", "Store");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateQuantity(int variantId, int quantity)
+        {
+            if (quantity < 1) return Json(new { success = false, message = "Số lượng tối thiểu là 1" });
+
+            var variant = await _context.ProductVariants.FindAsync(variantId);
+            if (variant == null) return Json(new { success = false, message = "Biến thể không tồn tại" });
+
+            var cart = await GetCartAsync();
+            var item = cart.FirstOrDefault(x => x.VariantId == variantId);
+
+            int safeStock = variant.Stock ?? 0;
+
+            if (item != null)
+            {
+                bool isLimitReached = quantity > safeStock;
+                item.Quantity = Math.Min(quantity, safeStock);
+
+                await SaveCartAsync(cart);
+
+                return Json(new
+                {
+                    success = true,
+                    actualQuantity = item.Quantity,
+                    limitReached = isLimitReached,
+                    message = isLimitReached ? $"Chỉ còn {safeStock} sản phẩm trong kho." : "",
+                    itemTotalPrice = item.TotalPrice.ToString("N0") + " đ"
+                });
+            }
+
+            return Json(new { success = false, message = "Sản phẩm không có trong giỏ" });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> GetCartSummary([FromBody] List<int> selectedVariantIds)
+        {
+            var cart = await GetCartAsync();
+            var selectedItems = cart.Where(x => selectedVariantIds.Contains(x.VariantId)).ToList();
+            decimal subtotal = selectedItems.Sum(x => x.TotalPrice);
+            var voucherStates = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
+
+            return Json(new
+            {
+                success = true,
+                rawSubtotal = subtotal,
+                subtotal = subtotal.ToString("N0") + " đ",
+                vouchers = voucherStates
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveItem(int variantId)
+        {
+            var cart = await GetCartAsync();
+            var item = cart.FirstOrDefault(x => x.VariantId == variantId);
+
+            if (item != null)
+            {
+                cart.Remove(item);
+                await SaveCartAsync(cart);
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        public IActionResult Checkout(string selectedItems)
+        {
+            ViewBag.SelectedItems = selectedItems;
+            return Content($"Trang Checkout. Các sản phẩm bạn chọn mua có ID là: {selectedItems}");
+        }
+
+        // =======================================================
+        // ENGINE LƯU TRỮ KÉP (COOKIE CHO GUEST - DATABASE CHO MEMBER)
+        // =======================================================
+        private async Task<List<CartItemVM>> GetCartAsync()
+        {
+            // NẾU LÀ THÀNH VIÊN: ĐỌC TỪ DATABASE
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                var customerIdStr = User.FindFirstValue("CustomerId");
+                if (int.TryParse(customerIdStr, out int cusId))
+                {
+                    var dbCart = await _context.CartItems
+                        .Include(c => c.Variant).ThenInclude(v => v.Product)
+                        .Where(c => c.CustomerId == cusId)
+                        .Select(c => new CartItemVM
+                        {
+                            VariantId = c.VariantId ?? 0,
+                            ProductName = c.Variant.Product.Name,
+                            Color = c.Variant.Color ?? "",
+                            Storage = c.Variant.Storage ?? "",
+                            ImageUrl = !string.IsNullOrEmpty(c.Variant.ImageUrl) ? c.Variant.ImageUrl : c.Variant.Product.MainImage,
+                            Price = c.Variant.DiscountPrice > 0 ? c.Variant.DiscountPrice.Value : (c.Variant.Price ?? 0),
+                            Quantity = c.Quantity ?? 1,
+                            Stock = c.Variant.Stock ?? 0
+                        }).ToListAsync();
+                    return dbCart;
+                }
+            }
+
+            // NẾU LÀ KHÁCH VÃNG LAI: ĐỌC TỪ COOKIE
+            var json = HttpContext.Request.Cookies[CART_COOKIE_KEY];
+            return json == null ? new List<CartItemVM>() : JsonSerializer.Deserialize<List<CartItemVM>>(json) ?? new List<CartItemVM>();
+        }
+
+        private async Task SaveCartAsync(List<CartItemVM> cart)
+        {
+            // NẾU LÀ THÀNH VIÊN: GHI ĐÈ VÀO DATABASE
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                var customerIdStr = User.FindFirstValue("CustomerId");
+                if (int.TryParse(customerIdStr, out int cusId))
+                {
+                    var existing = _context.CartItems.Where(c => c.CustomerId == cusId);
+                    _context.CartItems.RemoveRange(existing); // Xóa cũ
+
+                    var newItems = cart.Select(item => new CartItems
+                    {
+                        CustomerId = cusId,
+                        VariantId = item.VariantId,
+                        Quantity = item.Quantity,
+                        CreatedDate = DateTime.Now
+                    });
+                    _context.CartItems.AddRange(newItems); // Lưu mới
+                    await _context.SaveChangesAsync();
+                    return;
+                }
+            }
+
+            // NẾU LÀ KHÁCH VÃNG LAI: GHI VÀO COOKIE (Sống 30 ngày)
+            var options = new CookieOptions
+            {
+                Expires = DateTime.Now.AddDays(30),
+                HttpOnly = true,
+                IsEssential = true
+            };
+            HttpContext.Response.Cookies.Append(CART_COOKIE_KEY, JsonSerializer.Serialize(cart), options);
+        }
+
+        private async Task RefreshCartMetadataAsync(List<CartItemVM> cart)
+        {
+            foreach (var item in cart)
+            {
+                var variant = await _context.ProductVariants.FindAsync(item.VariantId);
+                if (variant != null)
+                {
+                    item.Price = variant.DiscountPrice > 0 ? variant.DiscountPrice.Value : (variant.Price ?? 0);
+                    item.Stock = variant.Stock ?? 0;
+                    if (item.Quantity > item.Stock) item.Quantity = item.Stock;
+                }
+            }
+        }
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\CheckoutController.cs ==========
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Security.Claims;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+using TMDT_LT.Models.ViewModels.Storefront;
+using TMDT_LT.Services;
+
+namespace TMDT_LT.Controllers
+{
+    [Authorize]
+    public class CheckoutController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly PromotionEngine _promotionEngine;
+        private readonly VnPayService _vnPayService;
+        private readonly GhnService _ghnService; // TIÊM DỊCH VỤ GHN VÀO
+
+        private const string CART_SESSION_KEY = "PhoneStCartSession";
+
+        public CheckoutController(ApplicationDbContext context, PromotionEngine promotionEngine, VnPayService vnPayService, GhnService ghnService)
+        {
+            _context = context;
+            _promotionEngine = promotionEngine;
+            _vnPayService = vnPayService;
+            _ghnService = ghnService;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Index(string? selectedItems)
+        {
+            int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
+            string email = User.FindFirstValue(ClaimTypes.Email) ?? "";
+            List<CartItemVM> cart = new List<CartItemVM>();
+
+            if (!string.IsNullOrWhiteSpace(selectedItems))
+            {
+                var variantIds = selectedItems.Split(',').Select(int.Parse).ToList();
+                var dbItems = await _context.CartItems
+                    .Include(c => c.Variant)
+                    .ThenInclude(v => v.Product)
+                    .Where(c => c.CustomerId == customerId && variantIds.Contains((int)c.VariantId))
+                    .ToListAsync();
+
+                cart = dbItems.Select(c => {
+                    decimal price = c.Variant.DiscountPrice > 0 ? c.Variant.DiscountPrice.Value : (c.Variant.Price ?? 0);
+                    return new CartItemVM
+                    {
+                        VariantId = (int)c.VariantId,
+                        ProductName = c.Variant.Product.Name,
+                        ImageUrl = c.Variant.ImageUrl ?? c.Variant.Product.MainImage,
+                        Storage = c.Variant.Storage ?? "",
+                        Color = c.Variant.Color ?? "",
+                        Price = price,
+                        Quantity = (int)c.Quantity,
+                        Stock = c.Variant.Stock ?? 0
+                    };
+                }).ToList();
+
+                HttpContext.Session.SetString(CART_SESSION_KEY, JsonSerializer.Serialize(cart));
+            }
+            else
+            {
+                cart = GetCartFromSession();
+            }
+
+            if (!cart.Any()) return RedirectToAction("Index", "Cart");
+
+            var customer = await _context.Customer
+                .Include(c => c.Address)
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+            if (customer == null) return RedirectToAction("Login", "Auth");
+
+            decimal subtotal = cart.Sum(x => x.TotalPrice);
+            var vouchers = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
+            var bestVoucher = vouchers.FirstOrDefault(v => v.IsEligible);
+            decimal discount = bestVoucher?.EstimatedDiscountAmount ?? 0;
+
+            var carriers = await _context.ShippingCarriers.Where(c => c.IsActive).ToListAsync();
+            decimal defaultShippingFee = 0; // Phí ship ban đầu là 0, đợi khách chọn địa chỉ gọi API GHN
+
+            var vm = new CheckoutVM
+            {
+                CartItems = cart,
+                Subtotal = subtotal,
+                DiscountAmount = discount,
+                AppliedVoucherCode = bestVoucher?.Code,
+                ShippingFee = defaultShippingFee,
+                FinalTotal = (subtotal - discount) + defaultShippingFee,
+                CustomerName = customer.FullName,
+                CustomerPhone = customer.Phone ?? "",
+                CustomerEmail = email,
+                SavedAddresses = customer.Address.OrderByDescending(a => a.IsDefault).ToList(),
+                AvailableCarriers = carriers
+            };
+
+            return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PlaceOrder(
+            int addressId, string? newFullName, string? newPhone, string? newStreet, string? newWard, string? newDistrict, string? newProvince,
+            string paymentMethod, string? note)
+        {
+            var cart = GetCartFromSession();
+            if (!cart.Any()) return RedirectToAction("Index", "Store");
+
+            int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                string shipName, shipPhone, shipStreet, shipWard, shipDistrict, shipCity;
+
+                if (addressId == 0) // Địa chỉ mới
+                {
+                    shipName = newFullName ?? "";
+                    shipPhone = newPhone ?? "";
+                    shipStreet = newStreet ?? ""; // Không gộp chung với Ward nữa
+                    shipWard = newWard ?? "";
+                    shipDistrict = newDistrict ?? "";
+                    shipCity = newProvince ?? "";
+
+                    var newAddress = new Address
+                    {
+                        CustomerId = customerId,
+                        Street = shipStreet,
+                        Ward = shipWard,
+                        District = shipDistrict,
+                        City = shipCity,
+                        IsDefault = false
+                    };
+                    _context.Address.Add(newAddress);
+                }
+                else // Địa chỉ cũ
+                {
+                    var existingAddress = await _context.Address.FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
+                    if (existingAddress == null) throw new Exception("Địa chỉ không hợp lệ.");
+
+                    var customer = await _context.Customer.FindAsync(customerId);
+                    shipName = customer?.FullName ?? "";
+                    shipPhone = customer?.Phone ?? "";
+                    shipStreet = existingAddress.Street ?? "";
+                    shipWard = existingAddress.Ward ?? "";
+                    shipDistrict = existingAddress.District ?? "";
+                    shipCity = existingAddress.City ?? "";
+                }
+
+                foreach (var item in cart)
+                {
+                    var variant = await _context.ProductVariants.FindAsync(item.VariantId);
+                    if (variant == null || variant.Stock < item.Quantity)
+                    {
+                        TempData["Error"] = $"Sản phẩm {item.ProductName} ({item.Storage}-{item.Color}) đã hết hàng hoặc không đủ số lượng.";
+                        return RedirectToAction("Index");
+                    }
+                    variant.Stock -= item.Quantity;
+                }
+
+                decimal subtotal = cart.Sum(x => x.TotalPrice);
+                var vouchers = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
+                decimal discount = vouchers.FirstOrDefault(v => v.IsEligible)?.EstimatedDiscountAmount ?? 0;
+
+                // Gọi API tính lại phí ship lần cuối trước khi chốt đơn đề phòng khách F12 sửa Code HTML
+                int totalWeight = cart.Sum(c => c.Quantity) * 500;
+                int insuranceValue = (int)subtotal > 5000000 ? 5000000 : (int)subtotal;
+                string dIdStr = shipDistrict.Contains("|") ? shipDistrict.Split('|')[0] : "0";
+                string wCodeStr = shipWard.Contains("|") ? shipWard.Split('|')[0] : "0";
+                int dId = int.Parse(dIdStr);
+
+                decimal shippingFee = await _ghnService.CalculateFeeAsync(dId, wCodeStr, totalWeight, insuranceValue);
+                decimal totalAmount = (subtotal - discount) + shippingFee;
+
+                var order = new Orders
+                {
+                    CustomerId = customerId,
+                    OrderDate = DateTime.Now,
+                    Status = "Chờ xác nhận",
+                    TotalAmount = totalAmount,
+                    ShippingFullName = shipName,
+                    ShippingPhone = shipPhone,
+                    ShippingStreet = shipStreet,
+                    ShippingDistrict = shipDistrict.Contains("|") ? shipDistrict.Split('|')[1] : shipDistrict, // Lưu tên Quận vào DB
+                    ShippingCity = shipCity.Contains("|") ? shipCity.Split('|')[1] : shipCity // Lưu tên Tỉnh vào DB
+                };
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync();
+
+                var orderDetails = cart.Select(item => new OrderDetails
+                {
+                    OrderId = order.OrderId,
+                    VariantId = item.VariantId,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.Price
+                }).ToList();
+                _context.OrderDetails.AddRange(orderDetails);
+
+                // LƯU TRỮ ID GHN VÀO TRƯỜNG TRACKING NUMBER CHỜ ADMIN SỬ DỤNG
+                var shipping = new Shipping
+                {
+                    OrderId = order.OrderId,
+                    Carrier = "GHN",
+                    Status = "Chờ lấy hàng",
+                    TrackingNumber = $"{dIdStr}_{wCodeStr}", // Mẹo: Lưu tạm ID Tỉnh Quận tại đây
+                    Note = note
+                };
+                _context.Shipping.Add(shipping);
+
+                var payment = new Payments
+                {
+                    OrderId = order.OrderId,
+                    PaymentMethod = paymentMethod,
+                    PaymentDate = DateTime.Now,
+                    PaymentStatus = paymentMethod == "COD" ? "Chưa thanh toán" : "Đang chờ cổng thanh toán"
+                };
+                _context.Payments.Add(payment);
+
+                var purchasedVariantIds = cart.Select(x => x.VariantId).ToList();
+                var cartItemsToRemove = await _context.CartItems
+                    .Where(c => c.CustomerId == customerId && purchasedVariantIds.Contains((int)c.VariantId))
+                    .ToListAsync();
+
+                _context.CartItems.RemoveRange(cartItemsToRemove);
+
+                _context.OrderHistories.Add(new OrderHistory
+                {
+                    OrderId = order.OrderId,
+                    Status = "Chờ xác nhận",
+                    UpdatedAt = DateTime.Now,
+                    Note = "Khách hàng đặt đơn thành công."
+                });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                HttpContext.Session.Remove(CART_SESSION_KEY);
+
+                if (paymentMethod == "VNPAY")
+                {
+                    string vnpayUrl = _vnPayService.CreatePaymentUrl(HttpContext, order.OrderId, (double)totalAmount);
+                    return Redirect(vnpayUrl);
+                }
+
+                TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = order.OrderId, Method = "COD" });
+                return RedirectToAction("Orders", "Customer");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                TempData["Error"] = "Có lỗi xảy ra: " + ex.Message;
+                return RedirectToAction("Index");
+            }
+        }
+
+        // =================================================================
+        // 3. API TÍNH PHÍ SHIP ĐỘNG (GỌI THẲNG QUA GIAO HÀNG NHANH)
+        // =================================================================
+        [HttpPost]
+        public async Task<IActionResult> CalculateShippingFee(int districtId, string wardCode)
+        {
+            try
+            {
+                var cart = GetCartFromSession();
+                int totalWeight = cart.Sum(c => c.Quantity) * 500;
+                int insuranceValue = (int)cart.Sum(c => c.TotalPrice);
+                if (insuranceValue > 5000000) insuranceValue = 5000000;
+
+                decimal fee = await _ghnService.CalculateFeeAsync(districtId, wardCode, totalWeight, insuranceValue);
+
+                return Json(new { success = true, fee = fee, feeFormatted = string.Format("{0:N0} đ", fee) });
+            }
+            catch (Exception ex)
+            {
+                // Trả ra success = false kèm thông điệp lỗi để Client biết chính xác API bị gì
+                return Json(new { success = false, message = ex.Message, fee = 30000, feeFormatted = "30.000 đ (Tạm tính)" });
+            }
+        }
+
+        // =================================================================
+        // 4. BỘ PROXY API: TRUNG CHUYỂN DATA TỪ GHN VỀ FRONTEND (ẨN TOKEN)
+        // =================================================================
+        [HttpGet]
+        public async Task<IActionResult> GetGhnProvinces()
+        {
+            var data = await _ghnService.GetProvincesAsync();
+            return Content(data, "application/json");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetGhnDistricts(int provinceId)
+        {
+            var data = await _ghnService.GetDistrictsAsync(provinceId);
+            return Content(data, "application/json");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetGhnWards(int districtId)
+        {
+            var data = await _ghnService.GetWardsAsync(districtId);
+            return Content(data, "application/json");
+        }
+
+        [HttpGet]
+        public IActionResult Success(int orderId)
+        {
+            ViewBag.OrderId = orderId;
+            return View();
+        }
+
+        private List<CartItemVM> GetCartFromSession()
+        {
+            var json = HttpContext.Session.GetString(CART_SESSION_KEY);
+            return json == null ? new List<CartItemVM>() : JsonSerializer.Deserialize<List<CartItemVM>>(json) ?? new List<CartItemVM>();
+        }
+
+        // ----------------------------------------------------------------
+        // CÁC API AJAX CHO MODAL QUẢN LÝ ĐỊA CHỈ (CRUD)
+        // ----------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> SaveAddressAjax(int addressId, string receiverName, string receiverPhone, string street, string ward, string district, string city, bool isDefault)
+        {
+            int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
+
+            if (isDefault)
+            {
+                var oldDefaults = await _context.Address.Where(a => a.CustomerId == customerId && a.IsDefault == true).ToListAsync();
+                foreach (var old in oldDefaults) old.IsDefault = false;
+            }
+
+            Address address;
+            if (addressId == 0)
+            {
+                address = new Address
+                {
+                    CustomerId = customerId,
+                    ReceiverName = receiverName,
+                    ReceiverPhone = receiverPhone,
+                    Street = street,
+                    Ward = ward,       // Lưu luôn mã nối "20101|Phường Bến Nghé"
+                    District = district, // Lưu luôn "1442|Quận 1"
+                    City = city,         // Lưu luôn "202|Hồ Chí Minh"
+                    IsDefault = isDefault
+                };
+                _context.Address.Add(address);
+            }
+            else
+            {
+                address = await _context.Address.FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
+                if (address == null) return Json(new { success = false, message = "Không tìm thấy địa chỉ." });
+
+                address.ReceiverName = receiverName;
+                address.ReceiverPhone = receiverPhone;
+                address.Street = street;
+                address.Ward = ward;
+                address.District = district;
+                address.City = city;
+                if (isDefault) address.IsDefault = true;
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, addressId = address.AddressId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteAddressAjax(int addressId)
+        {
+            int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
+            var address = await _context.Address.FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
+
+            if (address != null)
+            {
+                _context.Address.Remove(address);
+                await _context.SaveChangesAsync();
+                return Json(new { success = true });
+            }
+            return Json(new { success = false });
+        }
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\CustomerController.cs ==========
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+
+namespace TMDT_LT.Controllers
+{
+    [Authorize]
+    public class CustomerController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _webHostEnvironment;
+
+        public CustomerController(ApplicationDbContext context, IWebHostEnvironment webHostEnvironment)
+        {
+            _context = context;
+            _webHostEnvironment = webHostEnvironment;
+        }
+
+        // =================================================================
+        // 1. TRANG DANH SÁCH ĐƠN HÀNG
+        // =================================================================
+        [HttpGet]
+        public async Task<IActionResult> Orders(string status = "TatCa")
+        {
+            string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+            int customerId = int.Parse(userIdStr);
+
+            var query = _context.Orders
+                .Include(o => o.Payments)
+                .Include(o => o.OrderHistories)
+                .Include(o => o.OrderDetails).ThenInclude(od => od.Variant).ThenInclude(v => v.Product)
+                .Where(o => o.CustomerId == customerId);
+
+            if (status == "Trả hàng/Hoàn tiền") 
+            {
+                var returnStatuses = new[] { "Chờ duyệt", "Chờ khách trả hàng", "Đang kiểm định", "Đã hoàn trả", "Trả hàng/Hoàn tiền" };
+                query = query.Where(o => returnStatuses.Contains(o.Status));
+            } 
+            else if (status != "TatCa") 
+            {
+                query = query.Where(o => o.Status == status);
+            }
+
+            var orders = await query.OrderByDescending(o => o.OrderDate).ToListAsync();
+            ViewBag.CurrentStatus = status; 
+            ViewBag.CurrentTime = DateTime.Now;
+
+            return View(orders);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> OrderDetail(int id)
+        {
+            string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+            int customerId = int.Parse(userIdStr);
+
+            var order = await _context.Orders
+                .Include(o => o.Payments)
+                .Include(o => o.OrderHistories)
+                .Include(o => o.OrderDetails).ThenInclude(od => od.Variant).ThenInclude(v => v.Product)
+                .Include(o => o.OrderReturns)
+                .FirstOrDefaultAsync(o => o.OrderId == id && o.CustomerId == customerId);
+
+            if (order == null) return RedirectToAction("Orders");
+            return View(order);
+        }
+
+        // =================================================================
+        // 2. API: HỦY ĐƠN HÀNG (TRƯỚC KHI GIAO)
+        // =================================================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RequestCancelOrder(int orderId, string reason)
+        {
+            string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+            int customerId = int.Parse(userIdStr);
+
+            var order = await _context.Orders
+                .Include(o => o.OrderDetails).ThenInclude(d => d.Variant)
+                .Include(o => o.Payments)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.CustomerId == customerId);
+
+            if (order == null) return Json(new { success = false, message = "Đơn hàng không tồn tại." });
+            if (order.Status != "Chờ xác nhận") return Json(new { success = false, message = "Đơn hàng đã được xử lý, không thể tự hủy lúc này." });
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                order.Status = "Đã hủy";
+                order.CancellationReason = reason;
+                order.CancellationRequestedBy = "Customer";
+
+                foreach (var detail in order.OrderDetails) 
+                    if (detail.Variant != null) detail.Variant.Stock = (detail.Variant.Stock ?? 0) + (detail.Quantity ?? 0);
+
+                var payment = order.Payments.FirstOrDefault();
+                if (payment != null) payment.PaymentStatus = payment.PaymentMethod == "VNPAY" || payment.PaymentMethod == "BankTransfer" ? "Chờ hoàn tiền" : "Đã hủy";
+
+                _context.OrderHistories.Add(new OrderHistory { OrderId = order.OrderId, Status = "Đã hủy", UpdatedAt = DateTime.Now, Note = $"[Khách Hàng Hủy] Lý do: {reason}. Đã hoàn trả tồn kho." });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Json(new { success = true, message = "Hủy đơn hàng thành công." });
+            }
+            catch (Exception ex) { await transaction.RollbackAsync(); return Json(new { success = false, message = "Lỗi: " + ex.Message }); }
+        }
+
+        // =================================================================
+        // 3. API: KHÁCH HÀNG YÊU CẦU HOÀN TRẢ
+        // =================================================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitOrderReturn(int orderId, string reason, string description, string bankCode, string accountNumber, string accountName, List<IFormFile> files)
+        {
+            string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+            int customerId = int.Parse(userIdStr);
+
+            var order = await _context.Orders
+                .Include(o => o.OrderHistories)
+                .Include(o => o.Payments) // Tải dữ liệu dòng tiền
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.CustomerId == customerId);
+
+            if (order == null || order.Status != "Đã giao") 
+                return Json(new { success = false, message = "Chỉ có thể khiếu nại đối với đơn hàng đang ở trạng thái 'Đã giao'." });
+
+            var deliveredLog = order.OrderHistories.OrderByDescending(h => h.UpdatedAt).FirstOrDefault(h => h.Status == "Đã giao");
+            if (deliveredLog == null || (DateTime.Now - deliveredLog.UpdatedAt).TotalDays > 7) 
+                return Json(new { success = false, message = "Đã quá thời hạn 7 ngày đổi trả." });
+
+            string dbMediaPaths = "";
+            if (files != null && files.Count > 0)
+            {
+                string returnFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "returns");
+                if (!Directory.Exists(returnFolder)) Directory.CreateDirectory(returnFolder);
+
+                var savedList = new List<string>();
+                foreach (var file in files)
+                {
+                    if (file.Length > 0)
+                    {
+                        string targetName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(file.FileName);
+                        using (var stream = new FileStream(Path.Combine(returnFolder, targetName), FileMode.Create)) await file.CopyToAsync(stream);
+                        savedList.Add($"/uploads/returns/{targetName}");
+                    }
+                }
+                dbMediaPaths = string.Join(",", savedList);
+            }
+
+            var returnRecord = new OrderReturns 
+            { 
+                OrderId = order.OrderId, CustomerId = customerId, Reason = reason, Description = description, 
+                MediaUrls = dbMediaPaths, Status = "Chờ duyệt", CreatedAt = DateTime.Now, 
+                RefundBankCode = bankCode, RefundAccountNumber = accountNumber, RefundAccountName = accountName 
+            };
+            
+            // 1. ÉP RÓT TRẠNG THÁI ĐƠN GỐC LÀ "CHỜ DUYỆT"
+            order.Status = "Chờ duyệt"; 
+
+            // 2. CHUYỂN DÒNG TIỀN SANG "CHỜ HOÀN TIỀN" ĐỂ TRÁNH HIỂU LẦM
+            var payment = order.Payments.FirstOrDefault();
+            if (payment != null && payment.PaymentStatus == "Đã thanh toán")
+            {
+                payment.PaymentStatus = "Chờ hoàn tiền";
+            }
+
+            _context.OrderHistories.Add(new OrderHistory { OrderId = order.OrderId, Status = "Chờ duyệt", UpdatedAt = DateTime.Now, Note = $"Khách hàng mở khiếu nại. Lý do: {reason}." });
+            _context.OrderReturns.Add(returnRecord);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = "Đã gửi hồ sơ khiếu nại thành công. Vui lòng theo dõi tiến trình trong chi tiết đơn hàng." });
+        }
+
+        // =================================================================
+        // 4. API: ĐÁNH GIÁ SẢN PHẨM
+        // =================================================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitProductReview(int orderId, int detailId, int productId, int rating, string descriptionMatch, string comment, List<IFormFile> reviewFiles)
+        {
+            string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+            int customerId = int.Parse(userIdStr);
+
+            var detail = await _context.OrderDetails.Include(d => d.Order).ThenInclude(o => o.OrderHistories).FirstOrDefaultAsync(d => d.OrderDetailId == detailId && d.Order.CustomerId == customerId);
+            if (detail == null || detail.Order.Status != "Hoàn thành") return Json(new { success = false, message = "Chỉ có thể đánh giá khi đơn hàng đã 'Hoàn thành'." });
+            if (detail.IsReviewed) return Json(new { success = false, message = "Bạn đã gửi đánh giá rồi." });
+
+            string finalComment = $"Đúng với mô tả: {descriptionMatch}\nĐánh giá: {comment}";
+            string dbMediaPaths = "";
+
+            if (reviewFiles != null && reviewFiles.Count > 0)
+            {
+                string reviewFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "reviews");
+                if (!Directory.Exists(reviewFolder)) Directory.CreateDirectory(reviewFolder);
+                var savedList = new List<string>();
+                foreach (var file in reviewFiles)
+                {
+                    if (file.Length > 0)
+                    {
+                        string targetName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(file.FileName);
+                        using (var stream = new FileStream(Path.Combine(reviewFolder, targetName), FileMode.Create)) await file.CopyToAsync(stream);
+                        savedList.Add($"/uploads/reviews/{targetName}");
+                    }
+                }
+                dbMediaPaths = string.Join(",", savedList);
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var reviewMaster = new Reviews { ProductId = productId, CustomerId = customerId, OrderId = orderId, Rating = rating, Comment = finalComment, CreatedAt = DateTime.Now, IsHidden = false, IsRead = false };
+                _context.Reviews.Add(reviewMaster);
+                await _context.SaveChangesAsync();
+
+                var reviewDetail = new ReviewDetails { ReviewId = reviewMaster.ReviewId, VariantId = detail.VariantId, Rating = rating, Comment = finalComment, MediaUrls = dbMediaPaths, IsRead = false, IsHidden = false, CreatedAt = DateTime.Now };
+                _context.ReviewDetails.Add(reviewDetail);
+                detail.IsReviewed = true;
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Json(new { success = true, message = "Cảm ơn bạn đã đánh giá!" });
+            }
+            catch (Exception ex) { await transaction.RollbackAsync(); return Json(new { success = false, message = "Lỗi: " + ex.Message }); }
+        }
+
+        // =================================================================
+        // 5. API: KHÁCH HÀNG TỰ CHỐT ĐƠN & TÍCH ĐIỂM
+        // =================================================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmOrderCompleted(int orderId)
+        {
+            var order = await _context.Orders.Include(o => o.Customer).Include(o => o.Payments).FirstOrDefaultAsync(o => o.OrderId == orderId);
+            if (order != null && order.Status == "Đã giao")
+            {
+                order.Status = "Hoàn thành";
+                
+                // Đảm bảo đơn COD khi hoàn thành sẽ có trạng thái Đã thanh toán
+                var payment = order.Payments.FirstOrDefault();
+                if (payment != null && payment.PaymentStatus != "Đã thanh toán") {
+                    payment.PaymentStatus = "Đã thanh toán";
+                }
+
+                // TÍCH ĐIỂM THƯỞNG KHI KHÁCH TỰ CHỐT ĐƠN
+                int pointsEarned = (int)((order.TotalAmount ?? 0) / 100000);
+                if (pointsEarned > 0 && order.Customer != null)
+                {
+                    order.Customer.RewardPoints += pointsEarned;
+                    int cp = order.Customer.RewardPoints;
+                    order.Customer.CustomerType = cp >= 600 ? "Kim Cương" : cp >= 300 ? "Vàng" : cp >= 100 ? "Bạc" : "Newbie";
+                }
+
+                string noteAdd = pointsEarned > 0 ? $" [Hệ thống: +{pointsEarned} điểm. Hạng: {order.Customer?.CustomerType}]." : "";
+
+                _context.OrderHistories.Add(new OrderHistory
+                {
+                    OrderId = orderId,
+                    Status = "Hoàn thành",
+                    UpdatedAt = DateTime.Now,
+                    Note = "Khách hàng xác nhận đã nhận hàng." + noteAdd
+                });
+
+                await _context.SaveChangesAsync();
+                return Json(new { success = true });
+            }
+            return Json(new { success = false });
+        }
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\CustomerWalletController.cs ==========
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+
+namespace TMDT_LT.Controllers
+{
+    public class CustomerWalletController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CustomerWalletController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // =======================================================
+        // 1. TRANG "VÍ VOUCHER CỦA TÔI" (TRUNG TÂM TÀI KHOẢN)
+        // Yêu cầu: Bắt buộc phải đăng nhập mới được xem ví cá nhân
+        // =======================================================
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            // Kiểm tra trạng thái đăng nhập, nếu chưa thì đẩy về trang Login
+            if (User.Identity == null || !User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Login", "Account", new { returnUrl = "/CustomerWallet" });
+            }
+
+            var account = await _context.Account
+                .Include(a => a.Customer)
+                .FirstOrDefaultAsync(a => a.Email == User.Identity.Name);
+
+            var customer = account?.Customer?.FirstOrDefault();
+            if (customer == null)
+            {
+                return RedirectToAction("Login", "Account", new { returnUrl = "/CustomerWallet" });
+            }
+
+            // Lấy danh sách Voucher trong ví khách hàng
+            var myWallets = await _context.CustomerWallet
+                .Include(w => w.Promotion)
+                    .ThenInclude(p => p.PromotionRules)
+                .Where(w => w.CustomerId == customer.CustomerId)
+                .OrderByDescending(w => w.SavedAt)
+                .ToListAsync();
+
+            // Cập nhật động trạng thái hết hạn
+            var now = DateTime.Now;
+            bool hasChanges = false;
+
+            foreach (var item in myWallets.Where(w => w.Status == 0 && w.Promotion != null))
+            {
+                if (item.Promotion!.EndDate < now)
+                {
+                    item.Status = 2; // 2 = Đã hết hạn
+                    _context.Entry(item).State = EntityState.Modified;
+                    hasChanges = true;
+                }
+            }
+
+            if (hasChanges) await _context.SaveChangesAsync();
+
+            return View(myWallets);
+        }
+
+        // =======================================================
+        // 2. KHO VOUCHER CÔNG KHAI (MỒI NHỬ TIẾP THỊ)
+        // Yêu cầu: Ai cũng vào được (Không cần đăng nhập)
+        // =======================================================
+        [HttpGet]
+        [AllowAnonymous] // Thẻ này giúp xuyên qua các bộ lọc khóa bảo mật nếu có
+        public async Task<IActionResult> Public()
+        {
+            var now = DateTime.Now;
+
+            // 1. Lấy toàn bộ các mã Công khai (TargetAudience = 0), còn hạn và còn lượt dùng
+            var publicVouchers = await _context.Promotions
+                .Include(p => p.PromotionRules)
+                .Where(p => p.IsActive
+                         && p.TargetAudience == 0
+                         && p.StartDate <= now
+                         && p.EndDate >= now
+                         && p.UsedCount < p.UsageLimit)
+                .OrderByDescending(p => p.StartDate)
+                .ToListAsync();
+
+            // 2. Kiểm tra ngầm: NẾU khách ĐÃ ĐĂNG NHẬP, lấy danh sách mã họ đã lưu để View hiển thị chữ "ĐÃ LƯU"
+            // NẾU CHƯA ĐĂNG NHẬP, list này sẽ rỗng và mọi nút đều hiện chữ "LƯU MÃ"
+            var savedVoucherIds = new List<int>();
+
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                var account = await _context.Account
+                    .Include(a => a.Customer)
+                    .FirstOrDefaultAsync(a => a.Email == User.Identity.Name);
+
+                var customer = account?.Customer?.FirstOrDefault();
+                if (customer != null)
+                {
+                    savedVoucherIds = await _context.CustomerWallet
+                        .Where(w => w.CustomerId == customer.CustomerId)
+                        .Select(w => w.PromotionId)
+                        .ToListAsync();
+                }
+            }
+
+            ViewBag.SavedVoucherIds = savedVoucherIds;
+
+            return View(publicVouchers);
+        }
+
+        // =======================================================
+        // 3. API THU THẬP VOUCHER VÀO VÍ (AJAX ENDPOINT)
+        // Yêu cầu: Không khóa redirect, tự C# kiểm tra và ném lỗi JSON
+        // =======================================================
+        [HttpPost]
+        [AllowAnonymous] // Phải để AllowAnonymous để AJAX không bị ép văng sang 302 Redirect gây lỗi 405
+        public async Task<IActionResult> SaveVoucher(int promotionId)
+        {
+            // 1. RÀO CHẮN ĐĂNG NHẬP: Bắt buộc đăng nhập mới được LƯU MÃ
+            if (User.Identity == null || !User.Identity.IsAuthenticated)
+            {
+                // Trả về JSON chứa cờ requireLogin = true để giao diện JS tự chuyển hướng
+                return Json(new { success = false, message = "Vui lòng đăng nhập tài khoản để thu thập mã ưu đãi này.", requireLogin = true });
+            }
+
+            // 2. Xác thực tài khoản hợp lệ
+            var account = await _context.Account
+                .Include(a => a.Customer)
+                .FirstOrDefaultAsync(a => a.Email == User.Identity.Name);
+
+            var customer = account?.Customer?.FirstOrDefault();
+            if (customer == null)
+            {
+                return Json(new { success = false, message = "Lỗi xác thực thông tin hội viên." });
+            }
+
+            // 3. Kiểm tra tính hợp lệ của Voucher
+            var promo = await _context.Promotions.FindAsync(promotionId);
+            if (promo == null || !promo.IsActive || promo.EndDate < DateTime.Now)
+            {
+                return Json(new { success = false, message = "Rất tiếc, chương trình ưu đãi này đã kết thúc." });
+            }
+
+            if (promo.UsedCount >= promo.UsageLimit)
+            {
+                return Json(new { success = false, message = "Mã giảm giá này đã được thu thập hết số lượng phát hành." });
+            }
+
+            // 4. Kiểm tra chống spam (Khách đã lưu chưa)
+            bool isAlreadySaved = await _context.CustomerWallet
+                .AnyAsync(w => w.CustomerId == customer.CustomerId && w.PromotionId == promotionId);
+
+            if (isAlreadySaved)
+            {
+                return Json(new { success = false, message = "Bạn đã sở hữu mã giảm giá này trong ví tài khoản rồi." });
+            }
+
+            // 5. Ghi nhận nạp mã vào ví khách hàng
+            try
+            {
+                var newWalletItem = new CustomerWallet
+                {
+                    CustomerId = customer.CustomerId,
+                    PromotionId = promo.PromotionId,
+                    Status = 0, // 0 = Trạng thái: Đã lưu, sẵn sàng sử dụng
+                    SavedAt = DateTime.Now,
+                    UsedAt = null
+                };
+
+                _context.CustomerWallet.Add(newWalletItem);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Thu thập voucher thành công! Mã đã được lưu vào ví của bạn." });
+            }
+            catch (Exception)
+            {
+                return Json(new { success = false, message = "Đã xảy ra lỗi trong quá trình lưu trữ. Vui lòng thử lại sau." });
+            }
+        }
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\FavoriteController.cs ==========
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Security.Claims; // BẮT BUỘC PHẢI CÓ THƯ VIỆN NÀY ĐỂ ĐỌC CLAIMS
+using System.Threading.Tasks;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+
+namespace TMDT_LT.Controllers
+{
+    public class FavoriteController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+
+        public FavoriteController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Toggle(int variantId)
+        {
+            // 1. Kiểm tra người dùng đã đăng nhập chưa
+            if (User.Identity == null || !User.Identity.IsAuthenticated)
+            {
+                return Json(new { success = false, requireLogin = true, message = "Vui lòng đăng nhập để lưu sản phẩm yêu thích!" });
+            }
+
+            // ==========================================================
+            // LỖI ĐƯỢC SỬA Ở ĐÂY: Lấy Email chuẩn xác từ ClaimTypes.Email
+            // ==========================================================
+            var email = User.FindFirstValue(ClaimTypes.Email);
+
+            if (string.IsNullOrEmpty(email))
+            {
+                return Json(new { success = false, message = "Lỗi phiên đăng nhập: Không tìm thấy Email tài khoản." });
+            }
+
+            // 3. Lấy thông tin Customer dựa vào Email
+            var customer = await _context.Customer
+                .Include(c => c.Account)
+                .FirstOrDefaultAsync(c => c.Account.Email == email);
+
+            if (customer == null)
+            {
+                return Json(new { success = false, message = "Lỗi xác thực: Không tìm thấy thông tin khách hàng." });
+            }
+
+            // 4. Tìm danh sách yêu thích (Favorites) của khách này
+            var favorite = await _context.Favorites
+                .Include(f => f.FavoriteDetails)
+                .FirstOrDefaultAsync(f => f.CustomerId == customer.CustomerId);
+
+            if (favorite == null)
+            {
+                favorite = new Favorites
+                {
+                    CustomerId = customer.CustomerId,
+                    CreatedAt = DateTime.Now
+                };
+                _context.Favorites.Add(favorite);
+                await _context.SaveChangesAsync(); // Lưu trước để Database tự sinh ra FavoriteId
+            }
+
+            // 5. Kiểm tra xem Biến thể (Variant) này đã có trong danh sách yêu thích chưa
+            var detail = favorite.FavoriteDetails.FirstOrDefault(d => d.VariantId == variantId);
+            bool isAdded = false;
+
+            if (detail != null)
+            {
+                // Nếu ĐÃ CÓ -> Xóa khỏi danh sách (Bỏ yêu thích)
+                _context.FavoriteDetails.Remove(detail);
+            }
+            else
+            {
+                // Nếu CHƯA CÓ -> Thêm vào danh sách (Thêm yêu thích)
+                _context.FavoriteDetails.Add(new FavoriteDetails
+                {
+                    FavoriteId = favorite.FavoriteId,
+                    VariantId = variantId
+                });
+                isAdded = true;
+            }
+
+            await _context.SaveChangesAsync();
+
+            // 6. Trả kết quả JSON về cho Javascript xử lý giao diện hiển thị Toast
+            return Json(new
+            {
+                success = true,
+                isAdded = isAdded,
+                message = isAdded ? "Đã thêm vào danh sách yêu thích!" : "Đã xóa khỏi danh sách yêu thích!"
+            });
+        }
+        // Thêm hàm này vào bên trong lớp FavoriteController
+
+        [HttpGet]
+        [Route("Account/Favorites")] // Bắt đường dẫn từ _Layout.cshtml vào đây
+        public async Task<IActionResult> Index()
+        {
+            // 1. Kiểm tra đăng nhập
+            if (User.Identity == null || !User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Login", "Auth", new { returnUrl = "/Account/Favorites" });
+            }
+
+            var email = User.FindFirstValue(ClaimTypes.Email);
+
+            // 2. Tìm Khách hàng
+            var customer = await _context.Customer
+                .Include(c => c.Account)
+                .FirstOrDefaultAsync(c => c.Account.Email == email);
+
+            if (customer == null)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            // 3. Lấy toàn bộ danh sách Yêu thích của khách hàng này, nối (Join) các bảng để lấy Tên máy, Ảnh, Giá...
+            var favorite = await _context.Favorites
+                .Include(f => f.FavoriteDetails)
+                    .ThenInclude(fd => fd.Variant)
+                        .ThenInclude(v => v.Product)
+                .FirstOrDefaultAsync(f => f.CustomerId == customer.CustomerId);
+
+            // Chỉ lấy những biến thể còn đang Active (đề phòng Admin đã ẩn/xóa sản phẩm)
+            var favoriteList = favorite?.FavoriteDetails
+                .Where(fd => fd.Variant != null && fd.Variant.IsActive == true && fd.Variant.Product != null && fd.Variant.Product.IsActive == true)
+                .OrderByDescending(fd => fd.FavoriteDetailId) // Xếp mới nhất lên đầu
+                .ToList() ?? new List<FavoriteDetails>();
+
+            return View("~/Views/Favorite/Index.cshtml", favoriteList);
+        }
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\HomeController.cs ==========
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+using TMDT_LT.Models.ViewModels.Storefront;
+
+namespace TMDT_LT.Controllers
+{
+    public class HomeController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+
+        public HomeController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // 1. TRANG CHỦ: Tiếp thị sản phẩm thực tế từ Database
+        public async Task<IActionResult> Index()
+        {
+            var now = DateTime.Now;
+
+            // 1. Tải danh sách Banner quảng cáo đang chạy
+            var activeBanners = await _context.CampaignBanners
+                .Where(b => b.IsActive && b.StartDate <= now && b.EndDate >= now)
+                .OrderBy(b => b.DisplayOrder)
+                .ThenByDescending(b => b.CreatedAt)
+                .ToListAsync();
+
+            // 2. Tải danh mục sản phẩm lên thanh phân mục nhanh
+            var categories = await _context.Categories.Take(6).ToListAsync();
+            ViewBag.Categories = categories;
+
+            // 3. Tải Sản phẩm bán chạy (BestSellers)
+            var bestSellers = await _context.Products
+                .Include(p => p.ProductVariants)
+                .Where(p => p.IsActive == true)
+                .OrderByDescending(p => p.ProductVariants
+                    .SelectMany(v => _context.OrderDetails.Where(od => od.VariantId == v.VariantId))
+                    .Sum(od => (int?)od.Quantity) ?? 0)
+                .Take(10)
+                .ToListAsync();
+
+            // 4. Khởi tạo danh sách gợi ý cá nhân hóa
+            var recommendations = new List<Products>();
+            string? favoriteBrandIdStr = Request.Cookies["LastViewedBrandId"];
+
+            if (!string.IsNullOrEmpty(favoriteBrandIdStr) && int.TryParse(favoriteBrandIdStr, out int brandId))
+            {
+                recommendations = await _context.Products
+                    .Include(p => p.ProductVariants)
+                    .Where(p => p.IsActive == true && p.BrandId == brandId)
+                    .OrderByDescending(p => p.CreatedDate)
+                    .Take(10)
+                    .ToListAsync();
+            }
+
+            if (recommendations.Count < 10)
+            {
+                var remainingCount = 10 - recommendations.Count;
+                var excludedIds = recommendations.Select(r => r.ProductId).ToList();
+
+                var fallbackProducts = await _context.Products
+                    .Include(p => p.ProductVariants)
+                    .Where(p => p.IsActive == true && !excludedIds.Contains(p.ProductId))
+                    .OrderByDescending(p => p.CreatedDate)
+                    .Take(remainingCount)
+                    .ToListAsync();
+
+                recommendations.AddRange(fallbackProducts);
+            }
+
+            // =============================================================
+            // 5. TRUY XUẤT VOUCHER CÔNG KHAI (TargetAudience = 0)
+            // =============================================================
+            var topVouchers = await _context.Promotions
+                .Include(p => p.PromotionRules)
+                .Where(p => p.IsActive
+                         && p.TargetAudience == 0
+                         && p.StartDate <= now
+                         && p.EndDate >= now
+                         && p.UsedCount < p.UsageLimit)
+                .OrderByDescending(p => p.UsedCount) // Lấy mã được dùng nhiều nhất lên trước
+                .Take(4)
+                .ToListAsync();
+
+            var model = new HomeStorefrontVM
+            {
+                ActiveBanners = activeBanners,
+                BestSellers = bestSellers,
+                Recommendations = recommendations,
+                TopVouchers = topVouchers // Đẩy ra View
+            };
+
+            return View(model);
+        }
+
+        public IActionResult About() => View();
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\PaymentController.cs ==========
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+using TMDT_LT.Services;
+
+namespace TMDT_LT.Controllers
+{
+    public class PaymentController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly VnPayService _vnPayService;
+
+        public PaymentController(ApplicationDbContext context, VnPayService vnPayService)
+        {
+            _context = context;
+            _vnPayService = vnPayService;
+        }
+
+        // =================================================================
+        // 1. CALLBACK ĐỒNG BỘ (Trình duyệt khách hàng nhận kết quả)
+        // =================================================================
+        [HttpGet]
+        public async Task<IActionResult> PaymentReturn()
+        {
+            // Đọc kết quả trả về từ URL ngân hàng
+            var response = _vnPayService.PaymentExecute(Request.Query);
+
+            if (response == null || !response.Success)
+            {
+                TempData["Error"] = "Thanh toán thất bại hoặc giao dịch bị hủy bỏ.";
+                return RedirectToAction("Index", "Cart");
+            }
+
+            int orderId = Convert.ToInt32(response.OrderId);
+
+            // --- BỔ SUNG FIX LỖI LOCALHOST: CẬP NHẬT TRẠNG THÁI NGAY TẠI ĐÂY ---
+            var order = await _context.Orders
+                .Include(o => o.Payments)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
+            if (order != null)
+            {
+                var payment = order.Payments.FirstOrDefault();
+
+                // Chỉ cập nhật nếu nó chưa được IPN cập nhật trước đó
+                if (payment != null && payment.PaymentStatus != "Đã thanh toán" && payment.PaymentStatus != "Đã hoàn tiền")
+                {
+                    order.Status = "Đang xử lý"; // Đẩy qua kho đóng gói
+                    payment.PaymentStatus = "Đã thanh toán"; // Chốt dòng tiền
+                    payment.PaymentDate = DateTime.Now;
+
+                    _context.OrderHistories.Add(new OrderHistory
+                    {
+                        OrderId = order.OrderId,
+                        Status = "Đang xử lý",
+                        UpdatedAt = DateTime.Now,
+                        Note = $"[Return URL] Xác nhận giao dịch VNPAY thành công. Mã GD: {response.TransactionId}."
+                    });
+
+                    await _context.SaveChangesAsync();
+                }
+            }
+            // -----------------------------------------------------------------
+
+            // Bật Modal chúc mừng bên trang quản lý đơn hàng
+            TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = orderId, Method = "VNPAY" });
+            return RedirectToAction("Orders", "Customer");
+        }
+
+        // =================================================================
+        // 2. IPN/WEBHOOK BẢO MẬT (Server-to-Server) - XỬ LÝ CHÍNH KHÓA DÒNG TIỀN
+        // Ngân hàng sẽ gọi API này ngầm để đảm bảo dữ liệu không bị làm giả
+        // =================================================================
+        [HttpGet]
+        [HttpPost]
+        public async Task<IActionResult> BankIPN()
+        {
+            // Giả lập đọc dữ liệu bảo mật từ Ngân hàng / Cổng thanh toán ném về
+            var parameters = Request.Method == "POST" ? Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString()) : Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
+
+            var ipnResponse = _vnPayService.ProcessIPN(parameters);
+
+            if (!ipnResponse.IsValidChecksum)
+            {
+                return Json(new { RspCode = "97", Message = "Invalid Checksum" }); // Lỗi chữ ký bảo mật
+            }
+
+            var order = await _context.Orders
+                .Include(o => o.OrderDetails).ThenInclude(d => d.Variant)
+                .Include(o => o.Payments)
+                .FirstOrDefaultAsync(o => o.OrderId == ipnResponse.OrderId);
+
+            if (order == null)
+            {
+                return Json(new { RspCode = "01", Message = "Order Not Found" });
+            }
+
+            if (order.TotalAmount != ipnResponse.Amount)
+            {
+                return Json(new { RspCode = "04", Message = "Invalid Amount" });
+            }
+
+            var payment = order.Payments.FirstOrDefault();
+            if (payment == null) return Json(new { RspCode = "99", Message = "Payment Info Missing" });
+
+            if (payment.PaymentStatus == "Đã thanh toán" || payment.PaymentStatus == "Đã hoàn tiền")
+            {
+                return Json(new { RspCode = "02", Message = "Order already confirmed" });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // TRƯỜNG HỢP 1: NGÂN HÀNG BÁO KHÁCH THANH TOÁN THÀNH CÔNG
+                if (ipnResponse.TransactionStatus == "00") // 00 là mã chuẩn giao dịch thành công
+                {
+                    order.Status = "Đang xử lý"; // Chuyển từ Chờ xác nhận sang Đang xử lý
+                    payment.PaymentStatus = "Đã thanh toán";
+                    payment.PaymentDate = DateTime.Now;
+
+                    _context.OrderHistories.Add(new OrderHistory
+                    {
+                        OrderId = order.OrderId,
+                        Status = "Đang xử lý",
+                        UpdatedAt = DateTime.Now,
+                        Note = $"Ngân hàng xác nhận đã thu hộ {string.Format("{0:N0}", ipnResponse.Amount)}đ. Mã GD: {ipnResponse.TransactionId}."
+                    });
+                }
+                // TRƯỜNG HỢP 2: NGÂN HÀNG PHÁT TÍN HIỆU ĐẢO NGƯỢC/REVERSAL (HỦY/LỖI TỪ PHÍA NGÂN HÀNG)
+                else if (ipnResponse.TransactionStatus == "02" || ipnResponse.TransactionStatus == "99")
+                {
+                    order.Status = "Đã hủy";
+                    payment.PaymentStatus = "Thất bại";
+
+                    // Đền bù hoàn trả lại kho ngay lập tức cho các biến thể sản phẩm
+                    foreach (var detail in order.OrderDetails)
+                    {
+                        if (detail.Variant != null)
+                        {
+                            detail.Variant.Stock += detail.Quantity ?? 0;
+                        }
+                    }
+
+                    _context.OrderHistories.Add(new OrderHistory
+                    {
+                        OrderId = order.OrderId,
+                        Status = "Đã hủy",
+                        UpdatedAt = DateTime.Now,
+                        Note = $"[Tự động Webhook] Giao dịch thất bại từ phía ngân hàng. Hệ thống tự động hủy đơn và hoàn trả tồn kho."
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Json(new { RspCode = "00", Message = "Confirm Success" }); // Phản hồi chuẩn cho Ngân hàng dừng gửi tin
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return Json(new { RspCode = "99", Message = "System Error: " + ex.Message });
+            }
+        }
+    }
+}
+
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\Controllers\StoreController.cs ==========
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using TMDT_LT.Data;
+using TMDT_LT.Models;
+using TMDT_LT.Models.ViewModels.Storefront;
+using TMDT_LT.Models.ViewModels;
+
+namespace TMDT_LT.Controllers
+{
+    // Cấu trúc nhận dữ liệu Tracking ngầm từ Client gửi lên
+    public class UserBehaviorTrackingDto
+    {
+        public int ProductId { get; set; }
+        public int? TargetProductId { get; set; }
+        public int ViewDuration { get; set; }
+        public string? SearchKeyword { get; set; }
+        public string ActionType { get; set; } = "ViewDuration";
+    }
+
+    public class StoreController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+
+        public StoreController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // =======================================================
+        // TRANG DANH SÁCH SẢN PHẨM & TÌM KIẾM (UNIFIED CATALOG ENGINE)
+        // =======================================================
+        [Route("Store")]
+        [Route("Store/Index")]
+        public async Task<IActionResult> Index(
+                    string? keyword,
+                    [FromQuery] List<int> brandIds,
+                    [FromQuery] List<int> categoryIds,
+                    decimal? minPrice,
+                    decimal? maxPrice,
+                    string sort = "newest",
+                    int page = 1)
+        {
+            int currentCustomerId = 0;
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0";
+                int.TryParse(userIdStr, out currentCustomerId);
+            }
+
+            List<int> preferredCategoryIds = new List<int>();
+            List<int> preferredBrandIds = new List<int>();
+
+            if (currentCustomerId > 0)
+            {
+                var userInteractedProductIds = await _context.UserBehaviorLogs
+                    .Where(log => log.CustomerId == currentCustomerId && (log.ViewDuration > 5 || log.ActionType == "ProductClick"))
+                    .Select(log => log.ProductId)
+                    .Distinct()
+                    .Take(50)
+                    .ToListAsync();
+
+                if (userInteractedProductIds.Any())
+                {
+                    var productDetails = await _context.Products
+                        .Where(p => userInteractedProductIds.Contains(p.ProductId))
+                        .Select(p => new { p.CategoryId, p.BrandId })
+                        .ToListAsync();
+
+                    preferredCategoryIds = productDetails.Select(x => x.CategoryId).Distinct().ToList();
+                    preferredBrandIds = productDetails.Select(x => x.BrandId).Distinct().ToList();
+                }
+            }
+
+            var rawProducts = await _context.Products
+                .Include(p => p.Category)
+                .Include(p => p.Brand)
+                .Include(p => p.ProductVariants)
+                .Where(p => p.IsActive == true)
+                .ToListAsync();
+
+            var scoredResults = new List<SearchResultItemVM>();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                string kw = keyword.Trim().ToLower();
+                string kwNoMark = StringHelper.RemoveDiacritics(kw);
+
+                var kwParts = kwNoMark.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                scoredResults = rawProducts.Select(p =>
+                {
+                    int score = 0;
+
+                    string pName = (p.Name ?? "").ToLower();
+                    string pNameNoMark = StringHelper.RemoveDiacritics(pName);
+                    string cName = (p.Category?.CategoryName ?? "").ToLower();
+                    string cNameNoMark = StringHelper.RemoveDiacritics(cName);
+                    string bName = (p.Brand?.BrandName ?? "").ToLower();
+                    string bNameNoMark = StringHelper.RemoveDiacritics(bName);
+                    string chip = (p.Chipset ?? "").ToLower();
+                    string chipNoMark = StringHelper.RemoveDiacritics(chip);
+
+                    var activeVariants = p.ProductVariants.Where(v => v.IsActive == true).ToList();
+                    string variantData = string.Join(" ", activeVariants.Select(v => $"{v.Color} {v.Ram} {v.Storage}")).ToLower();
+                    string variantDataNoMark = StringHelper.RemoveDiacritics(variantData);
+
+                    if (pName.Contains(kw)) score += 100;
+                    else if (pNameNoMark.Contains(kwNoMark)) score += 70;
+
+                    if (cName.Contains(kw)) score += 60;
+                    else if (cNameNoMark.Contains(kwNoMark)) score += 40;
+
+                    if (bName.Contains(kw)) score += 50;
+                    else if (bNameNoMark.Contains(kwNoMark)) score += 30;
+
+                    if (chip.Contains(kw)) score += 20;
+                    else if (chipNoMark.Contains(kwNoMark)) score += 10;
+
+                    if (variantData.Contains(kw)) score += 40;
+                    else if (variantDataNoMark.Contains(kwNoMark)) score += 20;
+
+                    if (kwParts.Length > 1)
+                    {
+                        string fullProductText = $"{pNameNoMark} {cNameNoMark} {bNameNoMark} {chipNoMark} {variantDataNoMark}";
+                        int matchCount = 0;
+
+                        foreach (var part in kwParts)
+                        {
+                            if (fullProductText.Contains(part)) matchCount++;
+                        }
+
+                        if (matchCount == kwParts.Length) score += 85;
+                        else if (matchCount > 0) score += (matchCount * 5);
+                    }
+
+                    if (preferredCategoryIds.Contains(p.CategoryId)) score += 15;
+                    if (preferredBrandIds.Contains(p.BrandId)) score += 15;
+
+                    return new SearchResultItemVM { Product = p, RelevanceScore = score };
+                })
+                .Where(x => x.RelevanceScore > 0)
+                .ToList();
+            }
+            else
+            {
+                scoredResults = rawProducts.Select(p => {
+                    int score = 1;
+                    if (preferredCategoryIds.Contains(p.CategoryId)) score += 10;
+                    if (preferredBrandIds.Contains(p.BrandId)) score += 10;
+                    return new SearchResultItemVM { Product = p, RelevanceScore = score };
+                }).ToList();
+            }
+
+            if (brandIds != null && brandIds.Any())
+            {
+                scoredResults = scoredResults.Where(x => brandIds.Contains(x.Product.BrandId)).ToList();
+            }
+
+            if (categoryIds != null && categoryIds.Any())
+            {
+                scoredResults = scoredResults.Where(x => categoryIds.Contains(x.Product.CategoryId)).ToList();
+            }
+
+            if (minPrice.HasValue || maxPrice.HasValue)
+            {
+                scoredResults = scoredResults.Where(x =>
+                {
+                    var activeVariants = x.Product.ProductVariants.Where(v => v.IsActive == true);
+                    if (!activeVariants.Any()) return false;
+
+                    var minVariantPrice = activeVariants.Min(v => v.DiscountPrice > 0 ? v.DiscountPrice : v.Price);
+                    bool matchMin = !minPrice.HasValue || minVariantPrice >= minPrice.Value;
+                    bool matchMax = !maxPrice.HasValue || minVariantPrice <= maxPrice.Value;
+
+                    return matchMin && matchMax;
+                }).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                scoredResults = scoredResults.OrderByDescending(x => x.RelevanceScore).ToList();
+            }
+            else
+            {
+                switch (sort)
+                {
+                    case "price_asc":
+                        scoredResults = scoredResults.OrderBy(x => x.Product.ProductVariants.Where(v => v.IsActive == true).Min(v => v.DiscountPrice > 0 ? v.DiscountPrice : v.Price)).ToList();
+                        break;
+                    case "price_desc":
+                        scoredResults = scoredResults.OrderByDescending(x => x.Product.ProductVariants.Where(v => v.IsActive == true).Min(v => v.DiscountPrice > 0 ? v.DiscountPrice : v.Price)).ToList();
+                        break;
+                    case "bestseller-desc":
+                        scoredResults = scoredResults.OrderByDescending(x => x.Product.ProductVariants.SelectMany(v => _context.OrderDetails.Where(od => od.VariantId == v.VariantId)).Sum(od => (int?)od.Quantity) ?? 0).ToList();
+                        break;
+                    default:
+                        scoredResults = scoredResults.OrderByDescending(x => x.RelevanceScore).ThenByDescending(x => x.Product.CreatedDate).ToList();
+                        break;
+                }
+            }
+
+            int pageSize = 12;
+            int totalItems = scoredResults.Count;
+            int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+            if (page < 1) page = 1;
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            var pagedResults = scoredResults.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            var dbBrands = await _context.Brands.Select(b => b.BrandName).Take(5).ToListAsync();
+            var dbCategories = await _context.Categories.Where(c => c.IsActive == true).Select(c => c.CategoryName).Take(4).ToListAsync();
+
+            var popularSearches = await _context.UserBehaviorLogs
+                .Where(log => !string.IsNullOrEmpty(log.SearchKeyword))
+                .GroupBy(log => log.SearchKeyword)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .Take(3)
+                .ToListAsync();
+
+            var tags = new List<string>();
+            if (popularSearches.Any()) tags.AddRange(popularSearches!);
+            tags.AddRange(dbBrands);
+            tags.AddRange(dbCategories);
+
+            if (!tags.Any())
+            {
+                tags = new List<string> { "iPhone", "Samsung", "Oppo", "Laptop", "iPad" };
+            }
+
+            var vm = new CatalogVM
+            {
+                Keyword = keyword,
+                AvailableBrands = await _context.Brands.ToListAsync(),
+                AvailableCategories = await _context.Categories.ToListAsync(),
+                Products = pagedResults,
+                TotalResults = totalItems,
+                SelectedBrandIds = brandIds ?? new List<int>(),
+                SelectedCategoryIds = categoryIds ?? new List<int>(),
+                MinPrice = minPrice,
+                MaxPrice = maxPrice,
+                SortBy = sort,
+                CurrentPage = page,
+                TotalPages = totalPages,
+                PageSize = pageSize,
+                SuggestionTags = tags.Distinct().ToList()
+            };
+
+            return View(vm);
+        }
+
+        // =====================================================================
+        // API LẤY CỤM TỪ GỢI Ý DANH SÁCH DỌC ĐÚNG KIỂU SHOPEE (IMAGE_ED099A.PNG)
+        // =====================================================================
+       [HttpGet]
+[Route("Store/GetSearchSuggestions")]
+public async Task<IActionResult> GetSearchSuggestions(string q)
+{
+    var suggestedPhrases = new List<string>();
+
+    // Trường hợp 1: Ô tìm kiếm trống -> gợi ý từ khóa hot hoặc danh mục nổi bật
+    if (string.IsNullOrWhiteSpace(q))
+    {
+        // Lấy 7 từ khóa hot từ UserBehaviorLogs
+        var hotKeywords = await _context.UserBehaviorLogs
+            .Where(log => !string.IsNullOrEmpty(log.SearchKeyword))
+            .GroupBy(log => log.SearchKeyword)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .Take(7)
+            .ToListAsync();
+
+        // Nếu chưa có lịch sử, dùng danh sách gợi ý mặc định
+        if (hotKeywords == null || !hotKeywords.Any())
+        {
+            hotKeywords = new List<string> { "iPhone", "Samsung", "Oppo", "Xiaomi", "Laptop", "Tai nghe", "Phụ kiện" };
+        }
+
+        return Json(new { isBlank = true, phrases = hotKeywords });
+    }
+
+    // Trường hợp 2: Có từ khóa nhập vào
+    string query = q.Trim().ToLower();
+    string queryNoMark = StringHelper.RemoveDiacritics(query);
+
+    // 1. Lấy danh mục phù hợp
+    var matchedCategories = await _context.Categories
+        .Where(c => c.IsActive == true)
+        .Select(c => c.CategoryName)
+        .ToListAsync();
+    suggestedPhrases.AddRange(matchedCategories
+        .Where(c => c.ToLower().Contains(query) || StringHelper.RemoveDiacritics(c.ToLower()).Contains(queryNoMark))
+        .Take(2));
+
+    // 2. Lấy thương hiệu phù hợp
+    var matchedBrands = await _context.Brands
+        .Select(b => b.BrandName)
+        .ToListAsync();
+    suggestedPhrases.AddRange(matchedBrands
+        .Where(b => b.ToLower().Contains(query) || StringHelper.RemoveDiacritics(b.ToLower()).Contains(queryNoMark))
+        .Take(2));
+
+    // 3. Lấy tên sản phẩm phù hợp (cắt ngắn để dễ nhìn)
+    var matchedProducts = await _context.Products
+        .Where(p => p.IsActive == true)
+        .Select(p => p.Name)
+        .ToListAsync();
+    suggestedPhrases.AddRange(matchedProducts
+        .Where(n => n.ToLower().Contains(query) || StringHelper.RemoveDiacritics(n.ToLower()).Contains(queryNoMark))
+        .Take(5));
+
+    // 4. Lấy lịch sử tìm kiếm phù hợp
+    var matchedHistory = await _context.UserBehaviorLogs
+        .Where(log => !string.IsNullOrEmpty(log.SearchKeyword))
+        .Select(log => log.SearchKeyword)
+        .Distinct()
+        .ToListAsync();
+    suggestedPhrases.AddRange(matchedHistory!
+        .Where(h => h!.ToLower().Contains(query) || StringHelper.RemoveDiacritics(h.ToLower()).Contains(queryNoMark))
+        .Take(2));
+
+    // Loại bỏ trùng và giới hạn 8 kết quả
+    var finalResult = suggestedPhrases
+        .Where(p => !string.IsNullOrWhiteSpace(p))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(8)
+        .ToList();
+
+    return Json(new { isBlank = false, phrases = finalResult });
+}
+
+        [HttpPost]
+        [Route("Store/TrackUserBehavior")]
+        public async Task<IActionResult> TrackUserBehavior([FromBody] UserBehaviorTrackingDto dto)
+        {
+            if (dto == null) return BadRequest();
+
+            int? customerId = null;
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0";
+                if (int.TryParse(userIdStr, out int id) && id > 0)
+                {
+                    customerId = id;
+                }
+            }
+
+            var logEntry = new UserBehaviorLog
+            {
+                CustomerId = customerId,
+                ProductId = dto.ProductId,
+                TargetProductId = dto.TargetProductId,
+                ViewDuration = dto.ViewDuration,
+                SearchKeyword = string.IsNullOrWhiteSpace(dto.SearchKeyword) ? null : dto.SearchKeyword.Trim(),
+                ActionType = dto.ActionType,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.UserBehaviorLogs.Add(logEntry);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
+        }
+
+        [Route("Store/Product/{id}")]
+        public async Task<IActionResult> Product(int id)
+        {
+            var product = await _context.Products
+                .Include(p => p.Brand)
+                .Include(p => p.Category)
+                .Include(p => p.ProductVariants.Where(v => v.IsActive == true))
+                .Include(p => p.ProductImages)
+                .FirstOrDefaultAsync(p => p.ProductId == id && p.IsActive == true);
+
+            if (product == null) return RedirectToAction("Index");
+
+            var upSellProducts = await _context.Products
+                .Include(p => p.ProductVariants.Where(v => v.IsActive == true))
+                .Where(p => p.CategoryId == product.CategoryId && p.ProductId != id && p.IsActive == true)
+                .Take(10)
+                .ToListAsync();
+
+            var allReviews = await _context.Reviews
+                .Include(r => r.Customer)
+                .Include(r => r.ReviewDetails).ThenInclude(rd => rd.Variant)
+                .Where(r => r.ProductId == id && r.IsHidden == false)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            double avgRating = allReviews.Any() ? (double)allReviews.Average(r => r.Rating ?? 0) : 0;
+            var starCounts = new Dictionary<int, int> { { 5, 0 }, { 4, 0 }, { 3, 0 }, { 2, 0 }, { 1, 0 } };
+            foreach (var r in allReviews)
+            {
+                int star = r.Rating ?? 5;
+                if (starCounts.ContainsKey(star)) starCounts[star]++;
+            }
+
+            var displayReviews = allReviews.Take(3).ToList();
+
+            var model = new ProductDetailVM
+            {
+                Product = product,
+                UpSellProducts = upSellProducts,
+                ApprovedReviews = displayReviews,
+                AverageRating = avgRating,
+                TotalReviews = allReviews.Count,
+                StarCounts = starCounts
+            };
+
+            bool hasPurchased = false;
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0";
+                int customerId = int.Parse(userIdStr);
+
+                hasPurchased = await _context.Orders
+                    .Include(o => o.OrderDetails)
+                    .AnyAsync(o => o.CustomerId == customerId && o.Status == "Đã hoàn thành" && o.OrderDetails.Any(d => d.Variant.ProductId == id));
+            }
+            ViewBag.HasPurchased = hasPurchased;
+
+            return View(model);
+        }
+
+        [Route("Store/Product/{id}/Reviews")]
+        public async Task<IActionResult> ProductReviews(int id, int? starFilter)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == id);
+            if (product == null) return NotFound();
+
+            var query = _context.Reviews
+                .Include(r => r.Customer)
+                .Include(r => r.ReviewDetails).ThenInclude(rd => rd.Variant)
+                .Where(r => r.ProductId == id && r.IsHidden == false);
+
+            var allReviews = await query.ToListAsync();
+
+            double avgRating = allReviews.Any() ? (double)allReviews.Average(r => r.Rating ?? 0) : 0;
+            var starCounts = new Dictionary<int, int> { { 5, 0 }, { 4, 0 }, { 3, 0 }, { 2, 0 }, { 1, 0 } };
+
+            foreach (var r in allReviews)
+            {
+                int star = r.Rating ?? 5;
+                if (starCounts.ContainsKey(star)) starCounts[star]++;
+            }
+
+            if (starFilter.HasValue && starFilter.Value >= 1 && starFilter.Value <= 5)
+            {
+                query = query.Where(r => r.Rating == starFilter.Value);
+            }
+
+            var displayReviews = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+
+            ViewBag.Product = product;
+            ViewBag.AverageRating = avgRating;
+            ViewBag.TotalReviews = allReviews.Count;
+            ViewBag.StarCounts = starCounts;
+            ViewBag.SelectedStar = starFilter;
+
+            return View(displayReviews);
+        }
+    }
+
+    public static class StringHelper
+    {
+        public static string RemoveDiacritics(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return text;
+
+            text = text.Replace('đ', 'd').Replace('Đ', 'D');
+
+            var normalizedString = text.Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder(capacity: normalizedString.Length);
+
+            for (int i = 0; i < normalizedString.Length; i++)
+            {
+                char c = normalizedString[i];
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
+        }
+    }
+}

@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿@using System.Security.Claims
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="utf-8" />
@@ -6,74 +7,122 @@
     <title>@ViewData["Title"] - Hệ thống Quản trị</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-<link rel="stylesheet" href="~/css/admin-root.css" />
-<link rel="stylesheet" href="~/css/admin-layout.css" />
-<link rel="stylesheet" href="~/css/admin-components.css" />
-<link rel="stylesheet" href="~/css/admin.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/admin-root.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-layout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-components.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
 
     <style>
-        /* CSS CHO ADMIN HEADER (CÔNG CỤ & TÀI KHOẢN) */
-        .admin-header {
+        /* KHÓA CỨNG KHUNG LAYOUT TOÀN MÀN HÌNH */
+        .admin-layout-wrapper {
             display: flex;
-            justify-content: space-between;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #F3F4F6;
+        }
+
+        /* SIDEBAR CỐ ĐỊNH BÊN TRÁI KHÔNG CUỘN THEO TRANG */
+        .admin-sidebar {
+            width: 260px;
+            background-color: #111827;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow-y: auto;
+            border-right: 1px solid #1F2937;
+        }
+
+        .sidebar-header {
+            height: 64px;
+            display: flex;
             align-items: center;
             padding: 0 24px;
+            border-bottom: 1px solid #1F2937;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand {
+            color: #FFFFFF;
+            font-weight: 800;
+            font-size: 16px;
+            text-decoration: none;
+            letter-spacing: 0.5px;
+        }
+
+            .sidebar-brand:hover {
+                color: #FFFFFF;
+            }
+
+        .sidebar-nav {
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 10px 16px;
+            color: #9CA3AF;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+            .nav-item:hover, .nav-item.active {
+                background-color: #1F2937;
+                color: #FFFFFF;
+            }
+
+        .nav-section-title {
+            color: #4B5563;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.75px;
+            margin: 18px 0 6px 16px;
+        }
+
+        /* KHU VỰC NỘI DUNG CHÍNH CUỘN ĐỘC LẬP */
+        .admin-main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* HEADER DI DỜI SANG PHẢI KHỚP KHUNG NHÌN */
+        .admin-header {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 0 30px;
             height: 64px;
             background-color: #FFFFFF;
             border-bottom: 1px solid #E5E7EB;
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
         }
 
-        /* Khung tìm kiếm bên trái */
-        .header-search {
-            position: relative;
-            width: 350px;
-        }
-
-            .header-search input {
-                width: 100%;
-                padding: 8px 16px 8px 40px;
-                border: 1px solid #D1D5DB;
-                border-radius: 6px;
-                font-size: 13px;
-                background-color: #F9FAFB;
-                transition: all 0.2s;
-            }
-
-                .header-search input:focus {
-                    outline: none;
-                    border-color: #3B82F6;
-                    background-color: #FFFFFF;
-                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-                }
-
-            .header-search i {
-                position: absolute;
-                left: 14px;
-                top: 50%;
-                transform: translateY(-50%);
-                color: #9CA3AF;
-            }
-
-        /* Các công cụ bên phải */
         .header-actions {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
         }
 
         .action-btn {
-            width: 36px;
-            height: 36px;
+            padding: 6px 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
+            border-radius: 6px;
             color: #4B5563;
             background: transparent;
             border: none;
@@ -81,6 +130,7 @@
             transition: background 0.2s;
             text-decoration: none;
             position: relative;
+            font-size: 13px;
         }
 
             .action-btn:hover {
@@ -88,11 +138,10 @@
                 color: #111827;
             }
 
-        /* Chấm đỏ thông báo */
         .notification-badge {
             position: absolute;
-            top: 4px;
-            right: 4px;
+            top: 2px;
+            right: 2px;
             width: 8px;
             height: 8px;
             background-color: #EF4444;
@@ -100,24 +149,23 @@
             border: 2px solid #FFFFFF;
         }
 
-        /* Đường kẻ chia cách */
         .header-divider {
             width: 1px;
-            height: 24px;
+            height: 20px;
             background-color: #E5E7EB;
-            margin: 0 4px;
+            margin: 0 8px;
         }
 
-        /* Khu vực Avatar & Dropdown */
         .header-profile {
             display: flex;
             align-items: center;
             gap: 12px;
             cursor: pointer;
-            padding: 4px 8px;
+            padding: 6px 10px;
             border-radius: 6px;
             transition: background 0.2s;
             position: relative;
+            user-select: none;
         }
 
             .header-profile:hover {
@@ -125,8 +173,8 @@
             }
 
         .profile-avatar {
-            width: 36px;
-            height: 36px;
+            width: 34px;
+            height: 34px;
             border-radius: 50%;
             object-fit: cover;
             border: 1px solid #E5E7EB;
@@ -149,25 +197,23 @@
             color: #6B7280;
         }
 
-        /* Menu Dropdown ẩn */
         .profile-dropdown {
             display: none;
             position: absolute;
-            top: 110%;
+            top: calc(100% + 6px);
             right: 0;
-            width: 200px;
+            width: 210px;
             background: #FFFFFF;
             border: 1px solid #E5E7EB;
-            border-radius: 6px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 8px 0;
-            z-index: 100;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 6px 0;
+            z-index: 110;
         }
 
         .dropdown-item {
             display: flex;
             align-items: center;
-            gap: 10px;
             padding: 10px 16px;
             font-size: 13px;
             color: #374151;
@@ -180,25 +226,23 @@
                 color: #111827;
             }
 
-            .dropdown-item i {
-                width: 16px;
-                color: #9CA3AF;
-                text-align: center;
-            }
-
         .dropdown-divider {
             height: 1px;
             background-color: #E5E7EB;
-            margin: 4px 0;
+            margin: 6px 0;
         }
 
         .text-danger:hover {
             color: #DC2626 !important;
         }
 
-            .text-danger:hover i {
-                color: #DC2626;
-            }
+        /* KHU VỰC CHỨA VIEW CON TRƯỢT ĐỘC LẬP */
+        .content-wrapper {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background-color: #F9FAFB;
+        }
     </style>
 
     @await RenderSectionAsync("Styles", required: false)
@@ -209,7 +253,7 @@
         <aside class="admin-sidebar">
             <div class="sidebar-header">
                 <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="sidebar-brand">
-                    PHONE.ST ADMIN
+                    KINGPHONE ADMIN
                 </a>
             </div>
 
@@ -224,7 +268,7 @@
 
                 <div class="nav-section-title">Kho hàng & Sản phẩm</div>
                 <a asp-area="Admin" asp-controller="Product" asp-action="Index" class="nav-item">Danh sách sản phẩm</a>
-                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" class="nav-item">Kiểm soát tồn kho</a>
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" class="nav-item">Kiểm soát kho</a>
                 <a asp-area="Admin" asp-controller="Supplier" asp-action="Index" class="nav-item">Nhà phân phối</a>
 
                 <div class="nav-section-title">Cấu hình hệ thống</div>
@@ -240,22 +284,17 @@
         <main class="admin-main-content">
 
             <header class="admin-header">
-                <div class="header-search">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Tìm kiếm đơn hàng, sản phẩm (Phát triển sau)...">
-                </div>
-
                 <div class="header-actions">
                     <a asp-area="" asp-controller="Home" asp-action="Index" target="_blank" class="action-btn" title="Xem cửa hàng khách">
-                        <i class="fas fa-store"></i>
+                        Xem cửa hàng
                     </a>
 
-                    <button class="action-btn" title="Chế độ tối (Phát triển sau)">
-                        <i class="fas fa-moon"></i>
+                    <button type="button" class="action-btn" title="Chế độ tối (Phát triển sau)">
+                        Chế độ tối
                     </button>
 
-                    <button class="action-btn" title="Thông báo hệ thống (Phát triển sau)">
-                        <i class="fas fa-bell"></i>
+                    <button type="button" class="action-btn" title="Thông báo hệ thống (Phát triển sau)">
+                        Thông báo
                         <span class="notification-badge"></span>
                     </button>
 
@@ -268,19 +307,17 @@
                             <span class="profile-name">Quản trị viên</span>
                             <span class="profile-role">Super Admin</span>
                         </div>
-                        <i class="fas fa-chevron-down" style="font-size: 10px; color: #9CA3AF; margin-left: 4px;"></i>
 
                         <div class="profile-dropdown" id="userProfileMenu">
-                            <a href="#" class="dropdown-item">
-                                <i class="fas fa-id-card"></i> Hồ sơ tài khoản
-                            </a>
-                            <a href="#" class="dropdown-item">
-                                <i class="fas fa-cog"></i> Cài đặt hệ thống
-                            </a>
+                            <a href="#" class="dropdown-item">Hồ sơ tài khoản</a>
+                            <a href="#" class="dropdown-item">Cài đặt hệ thống</a>
                             <div class="dropdown-divider"></div>
-                            <a href="/Home/Index" class="dropdown-item text-danger">
-                                <i class="fas fa-sign-out-alt"></i> Đăng xuất
-                            </a>
+                            <form action="/Auth/Logout" method="post" style="margin:0;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="dropdown-item text-danger" style="border:none; background:transparent; width:100%; text-align:left; font-weight: 600;">
+                                    Đăng xuất
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -293,15 +330,16 @@
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Bật tắt menu dropdown khi click vào avatar
+        // Bật tắt menu dropdown khi click vào profile
         document.getElementById('userProfileToggle').addEventListener('click', function(e) {
             e.stopPropagation();
             const menu = document.getElementById('userProfileMenu');
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         });
 
-        // Bấm ra ngoài không gian khác thì tự động đóng menu
+        // Bấm ra ngoài vùng menu thì tự động đóng lại ẩn đi
         document.addEventListener('click', function() {
             const menu = document.getElementById('userProfileMenu');
             if(menu) menu.style.display = 'none';

@@ -1,165 +1,527 @@
-﻿@model TMDT_LT.Models.ViewModels.ProductCreateVM
+﻿@model TMDT_LT.Models.ViewModels.Admin.ProductCreateVM
 @{
     Layout = "_LayoutAdmin";
-    ViewData["Title"] = "Thêm Thiết bị";
+    ViewData["Title"] = "Thêm sản phẩm mới";
 }
 
-<div style="margin-bottom: 35px;">
-    <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 4px;">
-        <svg style="width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        Quay lại danh sách sản phẩm
-    </a>
-    <h2 style="margin-top: 12px; font-weight: 800; letter-spacing: -0.5px;">Khai báo cấu hình sản phẩm mới</h2>
-</div>
-
-<form asp-action="Create" method="post" enctype="multipart/form-data">
-    @Html.AntiForgeryToken()
-
-    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0)
-    {
-        <div style="background: #FEE2E2; color: #DC2626; padding: 15px; border-radius: 6px; margin-bottom: 25px; font-size: 14px;">
-            <div asp-validation-summary="ModelOnly"></div>
-        </div>
+<style>
+    .category-dynamic-fields {
+        background: #F8FAFC;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 12px;
+        transition: all 0.3s ease;
     }
 
-    <div class="admin-card">
-        <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 25px; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px;">1. Hồ sơ thiết bị phần cứng</h3>
+        .category-dynamic-fields.hidden {
+            display: none;
+        }
 
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Tên dòng máy thương mại (*)</label>
-                    <input asp-for="Name" class="form-control" placeholder="Ví dụ: iPhone 16 Pro Max..." required />
+    .variant-row {
+        background: #FFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+        .variant-row:hover {
+            border-color: #2563EB;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.05);
+        }
+
+        .variant-row .remove-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #EF4444;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+            .variant-row .remove-btn:hover {
+                background: #FEE2E2;
+            }
+
+    .btn-add-variant {
+        width: 100%;
+        padding: 10px;
+        border: 2px dashed #D1D5DB;
+        border-radius: 8px;
+        background: #FAFAFA;
+        color: #6B7280;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 8px;
+    }
+
+        .btn-add-variant:hover {
+            border-color: #2563EB;
+            background: #F0F7FF;
+            color: #2563EB;
+        }
+
+    .image-preview-container {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+    }
+
+    .image-preview-item {
+        width: 80px;
+        height: 80px;
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
+        overflow: hidden;
+        position: relative;
+    }
+
+        .image-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-preview-item .remove-image {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #EF4444;
+            color: #FFF;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+    .form-section {
+        background: #F9FAFB;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+        .form-section h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin: 0 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+</style>
+
+<div style="margin-bottom: 25px;">
+    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+        <a href="/Admin/Product/Index" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #F3F4F6; color: #374151; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; border: 1px solid #E5E7EB; transition: all 0.2s;" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">
+            ← Quay lại danh sách
+        </a>
+        <h2 style="font-weight: 700; color: #111827; margin: 0;">Thêm sản phẩm mới</h2>
+    </div>
+    <p style="color: #6B7280; font-size: 14px; margin-left: 0;">Tạo sản phẩm mới với các thông số kỹ thuật và biến thể theo danh mục.</p>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div style="background: #D1FAE5; color: #065F46; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #A7F3D0;">
+        @TempData["Success"]
+    </div>
+}
+
+<form method="post" enctype="multipart/form-data" id="productForm">
+    @Html.AntiForgeryToken()
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+
+        <!-- CỘT TRÁI: THÔNG TIN SẢN PHẨM -->
+        <div>
+            <!-- Thông tin cơ bản -->
+            <div class="form-section">
+                <h4>Thông tin cơ bản</h4>
+                <div class="form-group">
+                    <label>Tên sản phẩm <span class="required">*</span></label>
+                    <input asp-for="Name" class="form-control" placeholder="Ví dụ: iPhone 15 Pro Max" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
                 </div>
-
-                <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Chọn hình ảnh đại diện sản phẩm (*)</label>
-                    <input asp-for="MainImageFile" type="file" class="form-control" accept="image/*" style="padding: 6px 12px;" required />
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label>Danh mục <span class="required">*</span></label>
+                        <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-control" id="categorySelect" onchange="updateCategoryFields()">
+                            <option value="">-- Chọn danh mục --</option>
+                        </select>
+                        <span asp-validation-for="CategoryId" class="text-danger"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Thương hiệu <span class="required">*</span></label>
+                        <select asp-for="BrandId" asp-items="ViewBag.Brands" class="form-control">
+                            <option value="">-- Chọn thương hiệu --</option>
+                        </select>
+                        <span asp-validation-for="BrandId" class="text-danger"></span>
+                    </div>
                 </div>
-
-                <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Bộ sưu tập hình ảnh đa góc độ (Chọn cùng lúc nhiều ảnh)</label>
-                    <input asp-for="GalleryFiles" type="file" class="form-control" accept="image/*" multiple style="padding: 6px 12px;" />
+                <div class="form-group">
+                    <label>Mô tả sản phẩm</label>
+                    <textarea asp-for="Description" class="form-control" rows="3" placeholder="Mô tả chi tiết sản phẩm..."></textarea>
                 </div>
-
-                <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Thông tin mô tả cấu hình chi tiết</label>
-                    <textarea asp-for="Description" id="Description" class="form-control" style="height: 110px; resize: none;"></textarea>
+                <div class="form-group">
+                    <label>Hình ảnh chính</label>
+                    <input asp-for="MainImageFile" type="file" class="form-control" accept="image/*" />
+                    <div style="font-size:11px; color:#6B7280; margin-top:4px;">Hỗ trợ JPG, PNG, GIF. Dung lượng tối đa: 5MB</div>
                 </div>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 20px; border-left: 1px solid var(--admin-border); padding-left: 30px;">
-                <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Danh mục định tuyến (*)</label>
-                    <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-control" required><option value="">-- Chọn danh mục --</option></select>
-                </div>
-                <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Thương hiệu sản xuất (*)</label>
-                    <select asp-for="BrandId" asp-items="ViewBag.Brands" class="form-control" required><option value="">-- Chọn thương hiệu --</option></select>
-                </div>
-                <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Cấu trúc Chipset</label>
-                    <input asp-for="Chipset" class="form-control" placeholder="Ví dụ: Apple A18 Pro" />
-                </div>
-                <div class="form-row" style="margin: 0;">
-                    <label class="form-label">Hệ điều hành</label>
-                    <input asp-for="OperatingSystem" class="form-control" placeholder="Ví dụ: iOS 18" />
+            <!-- Thông số kỹ thuật động theo danh mục -->
+            <div class="form-section">
+                <h4>Thông số kỹ thuật</h4>
+                <div id="categoryFieldsContainer">
+                    <!-- Sẽ được JavaScript điền -->
+                    <p style="color: #9CA3AF; font-style: italic; text-align: center; padding: 20px 0;">Vui lòng chọn danh mục để hiển thị thông số kỹ thuật tương ứng.</p>
                 </div>
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 25px; border-top: 1px dashed var(--admin-border); padding-top: 25px;">
-            <div class="form-row" style="margin: 0;"><label class="form-label">Màn hình (inch)</label><input asp-for="ScreenSize" type="number" step="0.1" class="form-control" /></div>
-            <div class="form-row" style="margin: 0;"><label class="form-label">Tần số quét (Hz)</label><input asp-for="RefreshRate" type="number" class="form-control" /></div>
-            <div class="form-row" style="margin: 0;"><label class="form-label">Dung lượng Pin (mAh)</label><input asp-for="BatteryCapacity" type="number" class="form-control" /></div>
-            <div class="form-row" style="margin: 0;"><label class="form-label">Trọng lượng (g)</label><input asp-for="Weight" type="number" step="0.01" class="form-control" /></div>
-        </div>
-    </div>
+        <!-- CỘT PHẢI: BIẾN THỂ SẢN PHẨM -->
+        <div>
+            <div class="form-section">
+                <h4>Biến thể sản phẩm</h4>
+                <div id="variantsContainer">
+                    @if (Model.Variants != null && Model.Variants.Any())
+                    {
+                        for (int i = 0; i < Model.Variants.Count; i++)
+                        {
+                            <div class="variant-row" data-index="@i">
+                                <button type="button" class="remove-btn" onclick="removeVariant(this)" title="Xóa biến thể">×</button>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                    <div class="form-group">
+                                        <label>Màu sắc <span class="required">*</span></label>
+                                        <input asp-for="Variants[i].Color" class="form-control" placeholder="VD: Titan Tự Nhiên" />
+                                        <span asp-validation-for="Variants[i].Color" class="text-danger"></span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Dung lượng <span class="required">*</span></label>
+                                        <input asp-for="Variants[i].Storage" class="form-control" placeholder="VD: 256GB" />
+                                        <span asp-validation-for="Variants[i].Storage" class="text-danger"></span>
+                                    </div>
+                                </div>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                    <div class="form-group">
+                                        <label>RAM</label>
+                                        <input asp-for="Variants[i].Ram" class="form-control" placeholder="VD: 8GB" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Giá bán <span class="required">*</span></label>
+                                        <input asp-for="Variants[i].Price" type="number" class="form-control" placeholder="VD: 34990000" />
+                                        <span asp-validation-for="Variants[i].Price" class="text-danger"></span>
+                                    </div>
+                                </div>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                    <div class="form-group">
+                                        <label>Giá khuyến mãi</label>
+                                        <input asp-for="Variants[i].DiscountPrice" type="number" class="form-control" placeholder="VD: 32990000" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Tồn kho ban đầu</label>
+                                        <input asp-for="Variants[i].Stock" type="number" class="form-control" value="0" min="0" />
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Hình ảnh biến thể</label>
+                                    <input asp-for="Variants[i].VariantImageFile" type="file" class="form-control" accept="image/*" />
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+                <button type="button" class="btn-add-variant" onclick="addVariant()">+ Thêm biến thể</button>
+            </div>
 
-    <div class="admin-card" style="padding: 0; overflow: hidden;">
-        <div style="padding: 20px 24px; border-bottom: 1px solid var(--admin-border); background: #F9FAFB; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="font-size: 14px; font-weight: 700; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px; margin: 0;">2. Cấu hình các phiên bản SKU phân phối</h3>
-            <button type="button" class="btn-outline" onclick="addNewVariantLine()" style="padding: 6px 14px; font-size: 12px;">+ Thêm phiên bản biến thể</button>
-        </div>
+            <!-- Thư viện ảnh -->
+            <div class="form-section">
+                <h4>Thư viện ảnh sản phẩm</h4>
+                <div class="form-group">
+                    <label>Thêm ảnh vào thư viện</label>
+                    <input asp-for="GalleryFiles" type="file" class="form-control" accept="image/*" multiple />
+                    <div style="font-size:11px; color:#6B7280; margin-top:4px;">Có thể chọn nhiều ảnh cùng lúc</div>
+                </div>
+                <div id="galleryPreview" class="image-preview-container"></div>
+            </div>
 
-        <table class="data-table" id="variantCreationTable">
-            <thead>
-                <tr>
-                    <th style="width: 20%;">Màu sắc thuộc tính (*)</th>
-                    <th style="width: 15%;">Bộ nhớ RAM</th>
-                    <th style="width: 15%;">Lưu trữ (ROM) (*)</th>
-                    <th style="width: 20%;">Giá bán (VNĐ) (*)</th>
-                    <th style="width: 25%;">Chọn hình ảnh riêng bản này</th>
-                    <th style="width: 5%; text-align: center;">Xóa</th>
-                </tr>
-            </thead>
-            <tbody id="variantTableBody">
-                <tr>
-                    <td><input type="text" name="Variants[0].Color" class="form-control" style="padding: 8px;" placeholder="Ví dụ: Titan Sa Mạc" required /></td>
-                    <td><input type="text" name="Variants[0].Ram" class="form-control" style="padding: 8px;" placeholder="Ví dụ: 8GB" /></td>
-                    <td><input type="text" name="Variants[0].Storage" class="form-control" style="padding: 8px;" placeholder="Ví dụ: 256GB" required /></td>
-                    <td><input type="number" name="Variants[0].Price" class="form-control" style="padding: 8px; font-weight: 600;" placeholder="34990000" required /></td>
-                    <td><input type="file" name="Variants[0].VariantImageFile" class="form-control" accept="image/*" style="padding: 4px 8px;" /></td>
-                    <td style="text-align: center;">
-                        <button type="button" onclick="removeVariantLine(this)" class="btn-close" style="margin: 0 auto; color: #DC2626;">✖</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        <div style="padding: 16px 24px; background: #FFFBEB; border-top: 1px solid var(--admin-border); font-size: 12px; color: #B45309;">
-            💡 Quy chuẩn vận hành: Các biến thể khởi tạo tại đây sẽ tự động đồng bộ số lượng tồn kho bằng 0 máy. Số lượng thương mại sẽ được bổ sung thông qua phân hệ Quản lý Nhập kho.
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <button type="submit" class="btn-dark" style="flex:1; padding:12px; font-size:15px;">Lưu sản phẩm</button>
+                <a href="/Admin/Product/Index" class="btn-outline" style="flex:0.5; display:flex; align-items:center; justify-content:center; text-decoration:none;">Hủy</a>
+            </div>
         </div>
-    </div>
-
-    <div style="display: flex; justify-content: flex-end; gap: 15px; margin-bottom: 50px;">
-        <a asp-action="Index" class="btn-outline" style="padding: 12px 30px;">Hủy bỏ tác vụ</a>
-        <button type="submit" class="btn-dark" style="padding: 12px 40px; font-weight: 700;">TẠO HỒ SƠ SẢN PHẨM</button>
     </div>
 </form>
 
 @section Scripts {
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
     <script>
-        tinymce.init({
-            selector: '#Description',
-            height: 350,
-            menubar: false,
-            plugins: 'advlist autolink lists link image charmap preview anchor visualblocks code fullscreen insertdatetime media table wordcount',
-            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat',
-            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
-            branding: false
-        });
-    </script>
-    <script>
-        let variantRowIndex = 1;
+        // ============================================================
+        // 1. CẤU HÌNH THÔNG SỐ KỸ THUẬT THEO DANH MỤC
+        // ============================================================
+        const categoryFieldsConfig = {
+            // Điện thoại
+            '1': {
+                title: 'Thông số điện thoại',
+                fields: [
+                    { id: 'ScreenSize', label: 'Kích thước màn hình (inch)', type: 'number', step: '0.01', placeholder: 'VD: 6.7' },
+                    { id: 'ScreenTech', label: 'Công nghệ màn hình', type: 'text', placeholder: 'VD: Super Retina XDR OLED' },
+                    { id: 'RefreshRate', label: 'Tần số quét (Hz)', type: 'number', placeholder: 'VD: 120' },
+                    { id: 'Chipset', label: 'Chipset / Vi xử lý', type: 'text', placeholder: 'VD: Apple A17 Pro' },
+                    { id: 'OperatingSystem', label: 'Hệ điều hành', type: 'text', placeholder: 'VD: iOS 17' },
+                    { id: 'BatteryCapacity', label: 'Dung lượng pin (mAh)', type: 'number', placeholder: 'VD: 4422' },
+                    { id: 'RearCamera', label: 'Camera sau', type: 'text', placeholder: 'VD: 48MP + 12MP + 12MP' },
+                    { id: 'FrontCamera', label: 'Camera trước', type: 'text', placeholder: 'VD: 12MP' },
+                    { id: 'Weight', label: 'Trọng lượng (g)', type: 'number', step: '0.01', placeholder: 'VD: 221' },
+                    { id: 'Dimensions', label: 'Kích thước (DxRxC mm)', type: 'text', placeholder: 'VD: 159.9 x 76.7 x 8.3 mm' }
+                ]
+            },
+            // Máy tính bảng
+            '2': {
+                title: 'Thông số máy tính bảng',
+                fields: [
+                    { id: 'ScreenSize', label: 'Kích thước màn hình (inch)', type: 'number', step: '0.01', placeholder: 'VD: 10.9' },
+                    { id: 'ScreenTech', label: 'Công nghệ màn hình', type: 'text', placeholder: 'VD: Liquid Retina' },
+                    { id: 'RefreshRate', label: 'Tần số quét (Hz)', type: 'number', placeholder: 'VD: 60' },
+                    { id: 'Chipset', label: 'Chipset / Vi xử lý', type: 'text', placeholder: 'VD: Apple M2' },
+                    { id: 'OperatingSystem', label: 'Hệ điều hành', type: 'text', placeholder: 'VD: iPadOS 17' },
+                    { id: 'BatteryCapacity', label: 'Dung lượng pin (mAh)', type: 'number', placeholder: 'VD: 7606' },
+                    { id: 'RearCamera', label: 'Camera sau', type: 'text', placeholder: 'VD: 12MP' },
+                    { id: 'FrontCamera', label: 'Camera trước', type: 'text', placeholder: 'VD: 12MP' },
+                    { id: 'Weight', label: 'Trọng lượng (g)', type: 'number', step: '0.01', placeholder: 'VD: 477' },
+                    { id: 'Dimensions', label: 'Kích thước (DxRxC mm)', type: 'text', placeholder: 'VD: 248.6 x 179.5 x 7 mm' }
+                ]
+            },
+            // Laptop
+            '5': {
+                title: 'Thông số laptop',
+                fields: [
+                    { id: 'ScreenSize', label: 'Kích thước màn hình (inch)', type: 'number', step: '0.01', placeholder: 'VD: 14.2' },
+                    { id: 'ScreenTech', label: 'Công nghệ màn hình', type: 'text', placeholder: 'VD: Liquid Retina XDR' },
+                    { id: 'RefreshRate', label: 'Tần số quét (Hz)', type: 'number', placeholder: 'VD: 120' },
+                    { id: 'Chipset', label: 'Chipset / Vi xử lý', type: 'text', placeholder: 'VD: Apple M3 Pro' },
+                    { id: 'OperatingSystem', label: 'Hệ điều hành', type: 'text', placeholder: 'VD: macOS Sonoma' },
+                    { id: 'BatteryCapacity', label: 'Dung lượng pin (mAh)', type: 'number', placeholder: 'VD: 10000' },
+                    { id: 'Weight', label: 'Trọng lượng (g)', type: 'number', step: '0.01', placeholder: 'VD: 1600' },
+                    { id: 'Dimensions', label: 'Kích thước (DxRxC mm)', type: 'text', placeholder: 'VD: 312.6 x 221.2 x 15.5 mm' }
+                ]
+            },
+            // Tai nghe
+            '3': {
+                title: 'Thông số tai nghe',
+                fields: [
+                    { id: 'Chipset', label: 'Chip âm thanh', type: 'text', placeholder: 'VD: Apple H2' },
+                    { id: 'BatteryCapacity', label: 'Thời lượng pin (giờ)', type: 'number', placeholder: 'VD: 6' },
+                    { id: 'Weight', label: 'Trọng lượng (g)', type: 'number', step: '0.01', placeholder: 'VD: 5.3' }
+                ]
+            },
+            // Sạc pin dự phòng
+            '4': {
+                title: 'Thông số sạc dự phòng',
+                fields: [
+                    { id: 'BatteryCapacity', label: 'Dung lượng (mAh)', type: 'number', placeholder: 'VD: 20000' },
+                    { id: 'Weight', label: 'Trọng lượng (g)', type: 'number', step: '0.01', placeholder: 'VD: 350' },
+                    { id: 'Dimensions', label: 'Kích thước (DxRxC mm)', type: 'text', placeholder: 'VD: 150 x 75 x 25 mm' }
+                ]
+            },
+            // Chuột máy tính
+            '6': {
+                title: 'Thông số chuột',
+                fields: [
+                    { id: 'Chipset', label: 'Cảm biến', type: 'text', placeholder: 'VD: HERO 2' },
+                    { id: 'Weight', label: 'Trọng lượng (g)', type: 'number', step: '0.01', placeholder: 'VD: 60' },
+                    { id: 'Dimensions', label: 'Kích thước (DxRxC mm)', type: 'text', placeholder: 'VD: 125 x 63 x 40 mm' }
+                ]
+            },
+            // Bàn phím
+            '7': {
+                title: 'Thông số bàn phím',
+                fields: [
+                    { id: 'Chipset', label: 'Công nghệ switch', type: 'text', placeholder: 'VD: GX Red Linear' },
+                    { id: 'Weight', label: 'Trọng lượng (g)', type: 'number', step: '0.01', placeholder: 'VD: 800' },
+                    { id: 'Dimensions', label: 'Kích thước (DxRxC mm)', type: 'text', placeholder: 'VD: 440 x 130 x 40 mm' }
+                ]
+            }
+        };
 
-        // Cơ chế bổ sung dòng nhập liệu biến thể động bằng Javascript DOM
-        function addNewVariantLine() {
-            const tbody = document.getElementById('variantTableBody');
-            const tr = document.createElement('tr');
+        // ============================================================
+        // 2. CẬP NHẬT THÔNG SỐ KỸ THUẬT KHI CHỌN DANH MỤC
+        // ============================================================
+        function updateCategoryFields() {
+            const categoryId = document.getElementById('categorySelect').value;
+            const container = document.getElementById('categoryFieldsContainer');
 
-            tr.innerHTML = `
-                <td><input type="text" name="Variants[${variantRowIndex}].Color" class="form-control" style="padding: 8px;" placeholder="Màu sắc..." required /></td>
-                <td><input type="text" name="Variants[${variantRowIndex}].Ram" class="form-control" style="padding: 8px;" placeholder="RAM..." /></td>
-                <td><input type="text" name="Variants[${variantRowIndex}].Storage" class="form-control" style="padding: 8px;" placeholder="Bộ nhớ..." required /></td>
-                <td><input type="number" name="Variants[${variantRowIndex}].Price" class="form-control" style="padding: 8px; font-weight: 600;" placeholder="Giá bán..." required /></td>
-                <td><input type="file" name="Variants[${variantRowIndex}].VariantImageFile" class="form-control" accept="image/*" style="padding: 4px 8px;" /></td>
-                <td style="text-align: center;">
-                    <button type="button" onclick="removeVariantLine(this)" class="btn-close" style="margin: 0 auto; color: #DC2626;">✖</button>
-                </td>
+            if (!categoryId || !categoryFieldsConfig[categoryId]) {
+                container.innerHTML = `<p style="color: #9CA3AF; font-style: italic; text-align: center; padding: 20px 0;">Vui lòng chọn danh mục để hiển thị thông số kỹ thuật tương ứng.</p>`;
+                return;
+            }
+
+            const config = categoryFieldsConfig[categoryId];
+            let html = `<h4 style="font-size:12px; color:#6B7280; font-weight:600; margin-bottom:10px;">${config.title}</h4>`;
+            html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">`;
+
+            config.fields.forEach(field => {
+                const value = getFieldValue(field.id);
+                html += `
+                    <div class="form-group">
+                        <label>${field.label}</label>
+                        <input type="${field.type}" step="${field.step || 1}"
+                               name="${field.id}" id="${field.id}"
+                               class="form-control" placeholder="${field.placeholder}"
+                               value="${value || ''}" />
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        function getFieldValue(fieldId) {
+            // Lấy giá trị từ model nếu có (cho trường hợp Edit)
+            const input = document.querySelector(`[name="${fieldId}"]`);
+            return input ? input.value : '';
+        }
+
+        // ============================================================
+        // 3. THÊM BIẾN THỂ MỚI
+        // ============================================================
+        let variantIndex = @(Model.Variants?.Count ?? 0);
+
+        function addVariant() {
+            const container = document.getElementById('variantsContainer');
+            const index = variantIndex++;
+
+            const html = `
+                <div class="variant-row" data-index="${index}">
+                    <button type="button" class="remove-btn" onclick="removeVariant(this)" title="Xóa biến thể">×</button>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label>Màu sắc <span class="required">*</span></label>
+                            <input name="Variants[${index}].Color" class="form-control" placeholder="VD: Titan Tự Nhiên" />
+                        </div>
+                        <div class="form-group">
+                            <label>Dung lượng <span class="required">*</span></label>
+                            <input name="Variants[${index}].Storage" class="form-control" placeholder="VD: 256GB" />
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label>RAM</label>
+                            <input name="Variants[${index}].Ram" class="form-control" placeholder="VD: 8GB" />
+                        </div>
+                        <div class="form-group">
+                            <label>Giá bán <span class="required">*</span></label>
+                            <input name="Variants[${index}].Price" type="number" class="form-control" placeholder="VD: 34990000" />
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label>Giá khuyến mãi</label>
+                            <input name="Variants[${index}].DiscountPrice" type="number" class="form-control" placeholder="VD: 32990000" />
+                        </div>
+                        <div class="form-group">
+                            <label>Tồn kho ban đầu</label>
+                            <input name="Variants[${index}].Stock" type="number" class="form-control" value="0" min="0" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Hình ảnh biến thể</label>
+                        <input name="Variants[${index}].VariantImageFile" type="file" class="form-control" accept="image/*" />
+                    </div>
+                </div>
             `;
 
-            tbody.appendChild(tr);
-            variantRowIndex++;
+            container.insertAdjacentHTML('beforeend', html);
         }
 
-        function removeVariantLine(button) {
-            const tbody = document.getElementById('variantTableBody');
-            if (tbody.children.length > 1) {
-                button.closest('tr').remove();
-            } else {
-                alert("Một sản phẩm bắt buộc phải có tối thiểu một phiên bản thuộc tính phân phối.");
+        function removeVariant(btn) {
+            const row = btn.closest('.variant-row');
+            if (document.querySelectorAll('.variant-row').length <= 1) {
+                alert('Cần ít nhất 1 biến thể cho sản phẩm!');
+                return;
+            }
+            if (confirm('Xóa biến thể này?')) {
+                row.remove();
+                reindexVariants();
             }
         }
+
+        function reindexVariants() {
+            const rows = document.querySelectorAll('.variant-row');
+            rows.forEach((row, index) => {
+                row.dataset.index = index;
+                const inputs = row.querySelectorAll('input, select');
+                inputs.forEach(input => {
+                    const name = input.name;
+                    if (name) {
+                        input.name = name.replace(/Variants\[\d+\]/, `Variants[${index}]`);
+                    }
+                });
+            });
+        }
+
+        // ============================================================
+        // 4. GALLERY PREVIEW
+        // ============================================================
+        document.querySelector('[name="GalleryFiles"]')?.addEventListener('change', function(e) {
+            const preview = document.getElementById('galleryPreview');
+            preview.innerHTML = '';
+            if (this.files) {
+                Array.from(this.files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const div = document.createElement('div');
+                        div.className = 'image-preview-item';
+                        div.innerHTML = `
+                            <img src="${event.target.result}" alt="Gallery" />
+                        `;
+                        preview.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        });
+
+        // ============================================================
+        // 5. KHỞI TẠO TRANG
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Nếu đã chọn danh mục từ trước (khi form lỗi validation)
+            const selectedCategory = document.getElementById('categorySelect').value;
+            if (selectedCategory) {
+                updateCategoryFields();
+            }
+        });
     </script>
 }
+
+<style>
+    .required {
+        color: #EF4444;
+        margin-left: 2px;
+    }
+
+    .text-danger {
+        color: #EF4444;
+        font-size: 12px;
+        margin-top: 4px;
+        display: block;
+    }
+</style>

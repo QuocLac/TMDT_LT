@@ -26,7 +26,6 @@
         border-radius: 8px 0 0 8px;
     }
 
-    /* Sửa tên class ở đây để không đụng hàng với Sidebar gốc */
     .mailbox-sidebar-header {
         padding: 16px;
         border-bottom: 1px solid #E5E7EB;
@@ -99,6 +98,16 @@
         padding: 40px;
     }
 
+    /* BỘ LỌC ĐÁNH GIÁ CẤP CAO */
+    .filter-toolbar {
+        display: flex;
+        gap: 12px;
+        padding: 14px 20px;
+        background: #F8FAFC;
+        border-bottom: 1px solid #E2E8F0;
+        align-items: center;
+    }
+
     /* ITEMS BÌNH LUẬN */
     .review-box {
         padding: 20px;
@@ -115,12 +124,11 @@
             background: #F0F5FF;
             border-left: 3px solid #3B82F6;
         }
-        /* Xanh nhạt cho bình luận mới */
+
         .review-box.hidden-review {
             opacity: 0.5;
             background: #F9FAFB;
         }
-    /* Làm mờ khi bị ẩn */
 
     .review-meta {
         display: flex;
@@ -146,10 +154,22 @@
         margin-left: 8px;
     }
 
+    /* NHÃN THÔNG SỐ BIẾN THỂ PHẦN CỨNG DI ĐỘNG */
+    .spec-hardware-tag {
+        background: #F1F5F9;
+        border: 1px solid #CBD5E1;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 8px;
+    }
+
     .rating-stars {
         color: #F59E0B;
-        font-size: 16px;
-        letter-spacing: 2px;
+        font-size: 14px;
+        letter-spacing: 1px;
     }
 
     .review-text {
@@ -157,6 +177,23 @@
         color: #374151;
         line-height: 1.6;
         margin: 10px 0;
+    }
+
+    /* KHỐI MULTIMEDIA ĐÍNH KÈM CHỨNG TỪ (IMAGE/VIDEO) */
+    .review-media-gallery {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+        flex-wrap: wrap;
+    }
+
+    .media-thumb-item {
+        width: 70px;
+        height: 70px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #E2E8F0;
+        background: #FFF;
     }
 
     /* NÚT BẤM & PHẢN HỒI */
@@ -194,8 +231,8 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h4 style="font-weight: 700; color: #111827; margin: 0;">Kiểm duyệt Đánh giá</h4>
-        <p style="color: #6B7280; font-size: 14px; margin-top: 4px;">Quản lý đánh giá từ các đơn hàng xác thực (Verified Purchase).</p>
+        <h4 style="font-weight: 700; color: #111827; margin: 0;">Kiểm duyệt Đánh giá Hệ thống</h4>
+        <p style="color: #6B7280; font-size: 14px; margin-top: 4px;">Quản lý và phản hồi phản hồi thực tế của người dùng theo từng dòng thiết bị di động.</p>
     </div>
 </div>
 
@@ -228,7 +265,7 @@
     <div class="mailbox-content" id="review-content-area">
         <div class="content-empty">
             <i class="fas fa-inbox fa-3x" style="color: #D1D5DB; margin-bottom: 15px; display: block;"></i>
-            Vui lòng chọn một sản phẩm ở cột bên trái để xem chi tiết.
+            Vui lòng chọn một sản phẩm ở cột bên trái để xem chi tiết bình luận kiểm duyệt.
         </div>
     </div>
 </div>
@@ -237,25 +274,55 @@
     <script>
         let currentSelectedProductId = 0;
 
+        // Hàm trích xuất và hiển thị danh sách đánh giá kèm bộ lọc cấp cao
         function loadReviews(productId) {
             currentSelectedProductId = productId;
 
-            // Xử lý active state cho sidebar
             document.querySelectorAll('.product-item').forEach(el => el.classList.remove('active'));
-            document.getElementById(`prod-${productId}`).classList.add('active');
+            const productRow = document.getElementById(`prod-${productId}`);
+            if(productRow) productRow.classList.add('active');
+
+            // Lưu giá trị bộ lọc nếu có
+            const starFilter = document.getElementById('filterStarSelect')?.value || "";
+            const statusFilter = document.getElementById('filterStatusSelect')?.value || "";
 
             const contentArea = document.getElementById('review-content-area');
-            contentArea.innerHTML = '<div class="content-empty"><p>Đang tải dữ liệu...</p></div>';
 
-            fetch(`/Admin/Review/GetReviewsByProduct?productId=${productId}`)
+            // Khởi tạo thanh công cụ bộ lọc nâng cao ở trên đầu cột phải nội dung
+            let toolbarHtml = `
+                <div class="filter-toolbar">
+                    <span style="font-size:13px; font-weight:700; color:#475569;"><i class="fas fa-filter me-1"></i> Bộ lọc:</span>
+                    <select id="filterStarSelect" class="form-select form-select-sm" style="width:140px; font-size:12px; font-weight:600;" onchange="loadReviews(${productId})">
+                        <option value="" ${starFilter == "" ? "selected" : ""}>-- Tất cả sao --</option>
+                        <option value="5" ${starFilter == "5" ? "selected" : ""}>5 Sao (★★★★★)</option>
+                        <option value="4" ${starFilter == "4" ? "selected" : ""}>4 Sao (★★★★☆)</option>
+                        <option value="3" ${starFilter == "3" ? "selected" : ""}>3 Sao (★★★☆☆)</option>
+                        <option value="2" ${starFilter == "2" ? "selected" : ""}>2 Sao (★★☆☆☆)</option>
+                        <option value="1" ${starFilter == "1" ? "selected" : ""}>1 Sao (★☆☆☆☆)</option>
+                    </select>
+                    <select id="filterStatusSelect" class="form-select form-select-sm" style="width:140px; font-size:12px; font-weight:600;" onchange="loadReviews(${productId})">
+                        <option value="" ${statusFilter == "" ? "selected" : ""}>-- Tất cả kiểm duyệt --</option>
+                        <option value="visible" ${statusFilter == "visible" ? "selected" : ""}>Đang hiển thị</option>
+                        <option value="hidden" ${statusFilter == "hidden" ? "selected" : ""}>Đang bị ẩn</option>
+                    </select>
+                </div>
+                <div id="reviews-list-target">
+                    <div class="content-empty"><p>Đang tải dữ liệu kết nối...</p></div>
+                </div>
+            `;
+
+            contentArea.innerHTML = toolbarHtml;
+            const listTarget = document.getElementById('reviews-list-target');
+
+            fetch(`/Admin/Review/GetReviewsByProduct?productId=${productId}&star=${starFilter}&status=${statusFilter}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.length === 0) {
-                        contentArea.innerHTML = '<div class="content-empty"><p>Không tìm thấy đánh giá nào.</p></div>';
+                        listTarget.innerHTML = '<div class="content-empty"><p>Không tìm thấy đánh giá nào phù hợp với bộ lọc.</p></div>';
                         return;
                     }
 
-                    contentArea.innerHTML = '';
+                    listTarget.innerHTML = '';
 
                     data.forEach(rev => {
                         let boxClass = 'review-box';
@@ -265,7 +332,26 @@
                         let stars = '★'.repeat(rev.rating) + '☆'.repeat(5 - rev.rating);
                         let dateFormatted = new Date(rev.createdAt).toLocaleString('vi-VN');
 
-                        // Giao diện Khung trả lời (nếu đã trả lời thì hiện text, chưa thì hiện form)
+                        // XỬ LÝ KHỐI HIỂN THỊ BIẾN THỂ PHẦN CỨNG THỰC TẾ
+                        let hardwareBadgeHtml = rev.variantSpec
+                            ? `<span class="spec-hardware-tag"><i class="fas fa-microchip me-1"></i>${rev.variantSpec}</span>`
+                            : '';
+
+                        // XỬ LÝ KHỐI THƯ VIỆN MULTIMEDIA (IMAGE/VIDEO) ĐÍNH KÈM CHỨNG TỪ
+                        let mediaGalleryHtml = '';
+                        if (rev.mediaUrls) {
+                            const mediaArr = rev.mediaUrls.split(',');
+                            mediaGalleryHtml += '<div class="review-media-gallery">';
+                            mediaArr.forEach(url => {
+                                if (url.endsWith('.mp4') || url.endsWith('.mov') || url.endsWith('.avi')) {
+                                    mediaGalleryHtml += `<video src="${url}" class="media-thumb-item" muted></video>`;
+                                } else {
+                                    mediaGalleryHtml += `<a href="${url}" target="_blank"><img src="${url}" class="media-thumb-item"/></a>`;
+                                }
+                            });
+                            mediaGalleryHtml += '</div>';
+                        }
+
                         let replySection = rev.adminReply
                             ? `<div class="reply-text-saved"><strong>Phản hồi của bạn:</strong> <br/> ${rev.adminReply}</div>`
                             : `<div class="reply-form">
@@ -276,18 +362,20 @@
                         let reviewHtml = `
                             <div class="${boxClass}" id="review-box-${rev.reviewId}" onclick="markAsRead(${rev.reviewId}, ${!rev.isRead})">
                                 <div class="review-meta">
-                                    <div class="d-flex align-items-center">
+                                    <div class="d-flex align-items-center flex-wrap gap-1">
                                         <span class="customer-info">${rev.customerName}</span>
-                                        <span style="margin-left:8px; color:#6B7280; font-size:12px;">(${rev.customerPhone})</span>
+                                        <span style="color:#6B7280; font-size:12px;">(${rev.customerPhone})</span>
                                         <span class="order-tag"><i class="fas fa-check-circle me-1"></i>ĐƠN #${rev.orderId || 'N/A'}</span>
+                                        ${hardwareBadgeHtml}
                                     </div>
                                     <span class="rating-stars">${stars}</span>
                                 </div>
                                 <div class="review-text">${rev.comment}</div>
+                                ${mediaGalleryHtml}
                                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#6B7280;">
                                     <span>${dateFormatted}</span>
-                                    <button onclick="toggleHide(${rev.reviewId}, event)" id="btn-hide-${rev.reviewId}" class="btn-action" style="color:${rev.isHidden ? '#10B981' : '#EF4444'};">
-                                        ${rev.isHidden ? '<i class="fas fa-eye me-1"></i> HIỂN THỊ' : '<i class="fas fa-eye-slash me-1"></i> ẨN'}
+                                    <button onclick="toggleHide(${rev.reviewId}, event)" id="btn-hide-${rev.reviewId}" class="btn-action" style="color:${rev.isHidden ? '#10B981' : '#EF4444'}; font-weight:700;">
+                                        ${rev.isHidden ? '<i class="fas fa-eye me-1"></i> HIỂN THỊ' : '<i class="fas fa-eye-slash me-1"></i> PHÊ DUYỆT ẨN'}
                                     </button>
                                 </div>
                                 <div class="reply-area" id="reply-area-${rev.reviewId}" onclick="event.stopPropagation();">
@@ -295,7 +383,7 @@
                                 </div>
                             </div>
                         `;
-                        contentArea.insertAdjacentHTML('beforeend', reviewHtml);
+                        listTarget.insertAdjacentHTML('beforeend', reviewHtml);
                     });
                 });
         }
@@ -307,7 +395,7 @@
                 .then(res => {
                     if (res.ok) {
                         const box = document.getElementById(`review-box-${reviewId}`);
-                        box.classList.remove('unread');
+                        if(box) box.classList.remove('unread');
 
                         const badge = document.getElementById(`badge-${currentSelectedProductId}`);
                         if (badge) {
@@ -330,13 +418,17 @@
                         const btn = document.getElementById(`btn-hide-${reviewId}`);
 
                         if (data.isHidden) {
-                            box.classList.add('hidden-review');
-                            btn.innerHTML = '<i class="fas fa-eye me-1"></i> HIỂN THỊ';
-                            btn.style.color = '#10B981';
+                            if(box) box.classList.add('hidden-review');
+                            if(btn) {
+                                btn.innerHTML = '<i class="fas fa-eye me-1"></i> HIỂN THỊ';
+                                btn.style.color = '#10B981';
+                            }
                         } else {
-                            box.classList.remove('hidden-review');
-                            btn.innerHTML = '<i class="fas fa-eye-slash me-1"></i> ẨN';
-                            btn.style.color = '#EF4444';
+                            if(box) box.classList.remove('hidden-review');
+                            if(btn) {
+                                btn.innerHTML = '<i class="fas fa-eye-slash me-1"></i> PHÊ DUYỆT ẨN';
+                                btn.style.color = '#EF4444';
+                            }
                         }
                     }
                 });
@@ -366,7 +458,6 @@
         // 5. ĐỘNG CƠ CẬP NHẬT THỜI GIAN THỰC (REAL-TIME POLLING)
         // ==========================================
         function startRealtimePolling() {
-            // Thiết lập chu kỳ: Cứ 15 giây (15000 ms) sẽ chạy lệnh fetch 1 lần
             setInterval(() => {
                 fetch('/Admin/Review/GetSidebarUpdates')
                     .then(res => res.json())
@@ -378,15 +469,11 @@
 
                         let html = '';
                         data.forEach(p => {
-                            // Giữ nguyên dải màu 'active' nếu Admin đang mải đọc bình luận của sản phẩm đó
                             let activeClass = (p.productId === currentSelectedProductId) ? 'active' : '';
-
-                            // Tạo badge đỏ nếu có bình luận chưa đọc
                             let badgeHtml = p.unreadCount > 0
                                 ? `<span class="badge-unread" id="badge-${p.productId}">${p.unreadCount}</span>`
                                 : '';
 
-                            // Nạp lại cấu trúc HTML cho từng sản phẩm
                             html += `
                                 <div class="product-item ${activeClass}" id="prod-${p.productId}" onclick="loadReviews(${p.productId})">
                                     <div style="flex: 1;">
@@ -398,15 +485,13 @@
                             `;
                         });
 
-                        // Cập nhật lại giao diện ngay tức thì
-                        productList.innerHTML = html;
-                        sidebarHeader.innerText = `Sản phẩm có đánh giá (${data.length})`;
+                        if(productList) productList.innerHTML = html;
+                        if(sidebarHeader) sidebarHeader.innerText = `Sản phẩm có đánh giá (${data.length})`;
                     })
                     .catch(err => console.log("Hệ thống Polling đang chờ kết nối lại..."));
             }, 15000);
         }
 
-        // Kích hoạt động cơ chạy ngầm ngay khi tải xong trang web
         document.addEventListener('DOMContentLoaded', () => {
             startRealtimePolling();
         });

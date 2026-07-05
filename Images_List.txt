@@ -1,0 +1,675 @@
+﻿
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_danhgia_ic.png ==========
+Tên: admin_danhgia_ic.png
+Kích thước: 0.5 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_danhgia_ic.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_gift_ic.png ==========
+Tên: admin_gift_ic.png
+Kích thước: 0.52 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_gift_ic.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_gift_nav_ic.png ==========
+Tên: admin_gift_nav_ic.png
+Kích thước: 0.37 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_gift_nav_ic.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_home_ic.png ==========
+Tên: admin_home_ic.png
+Kích thước: 0.34 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_home_ic.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_money_ic.png ==========
+Tên: admin_money_ic.png
+Kích thước: 0.66 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_money_ic.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_orer_ic.png ==========
+Tên: admin_orer_ic.png
+Kích thước: 0.42 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_orer_ic.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_product_icon.png ==========
+Tên: admin_product_icon.png
+Kích thước: 0.74 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_product_icon.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_user_ic.png ==========
+Tên: admin_user_ic.png
+Kích thước: 0.6 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_user_ic.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_user_nav_ic.png ==========
+Tên: admin_user_nav_ic.png
+Kích thước: 0.41 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Dashboard\admin_user_nav_ic.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\admin_add.png ==========
+Tên: admin_add.png
+Kích thước: 0.17 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\admin_add.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\admin_filter.png ==========
+Tên: admin_filter.png
+Kích thước: 0.19 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\admin_filter.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\apple-watch.jpg ==========
+Tên: apple-watch.jpg
+Kích thước: 240.17 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\apple-watch.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\delete.png ==========
+Tên: delete.png
+Kích thước: 0.34 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\delete.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\edit.png ==========
+Tên: edit.png
+Kích thước: 0.41 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\edit.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\search_black.png ==========
+Tên: search_black.png
+Kích thước: 0.47 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\search_black.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\view.png ==========
+Tên: view.png
+Kích thước: 0.62 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\Product\view.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\linhvatcau 3.png ==========
+Tên: linhvatcau 3.png
+Kích thước: 5.65 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\linhvatcau 3.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\logo.png ==========
+Tên: logo.png
+Kích thước: 8.5 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\logo.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\notification-1.png ==========
+Tên: notification-1.png
+Kích thước: 0.58 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\notification-1.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\search.png ==========
+Tên: search.png
+Kích thước: 0.36 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\search.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\settings 1.png ==========
+Tên: settings 1.png
+Kích thước: 0.66 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Admin\settings 1.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\12c37230-9ae8-4ce9-8b6a-5c42d26cec08_Hinh.jpg ==========
+Tên: 12c37230-9ae8-4ce9-8b6a-5c42d26cec08_Hinh.jpg
+Kích thước: 5.19 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\12c37230-9ae8-4ce9-8b6a-5c42d26cec08_Hinh.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\440809f1-4a1b-4044-861f-2d53fa6ab581_view.png ==========
+Tên: 440809f1-4a1b-4044-861f-2d53fa6ab581_view.png
+Kích thước: 0.62 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\440809f1-4a1b-4044-861f-2d53fa6ab581_view.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\4a9f990a-165c-44cc-b64e-c832128a0ccd_xiaomi note 12 Pro.jpg ==========
+Tên: 4a9f990a-165c-44cc-b64e-c832128a0ccd_xiaomi note 12 Pro.jpg
+Kích thước: 90.99 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\4a9f990a-165c-44cc-b64e-c832128a0ccd_xiaomi note 12 Pro.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\92cc92f8-0273-4ebb-a2e4-195dd32e890c.jpg ==========
+Tên: 92cc92f8-0273-4ebb-a2e4-195dd32e890c.jpg
+Kích thước: 12.65 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\92cc92f8-0273-4ebb-a2e4-195dd32e890c.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\c9508c2e-9880-4fcb-a8a3-daf3c73f445a_xiaomi note 12 Pro.jpg ==========
+Tên: c9508c2e-9880-4fcb-a8a3-daf3c73f445a_xiaomi note 12 Pro.jpg
+Kích thước: 90.99 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\c9508c2e-9880-4fcb-a8a3-daf3c73f445a_xiaomi note 12 Pro.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\ef04659a-a3ef-4957-8650-3d3cf10ed069_xiaomi note 12 Pro.jpg ==========
+Tên: ef04659a-a3ef-4957-8650-3d3cf10ed069_xiaomi note 12 Pro.jpg
+Kích thước: 90.99 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\ef04659a-a3ef-4957-8650-3d3cf10ed069_xiaomi note 12 Pro.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\ef4d6357-3248-41f8-9ff4-1ea6a97a8ca4_84-1200x676.jpg ==========
+Tên: ef4d6357-3248-41f8-9ff4-1ea6a97a8ca4_84-1200x676.jpg
+Kích thước: 194.05 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\ef4d6357-3248-41f8-9ff4-1ea6a97a8ca4_84-1200x676.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\f5323be1-a62b-4af9-b4b5-e12bf224195b_linhvatcau 3.png ==========
+Tên: f5323be1-a62b-4af9-b4b5-e12bf224195b_linhvatcau 3.png
+Kích thước: 5.65 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\products\f5323be1-a62b-4af9-b4b5-e12bf224195b_linhvatcau 3.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\airpods-3.jpg ==========
+Tên: airpods-3.jpg
+Kích thước: 57.3 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\airpods-3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\airpods-pro-2.jpg ==========
+Tên: airpods-pro-2.jpg
+Kích thước: 16.51 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\airpods-pro-2.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-24k.jpg ==========
+Tên: anker-24k.jpg
+Kích thước: 9.74 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-24k.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-maggo.jpg ==========
+Tên: anker-maggo.jpg
+Kích thước: 9.39 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-maggo.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-nano.jpg ==========
+Tên: anker-nano.jpg
+Kích thước: 35.32 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-nano.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-prime.jpg ==========
+Tên: anker-prime.jpg
+Kích thước: 16.71 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-prime.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-r50i.jpg ==========
+Tên: anker-r50i.jpg
+Kích thước: 6.66 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\anker-r50i.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\avatar-default.jpg ==========
+Tên: avatar-default.jpg
+Kích thước: 4.5 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\avatar-default.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\blackwidow-v4.jpg ==========
+Tên: blackwidow-v4.jpg
+Kích thước: 93.04 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\blackwidow-v4.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\blade-13.jpg ==========
+Tên: blade-13.jpg
+Kích thước: 10.72 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\blade-13.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\book4-pro.jpg ==========
+Tên: book4-pro.jpg
+Kích thước: 97.93 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\book4-pro.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\buds3-pro.jpg ==========
+Tên: buds3-pro.jpg
+Kích thước: 95.04 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\buds3-pro.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\chevron-down.png ==========
+Tên: chevron-down.png
+Kích thước: 0.18 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\chevron-down.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\deathadder-v3.jpg ==========
+Tên: deathadder-v3.jpg
+Kích thước: 20.92 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\deathadder-v3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\default-phone.jpg ==========
+Tên: default-phone.jpg
+Kích thước: 45.26 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\default-phone.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\g102.jpg ==========
+Tên: g102.jpg
+Kích thước: 21 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\g102.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\g502x.jpg ==========
+Tên: g502x.jpg
+Kích thước: 29.44 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\g502x.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\galaxy-book4.jpg ==========
+Tên: galaxy-book4.jpg
+Kích thước: 96.65 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\galaxy-book4.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\giohang.png ==========
+Tên: giohang.png
+Kích thước: 0.57 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\giohang.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\gpro-x-tkl.jpg ==========
+Tên: gpro-x-tkl.jpg
+Kích thước: 34.07 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\gpro-x-tkl.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\hammerhead.jpg ==========
+Tên: hammerhead.jpg
+Kích thước: 18.73 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\hammerhead.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\harpe-ace.jpg ==========
+Tên: harpe-ace.jpg
+Kích thước: 100.55 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\harpe-ace.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\huntsman-v3.jpg ==========
+Tên: huntsman-v3.jpg
+Kích thước: 37.02 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\huntsman-v3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-13-blue.jpg ==========
+Tên: iphone-13-blue.jpg
+Kích thước: 6.97 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-13-blue.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-13-pink.jpg ==========
+Tên: iphone-13-pink.jpg
+Kích thước: 3.32 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-13-pink.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-13.jpg ==========
+Tên: iphone-13.jpg
+Kích thước: 3.53 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-13.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-14-pro-max-tim.jpg ==========
+Tên: iphone-14-pro-max-tim.jpg
+Kích thước: 42.82 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-14-pro-max-tim.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-14-pro-max-vang.jpg ==========
+Tên: iphone-14-pro-max-vang.jpg
+Kích thước: 43.61 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-14-pro-max-vang.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-14-pro-max.jpg ==========
+Tên: iphone-14-pro-max.jpg
+Kích thước: 40.16 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-14-pro-max.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-plus-green.jpg ==========
+Tên: iphone-15-plus-green.jpg
+Kích thước: 3.64 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-plus-green.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-plus-yellow.jpg ==========
+Tên: iphone-15-plus-yellow.jpg
+Kích thước: 4.34 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-plus-yellow.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-plus.jpg ==========
+Tên: iphone-15-plus.jpg
+Kích thước: 3.54 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-plus.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-pro-blue.jpg ==========
+Tên: iphone-15-pro-blue.jpg
+Kích thước: 5.01 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-pro-blue.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-pro-max.jpg ==========
+Tên: iphone-15-pro-max.jpg
+Kích thước: 10.98 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-pro-max.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-pro-titan.jpg ==========
+Tên: iphone-15-pro-titan.jpg
+Kích thước: 34.6 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-pro-titan.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-pro-white.jpg ==========
+Tên: iphone-15-pro-white.jpg
+Kích thước: 3.34 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\iphone-15-pro-white.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\kingphone-store.png ==========
+Tên: kingphone-store.png
+Kích thước: 1848.9 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\kingphone-store.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\lienhe.png ==========
+Tên: lienhe.png
+Kích thước: 0.64 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\lienhe.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\linhvatcau.png ==========
+Tên: linhvatcau.png
+Kích thước: 2479.92 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\linhvatcau.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\logi-g435.jpg ==========
+Tên: logi-g435.jpg
+Kích thước: 21.34 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\logi-g435.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\logi-k380.jpg ==========
+Tên: logi-k380.jpg
+Kích thước: 45.94 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\logi-k380.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Logo.png ==========
+Tên: Logo.png
+Kích thước: 8.5 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Logo.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Logo1.png ==========
+Tên: Logo1.png
+Kích thước: 10.83 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\Logo1.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\macbook-air-m3.jpg ==========
+Tên: macbook-air-m3.jpg
+Kích thước: 17.19 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\macbook-air-m3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\macbook-pro-m3.jpg ==========
+Tên: macbook-pro-m3.jpg
+Kích thước: 30.62 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\macbook-pro-m3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\muitenphai.png ==========
+Tên: muitenphai.png
+Kích thước: 0.36 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\muitenphai.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\muitentrai.png ==========
+Tên: muitentrai.png
+Kích thước: 0.37 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\muitentrai.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\mx-keys-s.jpg ==========
+Tên: mx-keys-s.jpg
+Kích thước: 14.53 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\mx-keys-s.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\mx-master-3s.jpg ==========
+Tên: mx-master-3s.jpg
+Kích thước: 21.59 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\mx-master-3s.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\next .png ==========
+Tên: next .png
+Kích thước: 0.21 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\next .png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\oppo-n3-flip-gold.jpg ==========
+Tên: oppo-n3-flip-gold.jpg
+Kích thước: 5.14 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\oppo-n3-flip-gold.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\oppo-n3-flip.jpg ==========
+Tên: oppo-n3-flip.jpg
+Kích thước: 3.65 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\oppo-n3-flip.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\oppo-reno11f-blue.jpg ==========
+Tên: oppo-reno11f-blue.jpg
+Kích thước: 3.76 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\oppo-reno11f-blue.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\oppo-reno11f.jpg ==========
+Tên: oppo-reno11f.jpg
+Kích thước: 4.7 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\oppo-reno11f.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\ornata-v3.jpg ==========
+Tên: ornata-v3.jpg
+Kích thước: 46.05 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\ornata-v3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\orochi-v2.jpg ==========
+Tên: orochi-v2.jpg
+Kích thước: 23.01 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\orochi-v2.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\pebble-m350.jpg ==========
+Tên: pebble-m350.jpg
+Kích thước: 66.62 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\pebble-m350.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\phone-icon.png ==========
+Tên: phone-icon.png
+Kích thước: 3.79 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\phone-icon.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\pixel-8-pro-obsidian.jpg ==========
+Tên: pixel-8-pro-obsidian.jpg
+Kích thước: 118.59 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\pixel-8-pro-obsidian.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\pixel-8-pro.jpg ==========
+Tên: pixel-8-pro.jpg
+Kích thước: 6.93 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\pixel-8-pro.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\pop-keys.jpg ==========
+Tên: pop-keys.jpg
+Kích thước: 957.9 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\pop-keys.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\poster1.png ==========
+Tên: poster1.png
+Kích thước: 13.86 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\poster1.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\poster2.png ==========
+Tên: poster2.png
+Kích thước: 48.59 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\poster2.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\productDefault.png ==========
+Tên: productDefault.png
+Kích thước: 2.76 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\productDefault.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\rabit-mascot.png ==========
+Tên: rabit-mascot.png
+Kích thước: 140.86 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\rabit-mascot.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\razer-blackshark.jpg ==========
+Tên: razer-blackshark.jpg
+Kích thước: 199.1 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\razer-blackshark.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\razer-blade-16.jpg ==========
+Tên: razer-blade-16.jpg
+Kích thước: 70.54 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\razer-blade-16.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\razer-pad.jpg ==========
+Tên: razer-pad.jpg
+Kích thước: 39.25 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\razer-pad.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\redmi-note-13-purple.jpg ==========
+Tên: redmi-note-13-purple.jpg
+Kích thước: 3.31 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\redmi-note-13-purple.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\redmi-note-13.jpg ==========
+Tên: redmi-note-13.jpg
+Kích thước: 4.29 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\redmi-note-13.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\rog-azoth.jpg ==========
+Tên: rog-azoth.jpg
+Kích thước: 92.34 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\rog-azoth.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\rog-cetra.jpg ==========
+Tên: rog-cetra.jpg
+Kích thước: 33.03 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\rog-cetra.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s23-ultra-black.jpg ==========
+Tên: s23-ultra-black.jpg
+Kích thước: 5.21 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s23-ultra-black.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s23-ultra-green.jpg ==========
+Tên: s23-ultra-green.jpg
+Kích thước: 56.45 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s23-ultra-green.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s23-ultra.jpg ==========
+Tên: s23-ultra.jpg
+Kích thước: 4.6 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s23-ultra.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s24-ultra-gray.jpg ==========
+Tên: s24-ultra-gray.jpg
+Kích thước: 38.09 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s24-ultra-gray.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s24-ultra-violet.jpg ==========
+Tên: s24-ultra-violet.jpg
+Kích thước: 3.83 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s24-ultra-violet.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s24-ultra.jpg ==========
+Tên: s24-ultra.jpg
+Kích thước: 27.99 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\s24-ultra.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\samsung-a55-purple.jpg ==========
+Tên: samsung-a55-purple.jpg
+Kích thước: 4.98 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\samsung-a55-purple.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\samsung-a55.jpg ==========
+Tên: samsung-a55.jpg
+Kích thước: 3.75 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\samsung-a55.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\scope-ii.jpg ==========
+Tên: scope-ii.jpg
+Kích thước: 106.25 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\scope-ii.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\search.png ==========
+Tên: search.png
+Kích thước: 0.36 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\search.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\sony-wf-xm5.jpg ==========
+Tên: sony-wf-xm5.jpg
+Kích thước: 29.63 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\sony-wf-xm5.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\sony-xm5.jpg ==========
+Tên: sony-xm5.jpg
+Kích thước: 26.46 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\sony-xm5.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\ss-20k-45w.jpg ==========
+Tên: ss-20k-45w.jpg
+Kích thước: 28.37 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\ss-20k-45w.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\ss-back-10k.jpg ==========
+Tên: ss-back-10k.jpg
+Kích thước: 44.97 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\ss-back-10k.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\superlight-2.jpg ==========
+Tên: superlight-2.jpg
+Kích thước: 13.88 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\superlight-2.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\tuf-a15.jpg ==========
+Tên: tuf-a15.jpg
+Kích thước: 38.84 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\tuf-a15.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\tuf-k3.jpg ==========
+Tên: tuf-k3.jpg
+Kích thước: 38.08 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\tuf-k3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\tuf-m3.jpg ==========
+Tên: tuf-m3.jpg
+Kích thước: 19.27 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\tuf-m3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\tym.png ==========
+Tên: tym.png
+Kích thước: 0.48 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\tym.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\user.png ==========
+Tên: user.png
+Kích thước: 0.4 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\user.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\vi-vn-iphone-16-pro-max-1.jpg ==========
+Tên: vi-vn-iphone-16-pro-max-1.jpg
+Kích thước: 145 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\vi-vn-iphone-16-pro-max-1.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\viper-v3.jpg ==========
+Tên: viper-v3.jpg
+Kích thước: 21.04 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\viper-v3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\vivobook-15.jpg ==========
+Tên: vivobook-15.jpg
+Kích thước: 30.77 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\vivobook-15.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-10k-22w.jpg ==========
+Tên: xiaomi-10k-22w.jpg
+Kích thước: 19.26 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-10k-22w.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-14-black.jpg ==========
+Tên: xiaomi-14-black.jpg
+Kích thước: 2.77 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-14-black.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-14-green.jpg ==========
+Tên: xiaomi-14-green.jpg
+Kích thước: 78.98 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-14-green.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-14.jpg ==========
+Tên: xiaomi-14.jpg
+Kích thước: 45.76 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-14.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-pb3.jpg ==========
+Tên: xiaomi-pb3.jpg
+Kích thước: 19.26 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-pb3.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-pocket.jpg ==========
+Tên: xiaomi-pocket.jpg
+Kích thước: 7.53 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\xiaomi-pocket.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\z-fold-5-blue.jpg ==========
+Tên: z-fold-5-blue.jpg
+Kích thước: 5.12 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\z-fold-5-blue.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\z-fold-5.jpg ==========
+Tên: z-fold-5.jpg
+Kích thước: 4.08 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\z-fold-5.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\zalo-icon.png ==========
+Tên: zalo-icon.png
+Kích thước: 3.61 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\zalo-icon.png
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\zenbook-14.jpg ==========
+Tên: zenbook-14.jpg
+Kích thước: 7.25 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\zenbook-14.jpg
+
+========== FILE: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\zephyrus-g14.jpg ==========
+Tên: zephyrus-g14.jpg
+Kích thước: 53.71 KB
+Đường dẫn: C:\Users\Thu Trang\source\repos\TMDT_LT\wwwroot\images\zephyrus-g14.jpg

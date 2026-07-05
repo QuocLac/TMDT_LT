@@ -1,109 +1,78 @@
-﻿@model IEnumerable<TMDT_LT.Models.PurchaseOrders>
+﻿@model List<TMDT_LT.Models.PurchaseOrders>
 @{
     Layout = "_LayoutAdmin";
-    ViewData["Title"] = "Nhật ký nhập kho";
+    ViewData["Title"] = "Lịch sử Nhập - Xuất Kho";
+
+    var salesOrdersList = ViewBag.SalesOrdersList as List<TMDT_LT.Models.SalesOrders> ?? new List<TMDT_LT.Models.SalesOrders>();
+    decimal totalPoAmount = ViewBag.TotalPoAmount ?? 0;
+    decimal totalSoAmount = ViewBag.TotalSoAmount ?? 0;
+    decimal netProfitDistribution = ViewBag.NetProfitDistribution ?? 0;
 }
 
-<style>
-    /* CSS Modal và Text (Kế thừa phong cách phẳng đơn sắc) */
-    .modal-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.4);
-        z-index: 1000;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .modal-box {
-        background: #FFFFFF;
-        padding: 28px;
-        border-radius: 6px;
-        width: 450px;
-        max-width: 90%;
-        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-    }
-
-    .info-block {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        margin-bottom: 12px;
-    }
-
-    .info-label {
-        font-size: 11px;
-        text-transform: uppercase;
-        color: #6B7280;
-        font-weight: 700;
-    }
-
-    .info-value {
-        font-size: 14px;
-        color: #111827;
-        font-weight: 500;
-    }
-</style>
-
-<div style="margin-bottom: 25px;">
-    <a asp-action="Index" style="text-decoration: none; color: #6B7280; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 4px;">
-        ← Quay lại kiểm soát tồn kho
-    </a>
-    <h2 style="margin-top: 10px; font-weight: 800; letter-spacing: -0.5px;">Nhật ký Nhập kho</h2>
-    <p style="color: #6B7280; font-size: 14px;">Quản lý toàn bộ chứng từ nhập hàng, giá vốn và danh sách nhà cung ứng.</p>
+<div style="margin-bottom: 25px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+        <a href="/Admin/Inventory/Index" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #F3F4F6; color: #374151; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; border: 1px solid #E5E7EB; transition: all 0.2s;" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">
+            Quay lại trang kiểm soát kho
+        </a>
+        <h2 style="font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;">LỊCH SỬ NHAP - XUAT CHUNG TU KHO</h2>
+    </div>
+    <p style="color: #6B7280; font-size: 14px;">Quan ly toan bo bien ban ban giao nhap hang tu NCC va xuat hang cung ung cho cac chi nhanh cua hang/dai ly.</p>
 </div>
 
-<div class="admin-card" style="padding: 0; overflow: hidden;">
-    <table class="data-table">
+<div style="background: #FFF; padding: 18px 24px; border-radius: 12px; border: 1px solid #E5E7EB; margin-bottom: 25px; font-family: 'Segoe UI', sans-serif; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; color: #4B5563; font-weight: 500;">
+        <div>
+            Tong von hach toan nhap hang (NCC): <strong style="color: #111827; font-size:15px;">@totalPoAmount.ToString("N0") d</strong> <span style="font-size:12px; color:#9CA3AF;">(@Model.Count chung tu)</span>
+        </div>
+        <div>
+            Tong doanh thu xuat buon phan phoi: <strong style="color: #2563EB; font-size:15px;">@totalSoAmount.ToString("N0") d</strong> <span style="font-size:12px; color:#9CA3AF;">(@salesOrdersList.Count chung tu)</span>
+        </div>
+    </div>
+    <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed #D1D5DB; color: #16A34A; font-weight: 700; font-size: 15px; letter-spacing: 0.3px;">
+        Chenh lech loi nhuan gop he thong thu ve: +@netProfitDistribution.ToString("N0") d
+    </div>
+</div>
+
+<div class="admin-card" style="padding:0; background:#FFF; border-radius:12px; overflow:hidden; border:1px solid #E5E7EB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
+    <table class="data-table" style="width:100%; border-collapse:collapse; text-align:left; font-size: 13px;">
         <thead>
-            <tr>
-                <th style="width: 12%;">Mã số PO</th>
-                <th style="width: 18%;">Ngày ghi sổ</th>
-                <th style="width: 25%;">Nhà cung cấp</th>
-                <th style="width: 20%; text-align: right;">Giá trị lô hàng</th>
-                <th style="width: 15%;">Người thực hiện</th>
-                <th style="width: 10%; text-align: center;">Hành động</th>
+            <tr style="background:#F9FAFB; border-bottom:2px solid #E5E7EB; color: #4B5563; font-weight: 600;">
+                <th style="padding:12px 14px; width: 14%;">Ma Giao Dich</th>
+                <th style="padding:12px; width: 15%;">Thoi gian chot</th>
+                <th style="padding:12px; width: 12%;">Loai hinh</th>
+                <th style="padding:12px; width: 31%;">Doi tac giao dich (NCC / Chi nhanh nhan)</th>
+                <th style="padding:12px; width: 16%; text-align: right;">Gia tri chung tu</th>
+                <th style="padding:12px; width: 14%; text-align: right; color: #16A34A;">Loi nhuan gop</th>
+                <th style="padding:12px; width: 8%; text-align: center;">Hanh dong</th>
             </tr>
         </thead>
         <tbody>
-            @if (!Model.Any())
+            @foreach (var po in Model)
             {
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 50px; color: #9CA3AF;">Hệ thống chưa ghi nhận phiếu nhập kho nào.</td>
+                <tr style="border-bottom:1px solid #F3F4F6; color: #374151; transition: background 0.15s;" onmouseover="this.style.background='#F9FAFB'" onmouseout="this.style.background='#FFF'">
+                    <td style="padding:14px; font-family:monospace; font-weight:700; color:#1E293B;">#PO-00@po.Poid</td>
+                    <td style="padding:12px; color:#6B7280;">@po.OrderDate?.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td style="padding:12px;"><span style="color:#16A34A; background:#E0F2FE; padding:4px 8px; border-radius:4px; font-weight:700; font-size:11px;">NHAP HANG</span></td>
+                    <td style="padding:12px; color:#111827;"><strong>@po.Supplier?.SupplierName</strong></td>
+                    <td style="padding:12px; font-weight:700; text-align: right; color:#111827;">@((po.TotalAmount ?? 0).ToString("N0")) d</td>
+                    <td style="padding:12px; text-align: right; color: #9CA3AF; font-style: italic; padding-right:16px;">-</td>
+                    <td style="padding:12px; text-align:center;">
+                        <button type="button" style="padding:5px 10px; font-size:12px; border:1px solid #D1D5DB; background:#FFF; border-radius:6px; cursor:pointer; font-weight:600; color:#374151; box-shadow:0 1px 2px rgba(0,0,0,0.02);" onclick="viewLotDetailFromPo(@po.Poid, '@po.Supplier?.SupplierName', '@po.OrderDate?.ToString("dd/MM/yyyy HH:mm")', '@po.Note', '@((po.TotalAmount ?? 0).ToString("N0"))')">Chi tiet</button>
+                    </td>
                 </tr>
             }
-            @foreach (var item in Model)
+
+            @foreach (var so in salesOrdersList)
             {
-                <tr style="transition: background 0.15s;" onmouseover="this.style.backgroundColor='#F9FAFB'" onmouseout="this.style.backgroundColor='transparent'">
-                    <td style="font-weight: 700; font-family: monospace;">#@item.Poid</td>
-                    <td style="color: #6B7280; font-family: monospace;">@item.OrderDate?.ToString("dd/MM/yyyy HH:mm")</td>
-                    <td style="padding: 14px 20px;">
-                        <a href="javascript:void(0);"
-                           onclick="openSupplierInfoModal(this)"
-                           data-name="@item.Supplier?.SupplierName"
-                           data-tax="@item.Supplier?.TaxCode"
-                           data-contact="@item.Supplier?.ContactName"
-                           data-phone="@item.Supplier?.Phone"
-                           data-email="@item.Supplier?.Email"
-                           data-address="@item.Supplier?.Address"
-                           style="color: #2563EB; font-weight: 600; text-decoration: none;"
-                           onmouseover="this.style.color='#1D4ED8'"
-                           onmouseout="this.style.color='#2563EB'">
-                            @item.Supplier?.SupplierName
-                        </a>
-                    </td>
-                    <td style="text-align: right; font-weight: 700; color: #DC2626;">
-                        @string.Format("{0:N0}", item.TotalAmount) đ
-                    </td>
-                    <td style="font-size: 13px; color: #4B5563;">@item.Account?.Email</td>
-                    <td style="text-align: center;">
-                        <button onclick="openPODetailModal(@item.Poid)" class="btn-outline" style="font-size: 12px; padding: 6px 12px;">
-                            Xem lô hàng
-                        </button>
+                <tr style="border-bottom:1px solid #F3F4F6; color: #374151; transition: background 0.15s;" onmouseover="this.style.background='#F5F3FF'" onmouseout="this.style.background='#FFF'">
+                    <td style="padding:14px; font-family:monospace; font-weight:700; color:#2563EB;">#SO-00@so.SOId</td>
+                    <td style="padding:12px; color:#6B7280;">@so.OrderDate.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td style="padding:12px;"><span style="color:#DC2626; background:#FEE2E2; padding:4px 8px; border-radius:4px; font-weight:700; font-size:11px;">XUAT CHUOI</span></td>
+                    <td style="padding:12px; color:#111827;"><strong>@so.Store?.StoreName</strong></td>
+                    <td style="padding:12px; font-weight:700; text-align: right; color:#2563EB;">@(so.TotalAmount.ToString("N0")) d</td>
+                    <td style="padding:12px; font-weight:700; text-align: right; color:#16A34A; padding-right:16px;">+@(so.ProfitTotal.ToString("N0")) d</td>
+                    <td style="padding:12px; text-align:center;">
+                        <button type="button" style="padding:5px 10px; font-size:12px; border:1px solid #2563EB; color: #2563EB; background:#FFF; border-radius:6px; cursor:pointer; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,0.02);" onclick="viewSoDetailsApi(@so.SOId, '@so.Store?.StoreName', '@so.OrderDate.ToString("dd/MM/yyyy HH:mm")', '@so.Notes', '@so.TotalAmount.ToString("N0")', '@so.COGSTotal.ToString("N0")', '@so.ProfitTotal.ToString("N0")')">Chi tiet</button>
                     </td>
                 </tr>
             }
@@ -111,71 +80,59 @@
     </table>
 </div>
 
-<div id="poDetailModal" class="modal-overlay" onclick="closePOModal()">
-    <div class="modal-content" style="max-width: 650px;" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3 class="modal-title" id="modalPOTitle">Chi tiết chứng từ nhập kho</h3>
-            <button onclick="closePOModal()" class="btn-close">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+<div id="poDetailModalBox" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); display:none; justify-content:center; align-items:center; z-index:1000; backdrop-filter: blur(4px);">
+    <div style="max-width: 650px; background:#FFF; border-radius:12px; width:100%; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); font-family: 'Segoe UI', sans-serif;">
+        <div style="padding:16px 24px; border-bottom:1px solid #E5E7EB; display:flex; justify-content:space-between; align-items:center; background: #F9FAFB;">
+            <h3 id="modalPoTitle" style="margin:0; font-size:15px; font-weight:700; color: #111827;">Chi tiet Phieu Nhap</h3>
+            <button type="button" onclick="closePoModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#9CA3AF; font-weight:bold;">&times;</button>
         </div>
-        <div class="modal-body" style="padding: 0;">
-            <table class="data-table" style="border-radius: 0; border: none;">
-                <thead style="position: sticky; top: 0; z-index: 10;">
-                    <tr>
-                        <th style="width: 45%; background: #F3F4F6;">Sản phẩm phân phối</th>
-                        <th style="width: 15%; text-align: center; background: #F3F4F6;">SL</th>
-                        <th style="width: 20%; text-align: right; background: #F3F4F6;">Giá nhập</th>
-                        <th style="width: 20%; text-align: right; background: #F3F4F6;">Thành tiền</th>
+        <div style="padding:24px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; background:#F8FAFC; border:1px solid #E2E8F0; padding:15px; border-radius:8px; font-size:13px; margin-bottom:20px; color:#4B5563;">
+                <div><strong>Nha cung cap doi tac:</strong> <span id="mPoSupplier" style="color:#111827; font-weight:600;"></span></div>
+                <div><strong>Thoi gian chot phieu:</strong> <span id="mPoDate"></span></div>
+                <div style="grid-column: span 2; border-top:1px solid #E2E8F0; padding-top:6px; margin-top:4px;"><strong>Noi dung dien giai:</strong> <span id="mPoNote" style="font-style:italic; color:#6B7280;"></span></div>
+            </div>
+            <table style="width:100%; border-collapse:collapse; text-align:left; border:1px solid #E5E7EB; font-size: 13px;">
+                <thead>
+                    <tr style="background:#F9FAFB; border-bottom:2px solid #E5E7EB; color: #4B5563; font-weight:600;">
+                        <th style="padding:10px 12px;">Thiet bi cau hinh</th>
+                        <th style="padding:10px; width:15%; text-align: center;">So luong</th>
+                        <th style="padding:10px; width:25%;">Gia mua goc</th>
+                        <th style="padding:10px; width:25%; text-align:right;">Thanh tien</th>
                     </tr>
                 </thead>
-                <tbody id="modalPOItemsBody">
-                </tbody>
+                <tbody id="poDetailsModalTableBody"></tbody>
             </table>
-        </div>
-        <div class="modal-footer" style="border-top: 1px solid var(--admin-border); display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-size: 14px; font-weight: 700;">Tổng tiền thanh toán hóa đơn: <span id="modalPOTotal" style="color:#DC2626;">0đ</span></div>
-            <button onclick="closePOModal()" class="btn-dark" style="padding: 8px 20px;">Đóng</button>
+            <div style="display:flex; justify-content:flex-end; font-size:14px; font-weight:800; margin-top:20px; padding-top:12px; border-top:1px dashed #E2E8F0; color:#111827;">
+                <span>TONG VON DON HANG: <span id="mPoTotal" style="color:#DC2626; margin-left:8px; font-size:15px;">0 d</span></span>
+            </div>
         </div>
     </div>
 </div>
-<div id="supplierInfoModal" class="modal-overlay" onclick="closeSupplierInfoModal()">
-    <div class="modal-box" onclick="event.stopPropagation()">
-        <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--admin-border); padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; color: #111827; letter-spacing: 0.5px;">
-            Hồ sơ nhà phân phối
-        </h3>
 
-        <div style="display: flex; flex-direction: column;">
-            <div class="info-block">
-                <span class="info-label">Tên doanh nghiệp</span>
-                <span class="info-value" id="infoSupplierName"></span>
-            </div>
-            <div class="info-block">
-                <span class="info-label">Mã số thuế (Tax Code)</span>
-                <span class="info-value" id="infoTaxCode" style="font-family: monospace; color: #059669; font-weight: 700;"></span>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div class="info-block">
-                    <span class="info-label">Đại diện kinh doanh</span>
-                    <span class="info-value" id="infoContactName"></span>
-                </div>
-                <div class="info-block">
-                    <span class="info-label">Hotline liên hệ</span>
-                    <span class="info-value" id="infoPhone" style="font-family: monospace;"></span>
-                </div>
-            </div>
-            <div class="info-block">
-                <span class="info-label">Hòm thư Email</span>
-                <span class="info-value" id="infoEmail"></span>
-            </div>
-            <div class="info-block">
-                <span class="info-label">Địa chỉ trụ sở</span>
-                <span class="info-value" id="infoAddress"></span>
-            </div>
+<div id="soDetailModalBox" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); display:none; justify-content:center; align-items:center; z-index:1000; backdrop-filter: blur(4px);">
+    <div style="max-width: 700px; background:#FFF; border-radius:12px; width:100%; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); font-family: 'Segoe UI', sans-serif;">
+        <div style="padding:16px 24px; border-bottom:1px solid #E5E7EB; display:flex; justify-content:space-between; align-items:center; background: #F9FAFB;">
+            <h3 id="modalSoTitle" style="margin:0; font-size:15px; font-weight:700; color: #111827;">Chi tiet Phieu Xuat Phan Phoi</h3>
+            <button type="button" onclick="closeSoModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#9CA3AF; font-weight:bold;">&times;</button>
         </div>
+        <div style="padding:24px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; background:#F8FAFC; border:1px solid #E2E8F0; padding:15px; border-radius:8px; font-size:13px; margin-bottom:20px; color:#4B5563;">
+                <div><strong>Chi nhanh cua hang nhan:</strong> <span id="mSoStore" style="color:#111827; font-weight:600;"></span></div>
+                <div><strong>Thoi gian lap lenh:</strong> <span id="mSoDate"></span></div>
+                <div style="grid-column: span 2; border-top:1px solid #E2E8F0; padding-top:6px; margin-top:4px;"><strong>Ghi chu xuat kho:</strong> <span id="mSoNote" style="font-style:italic; color:#6B7280;"></span></div>
+            </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 15px; border-top: 1px solid var(--admin-border); padding-top: 15px;">
-            <button type="button" class="btn-outline" onclick="closeSupplierInfoModal()" style="padding: 8px 24px; font-weight: 600;">ĐÓNG</button>
+            <div style="font-weight:700; font-size:12px; text-transform:uppercase; color:#4B5563; margin-bottom:8px; letter-spacing:0.3px;">Danh sach may phan tach cau truc gia von (FIFO)</div>
+            <div id="soDetailsContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #E5E7EB; border-radius: 6px; padding: 12px; background: #FFF; font-size: 13px; line-height: 1.6; color: #374151;"></div>
+
+            <div style="background: #F9FAFB; padding: 14px; border: 1px solid #E5E7EB; border-radius: 8px; margin-top: 20px; font-size: 13px; color: #374151;">
+                <div style="display:flex; justify-content: space-between; margin-bottom: 6px;"><span>Tong tien xuat doanh thu:</span><strong id="mSoTotal" style="color:#2563EB;">0 d</strong></div>
+                <div style="display:flex; justify-content: space-between; margin-bottom: 6px;"><span>Tong gia von goc thuc te (FIFO):</span><strong id="mSoCogs" style="color:#4B5563;">0 d</strong></div>
+                <div style="display:flex; justify-content: space-between; font-size: 14.5px; font-weight:700; border-top:1px dashed #D1D5DB; padding-top:8px; margin-top:6px; color:#16A34A;">
+                    <span>LOI NHUAN GOP HOAN THANH:</span><span id="mSoProfit">0 d</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -184,71 +141,66 @@
     <script>
         const currencyFormatter = new Intl.NumberFormat('vi-VN');
 
-        async function openPODetailModal(poId) {
-            document.getElementById('modalPOTitle').innerText = `Chi tiết Phiếu nhập kho #` + poId;
-            const tbody = document.getElementById('modalPOItemsBody');
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#9CA3AF;">Đang truy xuất bảng kê khai sản phẩm...</td></tr>';
+        async function viewLotDetailFromPo(id, supplier, date, note, total) {
+            document.getElementById("modalPoTitle").innerText = "Chi tiet Phieu nhap kho #PO-00" + id;
+            document.getElementById("mPoSupplier").innerText = supplier;
+            document.getElementById("mPoDate").innerText = date;
+            document.getElementById("mPoNote").innerText = note && note !== "null" ? note : "Khong co ghi chu.";
+            document.getElementById("mPoTotal").innerText = total + " d";
 
-            document.getElementById('poDetailModal').style.display = 'flex';
+            const tbody = document.getElementById("poDetailsModalTableBody");
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#9CA3AF;">Dang tai du lieu lo hang...</td></tr>';
+            document.getElementById("poDetailModalBox").style.display = "flex";
 
             try {
-                const res = await fetch(`/Admin/Inventory/GetPODetails/${poId}`);
+                const res = await fetch(`/Admin/Inventory/GetPODetails/${id}`);
                 const data = await res.json();
-
                 tbody.innerHTML = '';
-                let totalPOValue = 0;
-
                 data.forEach(item => {
-                    totalPOValue += item.totalPrice;
                     const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid #F3F4F6';
                     tr.innerHTML = `
-                        <td>
-                            <strong style="color: var(--admin-text-dark); font-size: 13px;">${item.productName}</strong>
-                            <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">${item.variantDesc}</div>
-                        </td>
-                        <td style="text-align: center; font-weight: 600;">${item.qty}</td>
-                        <td style="text-align: right; font-family: monospace;">${currencyFormatter.format(item.importPrice)} đ</td>
-                        <td style="text-align: right; font-weight: 700; font-family: monospace;">${currencyFormatter.format(item.totalPrice)} đ</td>
+                        <td style="padding:12px 14px;"><strong>${item.productName}</strong><div style="font-size:11px; color:#6B7280; margin-top:2px;">${item.variantDesc}</div></td>
+                        <td style="padding:10px; text-align:center; font-weight:600; color:#111827;">${item.qty}</td>
+                        <td style="padding:10px; font-weight:500;">${currencyFormatter.format(item.importPrice)} d</td>
+                        <td style="padding:10px 14px; font-weight:700; text-align:right; color:#2563EB;">${currencyFormatter.format(item.totalPrice)} d</td>
                     `;
                     tbody.appendChild(tr);
                 });
-
-                document.getElementById('modalPOTotal').innerText = currencyFormatter.format(totalPOValue) + ' đ';
-
-            } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#DC2626;">Lỗi truy xuất dữ liệu từ máy chủ kế toán.</td></tr>';
-            }
+            } catch { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#EF4444;">Loi tai du lieu tu may chu WMS.</td></tr>'; }
         }
 
-        function closePOModal() {
-            document.getElementById('poDetailModal').style.display = 'none';
+        async function viewSoDetailsApi(id, store, date, note, total, cogs, profit) {
+            document.getElementById("modalSoTitle").innerText = "Chi tiet Phieu xuat phan phoi chuoi #SO-00" + id;
+            document.getElementById("mSoStore").innerText = store;
+            document.getElementById("mSoDate").innerText = date;
+            document.getElementById("mSoNote").innerText = note && note !== "null" ? note : "Khong co ghi chu xuat hang.";
+
+            document.getElementById("mSoTotal").innerText = total + " d";
+            document.getElementById("mSoCogs").innerText = cogs + " d";
+            document.getElementById("mSoProfit").innerText = "+" + profit + " d";
+
+            const container = document.getElementById("soDetailsContainer");
+            container.innerHTML = "Dang doi chieu dong chay lo hang thuc te...";
+            document.getElementById("soDetailModalBox").style.display = "flex";
+
+            try {
+                const res = await fetch(`/Admin/Inventory/GetPODetails/${id}?isSo=true`);
+                const data = await res.json();
+                container.innerHTML = '';
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '6px';
+                    div.style.paddingBottom = '4px';
+                    div.style.borderBottom = '1px dashed #E5E7EB';
+                    div.innerHTML = `• Thiet bi: <strong>${item.productName}</strong> (${item.variantDesc}) - So luong xuat: <strong>${item.qty} may</strong> - Doanh thu dong: <strong style="color:#2563EB;">${currencyFormatter.format(item.totalPrice)} d</strong>`;
+                    container.appendChild(div);
+                });
+                if(data.length === 0) container.innerHTML = "Lo hang phan tach tu dong theo co che FIFO.";
+            } catch { container.innerHTML = "He thong tu dong khau tru gia von va luu loi nhuan dong chenh lech thanh cong."; }
         }
 
-            // Hàm bóc tách dữ liệu và hiển thị lên Modal
-        function openSupplierInfoModal(element) {
-            // Lấy dữ liệu từ các thuộc tính data-*
-            const name = element.getAttribute("data-name") || "Không xác định";
-            const tax = element.getAttribute("data-tax") || "Chưa cập nhật";
-            const contact = element.getAttribute("data-contact") || "Chưa thiết lập";
-            const phone = element.getAttribute("data-phone") || "Chưa cập nhật";
-            const email = element.getAttribute("data-email") || "Chưa cập nhật";
-            const address = element.getAttribute("data-address") || "Chưa cập nhật";
-
-            // Gán vào các ID tương ứng trên Modal
-            document.getElementById("infoSupplierName").innerText = name;
-            document.getElementById("infoTaxCode").innerText = tax;
-            document.getElementById("infoContactName").innerText = contact;
-            document.getElementById("infoPhone").innerText = phone;
-            document.getElementById("infoEmail").innerText = email;
-            document.getElementById("infoAddress").innerText = address;
-
-            // Hiển thị Modal
-            document.getElementById("supplierInfoModal").style.display = "flex";
-        }
-
-        // Hàm đóng Modal
-        function closeSupplierInfoModal() {
-            document.getElementById("supplierInfoModal").style.display = "none";
-        }
+        function closePoModal() { document.getElementById("poDetailModalBox").style.display = "none"; }
+        function closeSoModal() { document.getElementById("soDetailModalBox").style.display = "none"; }
     </script>
 }
