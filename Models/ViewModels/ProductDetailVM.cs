@@ -16,5 +16,7 @@ namespace TMDT_LT.Models.ViewModels.Storefront
 
         // Mảng đếm số lượng đánh giá theo từng mức sao (Index 0: 1 sao, Index 4: 5 sao)
         public Dictionary<int, int> StarCounts { get; set; } = new Dictionary<int, int>();
+
+        public TMDT_LT.Models.FlashSales? ActiveFlashSale { get; set; }
     }
 }

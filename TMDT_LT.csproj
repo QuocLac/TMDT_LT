@@ -13,6 +13,15 @@
   <ItemGroup>
     <Content Remove="Models\Product.cshtml" />
     <Content Remove="Models\ProductReviews.cshtml" />
+    <Content Remove="wwwroot\css\admin.css" />
+    <Content Remove="wwwroot\css\base.css" />
+    <Content Remove="wwwroot\css\cart.css" />
+    <Content Remove="wwwroot\css\components.css" />
+    <Content Remove="wwwroot\css\detail.css" />
+    <Content Remove="wwwroot\css\home.css" />
+    <Content Remove="wwwroot\css\layout.css" />
+    <Content Remove="wwwroot\css\root.css" />
+    <Content Remove="wwwroot\css\site.css" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,10 +7,10 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/storefront/store-home.css" asp-append-version="true" />
     <style>
-        /* CSS cho nút Thêm vào giỏ ngoài trang chủ */
+        /* CSS cho nút Thêm vào giỏ & Mua ngay ngoài trang chủ */
         .btn-home-cart {
             width: 100%;
-            padding: 10px 0;
+            padding: 10px 4px;
             background: #F8FAFC;
             color: var(--navy-deep);
             border: 1px solid var(--border-color);
@@ -22,8 +22,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 8px;
-            margin-top: 16px;
+            gap: 6px;
         }
 
             .btn-home-cart:hover:not(:disabled) {
@@ -46,9 +45,8 @@
             position: relative;
         }
 
-        /* THÊM MỚI: CSS CHO THẺ HIỂN THỊ BIẾN THỂ (GIỐNG ẢNH BẠN GỬI) */
         .product-variant-badge {
-            font-size: 12px;
+            font-size: 11px;
             color: #475569;
             background: #F1F5F9;
             padding: 4px 8px;
@@ -59,7 +57,6 @@
             width: fit-content;
         }
 
-        /* NÚT YÊU THÍCH HOÀN THIỆN */
         .btn-favorite {
             position: absolute;
             top: 12px;
@@ -82,7 +79,7 @@
             .btn-favorite:hover {
                 transform: scale(1.1);
             }
-            /* KHI ACTIVE SẼ CÓ MÀU ĐỎ RỰC */
+
             .btn-favorite.active {
                 color: var(--accent-red, #DC2626);
                 border-color: var(--accent-red, #DC2626);
@@ -144,6 +141,222 @@
             flex-direction: column;
             justify-content: space-between;
         }
+
+        /* --- STYLE DÀNH RIÊNG CHO FLASH SALE --- */
+        .fs-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #FEF08A;
+            color: #B45309;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-bottom-left-radius: 8px;
+            z-index: 2;
+        }
+
+        .fs-progress-wrap {
+            position: relative;
+            width: 100%;
+            background: #FECACA;
+            height: 16px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .fs-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #F59E0B 0%, #EF4444 100%);
+            transition: width 0.5s ease;
+        }
+
+        .fs-progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 0;
+            left: 0;
+            font-size: 10px;
+            font-weight: 800;
+            color: white;
+            line-height: 16px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .home-trust-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 22px;
+        }
+
+        .home-trust-item {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+        }
+
+        .home-trust-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.06);
+            color: var(--navy-deep);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .home-trust-item strong {
+            display: block;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--navy-deep);
+            margin-bottom: 3px;
+        }
+
+        .home-trust-item span {
+            display: block;
+            font-size: 12px;
+            color: #64748B;
+            line-height: 1.5;
+        }
+
+        .home-quick-search-board {
+            margin-top: 32px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .home-quick-search-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .home-quick-search-head p {
+            margin: 0;
+            font-size: 13px;
+            color: #64748B;
+            line-height: 1.6;
+        }
+
+        .home-quick-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        .home-quick-panel {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .home-quick-panel h4 {
+            margin: 0 0 12px 0;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--navy-deep);
+        }
+
+        .home-chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .home-search-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            color: var(--navy-deep);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }
+
+        .home-search-chip:hover {
+            background: var(--navy-deep);
+            border-color: var(--navy-deep);
+            color: #FFFFFF;
+            transform: translateY(-1px);
+        }
+
+        .home-search-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            border: 1px solid #E2E8F0;
+            color: #334155;
+            background: #FFFFFF;
+            font-size: 13px;
+            font-weight: 700;
+            width: calc(50% - 5px);
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        .home-search-pill:hover {
+            border-color: var(--navy-deep);
+            color: var(--navy-deep);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+        }
+
+        .home-kv-note {
+            margin-top: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            background: rgba(255,255,255,0.78);
+            border: 1px solid #E2E8F0;
+            padding: 9px 14px;
+            border-radius: 999px;
+        }
+
+        media (max-width: 991px) {
+            .home-trust-strip, .home-quick-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        media (max-width: 767px) {
+            .home-trust-strip, .home-quick-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .home-search-pill {
+                width: 100%;
+            }
+        }
+
     </style>
 }
 
@@ -152,14 +365,14 @@
         <div class="hero-cta-block">
             <h2>Khai phóng công nghệ di động đỉnh cao.</h2>
             <p>Trải nghiệm mua sắm chuẩn mực xác thực bảo mật thông tin. KingPhone tự hào là đối tác phân phối ủy quyền các dòng thiết bị cấu hình cao hàng đầu thế giới.</p>
-            <a href="/Products" class="btn-dark" style="padding: 12px 24px; text-decoration:none; font-size:14px; font-weight:600; border-radius:4px;">KHÁM PHÁ NGAY</a>
+            <a href="/Store" class="btn-dark" style="padding: 12px 24px; text-decoration:none; font-size:14px; font-weight:600; border-radius:4px;">KHÁM PHÁ NGAY</a>
         </div>
 
         <div class="slider-viewport" id="marketingSlider">
             <div class="slider-track" id="mainSliderTrack">
                 @if (Model.ActiveBanners == null || !Model.ActiveBanners.Any())
                 {
-                    <a href="/Products" class="slide-item">
+                    <a href="/Store" class="slide-item">
                         <img src="https://via.placeholder.com/800x320/0F172A/FFFFFF?text=PHONE.ST+ĐỈNH+CAO+CÔNG+NGHỆ" alt="Default Banner" />
                     </a>
                 }
@@ -186,6 +399,200 @@
         </div>
     </div>
 </div>
+
+<div class="home-trust-strip">
+    <div class="home-trust-item">
+        <div class="home-trust-icon"><i class="fas fa-certificate"></i></div>
+        <div>
+            <strong>Hàng chính hãng</strong>
+            <span>Sản phẩm rõ nguồn gốc, chính sách bảo hành minh bạch.</span>
+        </div>
+    </div>
+    <div class="home-trust-item">
+        <div class="home-trust-icon"><i class="fas fa-shipping-fast"></i></div>
+        <div>
+            <strong>Giao hàng toàn quốc</strong>
+            <span>Theo dõi đơn hàng dễ dàng, đóng gói an toàn.</span>
+        </div>
+    </div>
+    <div class="home-trust-item">
+        <div class="home-trust-icon"><i class="far fa-credit-card"></i></div>
+        <div>
+            <strong>Thanh toán linh hoạt</strong>
+            <span>Hỗ trợ COD, VNPay và nhiều hình thức tiện lợi.</span>
+        </div>
+    </div>
+    <div class="home-trust-item">
+        <div class="home-trust-icon"><i class="fas fa-headset"></i></div>
+        <div>
+            <strong>Tư vấn tận tâm</strong>
+            <span>Đề xuất cấu hình phù hợp theo nhu cầu thực tế.</span>
+        </div>
+    </div>
+</div>
+
+<div class="home-quick-search-board section-wrapper">
+    <div class="home-quick-search-head">
+        <div>
+            <div class="section-header-title" style="margin-bottom: 6px;">Khám phá nhanh hôm nay</div>
+            <p>Nhóm tìm kiếm nhanh giúp bạn vào đúng danh mục, đúng nhu cầu và rút ngắn hành trình mua sắm.</p>
+        </div>
+        <a href="/Store" class="btn-dark" style="padding: 11px 18px; text-decoration:none; border-radius: 8px; font-size: 13px; font-weight: 700;">Vào cửa hàng</a>
+    </div>
+
+    <div class="home-quick-grid">
+        <div class="home-quick-panel">
+            <h4>Từ khóa nổi bật</h4>
+            <div class="home-chip-group">
+                <a class="home-search-chip" href="/Store?keyword=iPhone"><i class="fas fa-search"></i> iPhone</a>
+                <a class="home-search-chip" href="/Store?keyword=Samsung"><i class="fas fa-search"></i> Samsung</a>
+                <a class="home-search-chip" href="/Store?keyword=Gaming"><i class="fas fa-search"></i> Máy gaming</a>
+                <a class="home-search-chip" href="/Store?keyword=Pin%20trâu"><i class="fas fa-search"></i> Pin trâu</a>
+                <a class="home-search-chip" href="/Store?keyword=Sạc%20nhanh"><i class="fas fa-search"></i> Sạc nhanh</a>
+                <a class="home-search-chip" href="/Store?keyword=Tai%20nghe"><i class="fas fa-search"></i> Phụ kiện hot</a>
+            </div>
+            <div class="home-kv-note"><i class="fas fa-sparkles"></i> Dẫn nhanh đến nhóm sản phẩm được quan tâm nhiều trong ngày</div>
+        </div>
+
+        <div class="home-quick-panel">
+            <h4>Đi thẳng theo nhu cầu</h4>
+            <div class="home-chip-group">
+                <a class="home-search-pill" href="/Store?keyword=Chụp%20ảnh%20đẹp"><i class="fas fa-camera"></i> Chụp ảnh đẹp</a>
+                <a class="home-search-pill" href="/Store?keyword=Hiệu%20năng%20cao"><i class="fas fa-microchip"></i> Hiệu năng cao</a>
+                <a class="home-search-pill" href="/Store?keyword=Máy%20mỏng%20nhẹ"><i class="fas fa-feather-alt"></i> Mỏng nhẹ</a>
+                <a class="home-search-pill" href="/Store?keyword=Pin%20lâu"><i class="fas fa-battery-three-quarters"></i> Pin lâu</a>
+                <a class="home-search-pill" href="/Store?keyword=Điện%20thoại%20cao%20cấp"><i class="fas fa-crown"></i> Cao cấp</a>
+                <a class="home-search-pill" href="/Store?keyword=Giá%20tốt"><i class="fas fa-tags"></i> Giá tốt</a>
+            </div>
+        </div>
+
+        <div class="home-quick-panel">
+            <h4>Danh mục được quan tâm</h4>
+            <div class="home-chip-group">
+                @if (ViewBag.Categories != null)
+                {
+                    foreach (var cat in ViewBag.Categories)
+                    {
+                        <a class="home-search-pill" href="/Store?categoryId=@cat.CategoryId"><i class="fas fa-angle-right"></i> @cat.CategoryName</a>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* =======================================================
+   KHU VỰC 1: FLASH SALE (GIAO DIỆN CHUẨN SHOPEE/TIKTOK)
+   ======================================================= *@
+@if (Model.ActiveFlashSale != null && Model.ActiveFlashSale.FlashSaleItems.Any())
+{
+    var fs = Model.ActiveFlashSale;
+    <div class="section-wrapper" style="margin-top: 40px; padding: 20px; border-radius: 8px; border: 1px solid #FEE2E2; background: #FFF9F9;">
+
+        <div style="display: flex; align-items: center; border-bottom: 2px solid #DC2626; padding-bottom: 12px; margin-bottom: 20px;">
+            <h2 style="margin: 0; color: #DC2626; font-size: 24px; font-weight: 900; font-style: italic; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">
+                <i class="fas fa-bolt"></i> FLASH SALE
+            </h2>
+
+            <div class="fs-countdown" data-endtime="@fs.EndTime.ToString("yyyy-MM-ddTHH:mm:ss")" style="margin-left: 20px; display: flex; gap: 4px; align-items: center;">
+                <span class="cd-box" style="background: #111827; color: white; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: 800; font-size: 16px;" id="fs-hours">00</span>
+                <b style="color: #111827; font-size: 18px;">:</b>
+                <span class="cd-box" style="background: #111827; color: white; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: 800; font-size: 16px;" id="fs-minutes">00</span>
+                <b style="color: #111827; font-size: 18px;">:</b>
+                <span class="cd-box" style="background: #111827; color: white; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: 800; font-size: 16px;" id="fs-seconds">00</span>
+            </div>
+        </div>
+
+        <div class="product-scroll-container">
+            @foreach (var item in fs.FlashSaleItems)
+            {
+                if (item.Variant == null || item.Variant.Product == null) continue;
+                decimal discountPct = item.Variant.Price > 0 ? Math.Round((1 - (item.FlashSalePrice / item.Variant.Price.Value)) * 100) : 0;
+                double sellPct = item.Quantity > 0 ? ((double)item.Sold / item.Quantity) * 100 : 0;
+                string progText = sellPct >= 90 ? "🔥 SẮP CHÁY HÀNG" : $"ĐÃ BÁN {item.Sold}";
+
+                <div class="market-product-card" style="border-color: #FEE2E2; padding: 12px; position: relative;">
+
+                    @if (sellPct < 100)
+                    {
+                        <div style="position: absolute; top: -1px; right: -1px; background: #FEF08A; color: #92400E; font-size: 13px; font-weight: 800; padding: 4px 12px; border-bottom-left-radius: 8px; border-top-right-radius: 4px; z-index: 2;">
+                            -@discountPct%
+                        </div>
+                    }
+
+                    <button class="btn-favorite" onclick="toggleFavorite(event, this, @item.VariantId)" title="Thêm/Xóa yêu thích" style="top: 36px; right: 10px; background: #FFFFFF; border: 1px solid #E2E8F0; width: 30px; height: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <i class="far fa-heart" style="font-size: 13px;"></i>
+                    </button>
+
+                    <a href="/Store/Product/@item.Variant.ProductId" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; flex: 1;">
+
+                        <div style="background: #F8FAFC; border-radius: 4px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; height: 160px; position: relative;">
+                            @if (sellPct >= 100)
+                            {
+                                <div style="position: absolute; inset: 0; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; z-index: 1;">
+                                    <span style="background: var(--navy-deep); color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">CHỈ CÒN GIÁ THƯỜNG</span>
+                                </div>
+                            }
+                            <img src="@(item.Variant.ImageUrl ?? item.Variant.Product.MainImage)" alt="@item.Variant.Product.Name" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply;" onerror="this.src='https://via.placeholder.com/200?text=No+Image'" />
+                        </div>
+
+                        <div class="product-card-name" style="font-size: 15px; font-weight: 700; margin-bottom: 6px;">@item.Variant.Product.Name</div>
+
+                        <div style="background: #F1F5F9; color: #475569; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 4px; width: fit-content; margin-bottom: 12px;">
+                            @item.Variant.Storage - @item.Variant.Color
+                        </div>
+
+                        <div class="price-group-market">
+                            @if (sellPct < 100)
+                            {
+                                <span class="price-market-current" style="color: var(--accent-red); font-size: 18px;">@string.Format("{0:N0}", item.FlashSalePrice) đ</span>
+                                <span class="price-market-old" style="margin-left: 4px;">@string.Format("{0:N0}", item.Variant.Price) đ</span>
+                            }
+                            else
+                            {
+                                <span class="price-market-current" style="color: var(--navy-deep); font-size: 18px;">@string.Format("{0:N0}", item.Variant.DiscountPrice > 0 ? item.Variant.DiscountPrice : item.Variant.Price) đ</span>
+                                @if (item.Variant.DiscountPrice > 0 && item.Variant.DiscountPrice < item.Variant.Price)
+                                {
+                                    <span class="price-market-old" style="margin-left: 4px;">@string.Format("{0:N0}", item.Variant.Price) đ</span>
+                                }
+                            }
+                        </div>
+
+                        <div class="fs-progress-wrap" style="margin-top: auto; margin-bottom: 12px; background: @(sellPct >= 100 ? "#E2E8F0" : "#FECACA");">
+                            <div class="fs-progress-fill" style="width: @(sellPct > 100 ? 100 : sellPct)%; background: @(sellPct >= 100 ? "#9CA3AF" : "linear-gradient(90deg, #F59E0B 0%, #EF4444 100%)");"></div>
+                            <div class="fs-progress-text">@(sellPct >= 100 ? "HẾT SUẤT SALE" : progText)</div>
+                        </div>
+                    </a>
+
+                    <form action="/Cart/AddToCart" method="post" class="ajax-cart-form" style="margin: 0; width: 100%;">
+                        <input type="hidden" name="variantId" value="@item.VariantId" />
+                        <input type="hidden" name="quantity" value="1" />
+                        <input type="hidden" name="actionType" class="actionTypeInput" value="add" />
+
+                        @if (item.Variant.Stock > 0)
+                        {
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <button type="button" class="btn-home-cart" style="flex: 1; padding: 10px 4px; margin-top: 0;" onclick="setCartAction(this, 'add')">
+                                    <i class="fas fa-cart-plus"></i> Thêm vào giỏ
+                                </button>
+
+                                <button type="button" class="btn-home-cart" style="flex: 1; padding: 10px 4px; margin-top: 0; background: @(sellPct < 100 ? "var(--accent-red)" : "var(--navy-deep)"); color: white; border: none;" onclick="setCartAction(this, 'buy')">
+                                    @(sellPct < 100 ? "Mua ngay" : "Mua giá thường")
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn-home-cart" disabled style="background: #E5E7EB; margin-top: 0;">
+                                <i class="fas fa-box-open"></i> ĐÃ HẾT HÀNG
+                            </button>
+                        }
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+}
 
 @if (Model.TopVouchers != null && Model.TopVouchers.Any())
 {
@@ -229,7 +636,13 @@
 }
 
 <div class="section-wrapper" style="margin-top: 40px;">
-    <div class="section-header-title">Gợi ý dành riêng cho bạn</div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:18px; flex-wrap:wrap;">
+        <div>
+            <div class="section-header-title" style="margin-bottom:6px;">Gợi ý theo tài khoản của bạn</div>
+            <div style="font-size:13px; color:#64748B; line-height:1.6;">Danh sách được ưu tiên theo sản phẩm bạn đã xem, tìm kiếm và quan tâm gần đây.</div>
+        </div>
+        <a href="/Store" style="font-size:13px; font-weight:700; color:var(--navy-deep); text-decoration:none; display:inline-flex; align-items:center; gap:6px;">Khám phá thêm <i class="fas fa-arrow-right" style="font-size:11px;"></i></a>
+    </div>
 
     <div class="product-scroll-container" id="behavioral-recommendations">
         @if (Model.Recommendations != null && Model.Recommendations.Any())
@@ -281,16 +694,23 @@
                     <form action="/Cart/AddToCart" method="post" class="ajax-cart-form" style="margin: 0; width: 100%;">
                         <input type="hidden" name="variantId" value="@(defaultVariant?.VariantId)" />
                         <input type="hidden" name="quantity" value="1" />
+                        <input type="hidden" name="actionType" class="actionTypeInput" value="add" />
 
                         @if (defaultVariant != null && defaultVariant.Stock > 0)
                         {
-                            <button type="submit" class="btn-home-cart">
-                                <i class="fas fa-shopping-cart"></i> THÊM VÀO GIỎ
-                            </button>
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <button type="button" class="btn-home-cart" style="flex: 1; padding: 10px 4px; margin-top: 0;" onclick="setCartAction(this, 'add')">
+                                    <i class="fas fa-cart-plus"></i> Thêm vào giỏ
+                                </button>
+
+                                <button type="button" class="btn-home-cart" style="flex: 1; padding: 10px 4px; margin-top: 0; background: var(--accent-red); color: white; border: none;" onclick="setCartAction(this, 'buy')">
+                                    Mua ngay
+                                </button>
+                            </div>
                         }
                         else
                         {
-                            <button type="button" class="btn-home-cart" disabled>
+                            <button type="button" class="btn-home-cart" disabled style="background: #E5E7EB; margin-top: 0;">
                                 <i class="fas fa-box-open"></i> HẾT HÀNG
                             </button>
                         }
@@ -356,16 +776,23 @@
                     <form action="/Cart/AddToCart" method="post" class="ajax-cart-form" style="margin: 0; width: 100%;">
                         <input type="hidden" name="variantId" value="@(defaultVariant?.VariantId)" />
                         <input type="hidden" name="quantity" value="1" />
+                        <input type="hidden" name="actionType" class="actionTypeInput" value="add" />
 
                         @if (defaultVariant != null && defaultVariant.Stock > 0)
                         {
-                            <button type="submit" class="btn-home-cart">
-                                <i class="fas fa-shopping-cart"></i> THÊM VÀO GIỎ
-                            </button>
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <button type="button" class="btn-home-cart" style="flex: 1; padding: 10px 4px; margin-top: 0;" onclick="setCartAction(this, 'add')">
+                                    <i class="fas fa-cart-plus"></i> Thêm vào giỏ
+                                </button>
+
+                                <button type="button" class="btn-home-cart" style="flex: 1; padding: 10px 4px; margin-top: 0; background: var(--accent-red); color: white; border: none;" onclick="setCartAction(this, 'buy')">
+                                    Mua ngay
+                                </button>
+                            </div>
                         }
                         else
                         {
-                            <button type="button" class="btn-home-cart" disabled>
+                            <button type="button" class="btn-home-cart" disabled style="background: #E5E7EB; margin-top: 0;">
                                 <i class="fas fa-box-open"></i> HẾT HÀNG
                             </button>
                         }
@@ -422,7 +849,33 @@
                 }
             }
 
-            // 2. LƯU VOUCHER
+            // 2. FLASH SALE COUNTDOWN
+            const cdElement = document.querySelector('.fs-countdown');
+            if (cdElement) {
+                const endTimeStr = cdElement.getAttribute('data-endtime');
+                const endTime = new Date(endTimeStr).getTime();
+
+                const timer = setInterval(function() {
+                    const now = new Date().getTime();
+                    const distance = endTime - now;
+
+                    if (distance < 0) {
+                        clearInterval(timer);
+                        window.location.reload();
+                        return;
+                    }
+
+                    const hours = Math.floor((distance % (1000 * 60 * 60 * 24 * 99)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    document.getElementById('fs-hours').innerText = hours.toString().padStart(2, '0');
+                    document.getElementById('fs-minutes').innerText = minutes.toString().padStart(2, '0');
+                    document.getElementById('fs-seconds').innerText = seconds.toString().padStart(2, '0');
+                }, 1000);
+            }
+
+            // 3. LƯU VOUCHER
             document.querySelectorAll('.btn-save-voucher').forEach(btn => {
                 btn.addEventListener('click', async function() {
                     @if (User.Identity == null || !User.Identity.IsAuthenticated)
@@ -444,6 +897,7 @@
                         formData.append('promotionId', promoId);
                         const res = await fetch('/CustomerWallet/SaveVoucher', { method: 'POST', body: formData });
                         const data = await res.json();
+
                         if (data.success) {
                             this.innerHTML = 'ĐÃ LƯU';
                             this.style.background = '#10B981'; this.style.color = '#fff';
@@ -463,9 +917,7 @@
                 });
             });
 
-            // =========================================================
-            // 3. XỬ LÝ YÊU THÍCH (THÊM / HỦY) BẰNG AJAX (DUY NHẤT 1 HÀM)
-            // =========================================================
+            // 4. XỬ LÝ YÊU THÍCH (THÊM / HỦY) BẰNG AJAX
             window.toggleFavorite = async function(event, btnElement, variantId) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -476,8 +928,6 @@
                 }
 
                 const icon = btnElement.querySelector('i');
-
-                // Tạm thời bật tắt UI ngay lập tức cho trải nghiệm nhanh
                 const isCurrentlyActive = btnElement.classList.contains('active');
                 btnElement.classList.toggle('active');
                 icon.className = isCurrentlyActive ? 'far fa-heart' : 'fas fa-heart';
@@ -486,7 +936,6 @@
                     const formData = new FormData();
                     formData.append('variantId', variantId);
 
-                    // Gọi Database qua Controller
                     const response = await fetch('/Favorite/Toggle', {
                         method: 'POST',
                         body: formData
@@ -496,8 +945,6 @@
 
                     if (data.success) {
                         window.showToast(data.message, 'success');
-
-                        // Chốt UI dựa trên dữ liệu thật (Màu đỏ = Đã thêm)
                         if (data.isAdded) {
                             btnElement.classList.add('active');
                             icon.className = 'fas fa-heart';
@@ -506,7 +953,6 @@
                             icon.className = 'far fa-heart';
                         }
                     } else {
-                        // Thất bại -> trả lại UI cũ
                         btnElement.classList.toggle('active');
                         icon.className = isCurrentlyActive ? 'fas fa-heart' : 'far fa-heart';
 
@@ -524,55 +970,61 @@
                     window.showToast('Lỗi kết nối đến máy chủ.', 'error');
                 }
             };
+        // ====================================================================
+                    // BỘ ĐIỀU KHIỂN NÚT BẤM (THÊM GIỎ / MUA NGAY) ĐƯỢC TÁCH BẠCH
+                    // ====================================================================
+                    window.setCartAction = function(btn, action) {
+                        const form = btn.closest('form');
+                        form.querySelector('.actionTypeInput').value = action;
+                        form.activeBtn = btn;
+                        form.originalBtnText = btn.innerHTML;
+                        form.dispatchEvent(new Event('submit', {cancelable: true, bubbles: true}));
+                    };
 
-            // 4. XỬ LÝ AJAX THÊM VÀO GIỎ HÀNG KHÔNG RELOAD TRANG
-            document.querySelectorAll('.ajax-cart-form').forEach(form => {
-                form.addEventListener('submit', async function (e) {
-                    e.preventDefault();
+                    document.querySelectorAll('.ajax-cart-form').forEach(form => {
+                        form.addEventListener('submit', async function (e) {
+                            e.preventDefault();
 
-                    const btnSubmit = this.querySelector('.btn-home-cart');
-                    if (btnSubmit.disabled) return;
+                            const formData = new FormData(this);
+                            const actionType = formData.get('actionType') || 'add';
+                            const variantId = formData.get('variantId');
+                            const qty = formData.get('quantity') || 1;
 
-                    const originalContent = btnSubmit.innerHTML;
+                            // 1. NẾU LÀ "MUA NGAY": BỎ QUA GIỎ HÀNG, ĐI THẲNG SANG CHECKOUT
+                            if (actionType === 'buy') {
+                                window.location.href = `/Checkout/Index?buyNowVariantId=${variantId}&buyNowQty=${qty}`;
+                                return; // Dừng lập tức, không gọi API AddToCart nữa
+                            }
 
-                    btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ĐANG XỬ LÝ';
-                    btnSubmit.disabled = true;
+                            // 2. NẾU LÀ "THÊM VÀO GIỎ" (Giữ nguyên logic cũ)
+                            const btnSubmit = this.activeBtn || this.querySelector('button[type="submit"]');
+                            if (!btnSubmit || btnSubmit.disabled) return;
 
-                    try {
-                        const formData = new FormData(this);
-                        const url = this.action;
+                            const originalContent = this.originalBtnText || btnSubmit.innerHTML;
+                            btnSubmit.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+                            btnSubmit.disabled = true;
 
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
+                            try {
+                                const response = await fetch(this.action, {
+                                    method: 'POST', body: formData,
+                                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                                });
+                                const data = await response.json();
+
+                                if (data.success) {
+                                    const cartBadge = document.getElementById('header-cart-badge');
+                                    if (cartBadge) { cartBadge.innerText = data.cartCount; cartBadge.classList.add('has-items'); }
+                                    window.showToast(data.message, "success");
+                                } else {
+                                    window.showToast(data.message, "error");
+                                }
+                            } catch (error) {
+                                window.showToast("Mất kết nối máy chủ.", "error");
+                            } finally {
+                                btnSubmit.innerHTML = originalContent; btnSubmit.disabled = false; this.activeBtn = null;
                             }
                         });
-
-                        if (response.ok || response.redirected) {
-                            window.showToast("Đã thêm sản phẩm vào giỏ hàng!", "success");
-
-                            const cartBadge = document.getElementById('header-cart-badge');
-                            if (cartBadge) {
-                                let currentQty = parseInt(cartBadge.innerText) || 0;
-                                let qtyToAdd = parseInt(formData.get('quantity')) || 1;
-
-                                cartBadge.innerText = currentQty + qtyToAdd;
-                                cartBadge.classList.add('has-items');
-                            }
-                        } else {
-                            window.showToast("Không thể thêm vào giỏ hàng. Thử lại sau.", "error");
-                        }
-                    } catch (error) {
-                        console.error("Lỗi AJAX giỏ hàng:", error);
-                        window.showToast("Mất kết nối máy chủ.", "error");
-                    } finally {
-                        btnSubmit.innerHTML = originalContent;
-                        btnSubmit.disabled = false;
-                    }
-                });
-            });
+                    });
 
         });
     </script>

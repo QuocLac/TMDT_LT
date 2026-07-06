@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TMDT_LT.Data;
 
@@ -11,9 +12,11 @@ using TMDT_LT.Data;
 namespace TMDT_LT.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260628145834_UpdateAddressTable_UserBehaviorLogs")]
+    partial class UpdateAddressTable_UserBehaviorLogs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -128,173 +131,6 @@ namespace TMDT_LT.Migrations
                     b.HasIndex("CustomerId");
 
                     b.ToTable("ADDRESS", (string)null);
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.AnalyticsEvent", b =>
-                {
-                    b.Property<int>("EventId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EventId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime");
-
-                    b.Property<int?>("CustomerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("EventName")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<decimal?>("EventValue")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("OrderId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PagePath")
-                        .HasMaxLength(600)
-                        .HasColumnType("nvarchar(600)");
-
-                    b.Property<int?>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Referrer")
-                        .HasMaxLength(600)
-                        .HasColumnType("nvarchar(600)");
-
-                    b.Property<string>("SearchKeyword")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("SessionKey")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<int?>("TargetProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("VariantId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("VisitorKey")
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.HasKey("EventId");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("CustomerId");
-
-                    b.HasIndex("EventName");
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("SessionKey");
-
-                    b.HasIndex("VisitorKey");
-
-                    b.ToTable("AnalyticsEvents");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.AnalyticsSession", b =>
-                {
-                    b.Property<int>("AnalyticsSessionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AnalyticsSessionId"));
-
-                    b.Property<string>("Campaign")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<int?>("CustomerId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("EventCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FirstSeenAt")
-                        .HasColumnType("datetime");
-
-                    b.Property<bool>("HasAddToCart")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasCheckout")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasPurchase")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("IpHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<bool>("IsAuthenticated")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LandingPage")
-                        .HasMaxLength(600)
-                        .HasColumnType("nvarchar(600)");
-
-                    b.Property<DateTime>("LastSeenAt")
-                        .HasColumnType("datetime");
-
-                    b.Property<string>("Medium")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<int>("PageViewCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Referrer")
-                        .HasMaxLength(600)
-                        .HasColumnType("nvarchar(600)");
-
-                    b.Property<string>("SessionKey")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<decimal>("TotalRevenue")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(600)
-                        .HasColumnType("nvarchar(600)");
-
-                    b.Property<string>("VisitorKey")
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.HasKey("AnalyticsSessionId");
-
-                    b.HasIndex("CustomerId");
-
-                    b.HasIndex("SessionKey")
-                        .IsUnique();
-
-                    b.HasIndex("VisitorKey");
-
-                    b.ToTable("AnalyticsSessions");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.Blog", b =>
@@ -443,73 +279,6 @@ namespace TMDT_LT.Migrations
                     b.HasKey("BannerId");
 
                     b.ToTable("CampaignBanners");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.CampaignRules", b =>
-                {
-                    b.Property<int>("RuleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RuleId"));
-
-                    b.Property<int>("CampaignId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("DiscountType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<decimal>("DiscountValue")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("TargetId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TargetType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("RuleId");
-
-                    b.HasIndex("CampaignId");
-
-                    b.ToTable("CampaignRules");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.Campaigns", b =>
-                {
-                    b.Property<int>("CampaignId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CampaignId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("CampaignId");
-
-                    b.ToTable("Campaigns");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.CartItems", b =>
@@ -704,166 +473,6 @@ namespace TMDT_LT.Migrations
                     b.ToTable("Favorites");
                 });
 
-            modelBuilder.Entity("TMDT_LT.Models.FlashSaleChangeLogs", b =>
-                {
-                    b.Property<int>("ChangeLogId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ChangeLogId"));
-
-                    b.Property<string>("ActionType")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<int?>("AdminAccountId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
-
-                    b.Property<string>("FieldName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("FlashSaleId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ItemId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("NewValue")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OldValue")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("ChangeLogId");
-
-                    b.HasIndex("AdminAccountId");
-
-                    b.HasIndex("FlashSaleId");
-
-                    b.HasIndex("ItemId");
-
-                    b.ToTable("FlashSaleChangeLogs");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.FlashSaleItems", b =>
-                {
-                    b.Property<int>("ItemId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ItemId"));
-
-                    b.Property<int>("FlashSaleId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("FlashSalePrice")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<int>("MaxPerUser")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Sold")
-                        .HasColumnType("int");
-
-                    b.Property<int>("VariantId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ItemId");
-
-                    b.HasIndex("FlashSaleId");
-
-                    b.HasIndex("VariantId");
-
-                    b.ToTable("FlashSaleItems");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.FlashSales", b =>
-                {
-                    b.Property<int>("FlashSaleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FlashSaleId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("EndTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("FlashSaleId");
-
-                    b.ToTable("FlashSales");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.InventoryLots", b =>
-                {
-                    b.Property<int>("LotId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LotId"));
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("Poid")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ReceivedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ReceivedQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RemainingQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SupplierId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("UnitCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("VariantId")
-                        .HasColumnType("int");
-
-                    b.HasKey("LotId");
-
-                    b.HasIndex("VariantId");
-
-                    b.ToTable("InventoryLots", (string)null);
-                });
-
             modelBuilder.Entity("TMDT_LT.Models.InventoryTransactions", b =>
                 {
                     b.Property<int>("TransactionId")
@@ -955,14 +564,6 @@ namespace TMDT_LT.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderDetailId"));
 
-                    b.Property<int?>("FlashSaleItemId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsFlashSaleItem")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<bool>("IsReviewed")
                         .HasColumnType("bit");
 
@@ -980,8 +581,6 @@ namespace TMDT_LT.Migrations
 
                     b.HasKey("OrderDetailId")
                         .HasName("PK__OrderDet__D3B9D36CF7E78EDE");
-
-                    b.HasIndex("FlashSaleItemId");
 
                     b.HasIndex("OrderId");
 
@@ -1103,11 +702,6 @@ namespace TMDT_LT.Migrations
                         .HasColumnType("int")
                         .HasColumnName("CustomerID");
 
-                    b.Property<bool>("IsStockDeducted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<DateTime?>("OrderDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
@@ -1142,9 +736,6 @@ namespace TMDT_LT.Migrations
                     b.Property<string>("Status")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime?>("StockDeductedAt")
-                        .HasColumnType("datetime");
 
                     b.Property<decimal?>("TotalAmount")
                         .HasColumnType("decimal(18, 2)");
@@ -1209,46 +800,6 @@ namespace TMDT_LT.Migrations
                     b.ToTable("ProductImages");
                 });
 
-            modelBuilder.Entity("TMDT_LT.Models.ProductSerials", b =>
-                {
-                    b.Property<int>("SerialId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SerialId"));
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("LotId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("OrderId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SerialNumber")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("SoldDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("VariantId")
-                        .HasColumnType("int");
-
-                    b.HasKey("SerialId");
-
-                    b.HasIndex("LotId");
-
-                    b.HasIndex("VariantId");
-
-                    b.ToTable("ProductSerials", (string)null);
-                });
-
             modelBuilder.Entity("TMDT_LT.Models.ProductVariants", b =>
                 {
                     b.Property<int>("VariantId")
@@ -1260,9 +811,6 @@ namespace TMDT_LT.Migrations
                     b.Property<string>("Color")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
-
-                    b.Property<decimal?>("CostPrice")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("CreatedDate")
                         .ValueGeneratedOnAdd()
@@ -1655,168 +1203,6 @@ namespace TMDT_LT.Migrations
                     b.ToTable("Reviews");
                 });
 
-            modelBuilder.Entity("TMDT_LT.Models.SalesOrderDetails", b =>
-                {
-                    b.Property<int>("SODetailId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SODetailId"));
-
-                    b.Property<int>("LotId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Profit")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SOId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TaxRate")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("UnitCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("VariantId")
-                        .HasColumnType("int");
-
-                    b.HasKey("SODetailId");
-
-                    b.HasIndex("LotId");
-
-                    b.HasIndex("SOId");
-
-                    b.HasIndex("VariantId");
-
-                    b.ToTable("SalesOrderDetails", (string)null);
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.SalesOrders", b =>
-                {
-                    b.Property<int>("SOId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SOId"));
-
-                    b.Property<int>("AccountId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("COGSTotal")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("DiscountPercent")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("FromWarehouseId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("InvoiceNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("OrderDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("ProfitTotal")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("SOCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("ShippingCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("StoreId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TaxAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("SOId");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("StoreId");
-
-                    b.ToTable("SalesOrders", (string)null);
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.SearchQueryLog", b =>
-                {
-                    b.Property<int>("SearchQueryLogId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SearchQueryLogId"));
-
-                    b.Property<int?>("ClickedProductId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime");
-
-                    b.Property<int?>("CustomerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Keyword")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("NormalizedKeyword")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("ResultCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SessionKey")
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<string>("VisitorKey")
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.HasKey("SearchQueryLogId");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("NormalizedKeyword");
-
-                    b.HasIndex("SessionKey");
-
-                    b.ToTable("SearchQueryLogs");
-                });
-
             modelBuilder.Entity("TMDT_LT.Models.Shipping", b =>
                 {
                     b.Property<int>("ShippingId")
@@ -1896,110 +1282,6 @@ namespace TMDT_LT.Migrations
                     b.ToTable("ShippingCarriers");
                 });
 
-            modelBuilder.Entity("TMDT_LT.Models.Stores", b =>
-                {
-                    b.Property<int>("StoreId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StoreId"));
-
-                    b.Property<string>("Address")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ContactPerson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ContractDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("ContractExpiry")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ContractNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Email")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StoreCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StoreName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StoreType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TaxCode")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("StoreId");
-
-                    b.ToTable("Stores", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            StoreId = 1,
-                            Address = "Quận 1, TP. Hồ Chí Minh",
-                            ContactPerson = "Nguyễn Văn Trưởng Chi Nhánh",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Email = "hcm@kingphone.vn",
-                            IsActive = true,
-                            Phone = "0283999111",
-                            StoreCode = "ST001",
-                            StoreName = "KingPhone Store HCM - Quận 1",
-                            StoreType = "Direct",
-                            TaxCode = "0304050607"
-                        },
-                        new
-                        {
-                            StoreId = 2,
-                            Address = "Quận Hoàn Kiếm, Hà Nội",
-                            ContactPerson = "Trần Thị Quản Lý",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Email = "hn@kingphone.vn",
-                            IsActive = true,
-                            Phone = "0243999222",
-                            StoreCode = "ST002",
-                            StoreName = "KingPhone Store HN - Hoàn Kiếm",
-                            StoreType = "Direct",
-                            TaxCode = "0304050608"
-                        },
-                        new
-                        {
-                            StoreId = 3,
-                            Address = "Quận Bình Thạnh, TP. HCM",
-                            ContactPerson = "Lê Văn Đối Tác",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Email = "binhthanh@gmail.com",
-                            IsActive = true,
-                            Phone = "0903888999",
-                            StoreCode = "AG001",
-                            StoreName = "Đại lý Ủy quyền Bình Thạnh",
-                            StoreType = "Agent",
-                            TaxCode = "0304050609"
-                        });
-                });
-
             modelBuilder.Entity("TMDT_LT.Models.Suppliers", b =>
                 {
                     b.Property<int>("SupplierId")
@@ -2042,9 +1324,6 @@ namespace TMDT_LT.Migrations
                         .HasMaxLength(50)
                         .IsUnicode(false)
                         .HasColumnType("varchar(50)");
-
-                    b.Property<int?>("Type")
-                        .HasColumnType("int");
 
                     b.HasKey("SupplierId")
                         .HasName("PK__Supplier__4BE666B4CD56E1BE");
@@ -2108,17 +1387,6 @@ namespace TMDT_LT.Migrations
                         .IsRequired();
 
                     b.Navigation("Blog");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.CampaignRules", b =>
-                {
-                    b.HasOne("TMDT_LT.Models.Campaigns", "Campaign")
-                        .WithMany("CampaignRules")
-                        .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Campaign");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.CartItems", b =>
@@ -2201,64 +1469,6 @@ namespace TMDT_LT.Migrations
                     b.Navigation("Customer");
                 });
 
-            modelBuilder.Entity("TMDT_LT.Models.FlashSaleChangeLogs", b =>
-                {
-                    b.HasOne("TMDT_LT.Models.Account", "AdminAccount")
-                        .WithMany()
-                        .HasForeignKey("AdminAccountId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("FK_FlashSaleChangeLogs_ACCOUNT_AdminAccountId");
-
-                    b.HasOne("TMDT_LT.Models.FlashSales", "FlashSale")
-                        .WithMany("ChangeLogs")
-                        .HasForeignKey("FlashSaleId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK_FlashSaleChangeLogs_FlashSales_FlashSaleId");
-
-                    b.HasOne("TMDT_LT.Models.FlashSaleItems", "FlashSaleItem")
-                        .WithMany("ChangeLogs")
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("FK_FlashSaleChangeLogs_FlashSaleItems_ItemId");
-
-                    b.Navigation("AdminAccount");
-
-                    b.Navigation("FlashSale");
-
-                    b.Navigation("FlashSaleItem");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.FlashSaleItems", b =>
-                {
-                    b.HasOne("TMDT_LT.Models.FlashSales", "FlashSale")
-                        .WithMany("FlashSaleItems")
-                        .HasForeignKey("FlashSaleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TMDT_LT.Models.ProductVariants", "Variant")
-                        .WithMany()
-                        .HasForeignKey("VariantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("FlashSale");
-
-                    b.Navigation("Variant");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.InventoryLots", b =>
-                {
-                    b.HasOne("TMDT_LT.Models.ProductVariants", "Variant")
-                        .WithMany()
-                        .HasForeignKey("VariantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Variant");
-                });
-
             modelBuilder.Entity("TMDT_LT.Models.InventoryTransactions", b =>
                 {
                     b.HasOne("TMDT_LT.Models.Account", "Account")
@@ -2291,12 +1501,6 @@ namespace TMDT_LT.Migrations
 
             modelBuilder.Entity("TMDT_LT.Models.OrderDetails", b =>
                 {
-                    b.HasOne("TMDT_LT.Models.FlashSaleItems", "FlashSaleItem")
-                        .WithMany("OrderDetails")
-                        .HasForeignKey("FlashSaleItemId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("FK_OrderDetails_FlashSaleItems_FlashSaleItemId");
-
                     b.HasOne("TMDT_LT.Models.Orders", "Order")
                         .WithMany("OrderDetails")
                         .HasForeignKey("OrderId")
@@ -2307,8 +1511,6 @@ namespace TMDT_LT.Migrations
                         .WithMany("OrderDetails")
                         .HasForeignKey("VariantId")
                         .HasConstraintName("FK__OrderDeta__Varia__73BA3083");
-
-                    b.Navigation("FlashSaleItem");
 
                     b.Navigation("Order");
 
@@ -2375,25 +1577,6 @@ namespace TMDT_LT.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.ProductSerials", b =>
-                {
-                    b.HasOne("TMDT_LT.Models.InventoryLots", "Lot")
-                        .WithMany("ProductSerials")
-                        .HasForeignKey("LotId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TMDT_LT.Models.ProductVariants", "Variant")
-                        .WithMany()
-                        .HasForeignKey("VariantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Lot");
-
-                    b.Navigation("Variant");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.ProductVariants", b =>
@@ -2519,52 +1702,6 @@ namespace TMDT_LT.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("TMDT_LT.Models.SalesOrderDetails", b =>
-                {
-                    b.HasOne("TMDT_LT.Models.InventoryLots", "Lot")
-                        .WithMany()
-                        .HasForeignKey("LotId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("TMDT_LT.Models.SalesOrders", "SalesOrder")
-                        .WithMany("SalesOrderDetails")
-                        .HasForeignKey("SOId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TMDT_LT.Models.ProductVariants", "Variant")
-                        .WithMany()
-                        .HasForeignKey("VariantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Lot");
-
-                    b.Navigation("SalesOrder");
-
-                    b.Navigation("Variant");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.SalesOrders", b =>
-                {
-                    b.HasOne("TMDT_LT.Models.Account", "Account")
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TMDT_LT.Models.Stores", "Store")
-                        .WithMany("SalesOrders")
-                        .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account");
-
-                    b.Navigation("Store");
-                });
-
             modelBuilder.Entity("TMDT_LT.Models.Shipping", b =>
                 {
                     b.HasOne("TMDT_LT.Models.Orders", "Order")
@@ -2597,11 +1734,6 @@ namespace TMDT_LT.Migrations
                     b.Navigation("Products");
                 });
 
-            modelBuilder.Entity("TMDT_LT.Models.Campaigns", b =>
-                {
-                    b.Navigation("CampaignRules");
-                });
-
             modelBuilder.Entity("TMDT_LT.Models.Categories", b =>
                 {
                     b.Navigation("Products");
@@ -2623,25 +1755,6 @@ namespace TMDT_LT.Migrations
             modelBuilder.Entity("TMDT_LT.Models.Favorites", b =>
                 {
                     b.Navigation("FavoriteDetails");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.FlashSaleItems", b =>
-                {
-                    b.Navigation("ChangeLogs");
-
-                    b.Navigation("OrderDetails");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.FlashSales", b =>
-                {
-                    b.Navigation("ChangeLogs");
-
-                    b.Navigation("FlashSaleItems");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.InventoryLots", b =>
-                {
-                    b.Navigation("ProductSerials");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.Orders", b =>
@@ -2694,16 +1807,6 @@ namespace TMDT_LT.Migrations
             modelBuilder.Entity("TMDT_LT.Models.Reviews", b =>
                 {
                     b.Navigation("ReviewDetails");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.SalesOrders", b =>
-                {
-                    b.Navigation("SalesOrderDetails");
-                });
-
-            modelBuilder.Entity("TMDT_LT.Models.Stores", b =>
-                {
-                    b.Navigation("SalesOrders");
                 });
 
             modelBuilder.Entity("TMDT_LT.Models.Suppliers", b =>

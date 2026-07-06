@@ -19,6 +19,9 @@ public partial class ProductVariants
 
     public decimal? DiscountPrice { get; set; }
 
+    // Thêm vào bên trong class ProductVariants
+    public decimal? CostPrice { get; set; } // Giá vốn (Dùng để check chống bán lỗ khi chạy Flash Sale)
+
     public int? Stock { get; set; }
 
     public string? ImageUrl { get; set; }

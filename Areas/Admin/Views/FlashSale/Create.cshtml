@@ -1,0 +1,873 @@
+﻿@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Khởi tạo Flash Sale";
+}
+
+<style>
+    /* Typography & Colors */
+    .text-danger-custom {
+        color: #DC2626 !important;
+        font-weight: 700;
+    }
+
+    .text-success-custom {
+        color: #059669 !important;
+        font-weight: 700;
+    }
+
+    .text-navy {
+        color: #0F172A !important;
+        font-weight: 800;
+    }
+
+    /* Stats Box cho Analytics */
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-box {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        padding: 16px;
+        border-radius: 8px;
+        border-top: 4px solid #0F172A;
+    }
+
+        .stat-box.danger {
+            border-top-color: #DC2626;
+        }
+
+        .stat-box.success {
+            border-top-color: #059669;
+        }
+
+        .stat-box.warning {
+            border-top-color: #D97706;
+        }
+
+    .stat-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #64748B;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .stat-value {
+        font-size: 18px;
+        font-weight: 800;
+        color: #0F172A;
+        font-family: monospace;
+    }
+
+    /* Cấu trúc Bảng Cây (Tree-Table) */
+    .table-group-header {
+        background-color: #F8FAFC;
+        border-top: 2px solid #E2E8F0;
+    }
+
+        .table-group-header td {
+            padding: 12px 16px;
+            font-weight: 700;
+            color: #0F172A;
+        }
+
+    .table-child-row td {
+        background-color: #FFFFFF;
+        padding: 12px 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    /* Thiết kế Tab phẳng */
+    .tab-container {
+        display: flex;
+        border-bottom: 1px solid #E5E7EB;
+        background: #F8FAFC;
+    }
+
+    .tab-btn {
+        padding: 14px 24px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        cursor: pointer;
+        border: none;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        transition: all 0.2s;
+        text-transform: uppercase;
+    }
+
+        .tab-btn:hover {
+            color: #0F172A;
+        }
+
+        .tab-btn.active {
+            color: #0F172A;
+            border-bottom-color: #0F172A;
+            font-weight: 800;
+            background: #FFFFFF;
+        }
+
+    /* Modal Config */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        padding: 20px;
+    }
+
+    .modal-content {
+        background: #FFFFFF;
+        width: 100%;
+        max-width: 550px;
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+    }
+
+    .modal-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid #E5E7EB;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #F8FAFC;
+    }
+
+    .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+    }
+
+    .modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #E5E7EB;
+        background: #F8FAFC;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .section-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: #0F172A;
+        text-transform: uppercase;
+        margin: 0;
+        padding: 16px 24px;
+        background: #F8FAFC;
+        border-bottom: 1px solid #E5E7EB;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Flash sale operating options */
+    .config-option-box {
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 14px;
+        background: #FFFFFF;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .config-option-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: #0F172A;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+    }
+
+    .config-option-desc {
+        font-size: 12px;
+        color: #64748B;
+        line-height: 1.45;
+        margin-top: -4px;
+    }
+
+    .config-radio-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #334155;
+        cursor: pointer;
+    }
+
+    .queue-mini-label {
+        font-size: 10px;
+        color: #64748B;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    .queue-control-stack {
+        display: grid;
+        grid-template-columns: 1fr 92px;
+        gap: 6px;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+</style>
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div>
+        <h2 style="margin-bottom: 5px; font-weight: 800; color: #111827;">Thiết lập Flash Sale</h2>
+        <p style="color: #6B7280; font-size: 14px; margin: 0;">Quản lý hàng loạt, áp dụng giá tự động và kiểm soát rủi ro giá vốn.</p>
+    </div>
+    <div style="display: flex; gap: 12px;">
+        <a asp-action="Index" class="btn-outline">Hủy bỏ</a>
+        <button type="button" class="btn-dark" onclick="submitFlashSale()">LƯU CHIẾN DỊCH</button>
+    </div>
+</div>
+
+<div style="display: flex; gap: 24px; margin-bottom: 24px;">
+    <div class="admin-card" style="flex: 1; margin-bottom: 0;">
+        <div class="form-row">
+            <label class="form-label">Tên đợt Sale</label>
+            <input type="text" id="fsName" class="form-control" placeholder="Flash Sale Nửa Đêm..." />
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+                <label class="form-label">Bắt đầu</label>
+                <input type="datetime-local" id="fsStart" class="form-control" />
+            </div>
+            <div>
+                <label class="form-label">Kết thúc</label>
+                <input type="datetime-local" id="fsEnd" class="form-control" />
+            </div>
+        </div>
+    </div>
+
+    <div style="flex: 2;">
+        <div class="stat-grid" style="margin-bottom: 0; height: 100%;">
+            <div class="stat-box">
+                <div class="stat-title">TỔNG VỐN DỰ KIẾN</div>
+                <div class="stat-value" id="statCapital">0 đ</div>
+            </div>
+            <div class="stat-box warning">
+                <div class="stat-title">NGÂN SÁCH TRỢ GIÁ</div>
+                <div class="stat-value text-danger-custom" id="statDiscount">0 đ</div>
+            </div>
+            <div class="stat-box success">
+                <div class="stat-title">DOANH THU KỲ VỌNG</div>
+                <div class="stat-value text-success-custom" id="statRevenue">0 đ</div>
+            </div>
+            <div class="stat-box" id="boxProfit">
+                <div class="stat-title">LỢI NHUẬN GỘP</div>
+                <div class="stat-value text-navy" id="statProfit">0 đ</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="admin-card" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
+    <div class="tab-container">
+        <button type="button" class="tab-btn active" id="tab-all" onclick="switchTab('all')">TẤT CẢ KHO HÀNG</button>
+        <button type="button" class="tab-btn" id="tab-recommended" onclick="switchTab('recommended')">ĐỀ XUẤT XẢ HÀNG</button>
+    </div>
+
+    <div style="padding: 16px 24px; background: #FFFFFF; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 13px; font-weight: 700; color: #0F172A;">Dữ liệu: <span id="availCount" class="text-navy">0</span> mục</span>
+        <div style="display: flex; gap: 12px;">
+            <input type="text" id="filterSearch" class="form-control" placeholder="Tìm kiếm nhanh..." style="width: 220px; padding: 6px 12px; font-size: 13px;" onkeyup="renderTables()" />
+            <select id="filterCategory" class="form-control" style="width: 150px; padding: 6px 12px; font-size: 13px;" onchange="renderTables()">
+                <option value="">-- Mọi danh mục --</option>
+                @foreach (var c in ViewBag.Categories)
+                {
+                    <option value="@c.CategoryName">@c.CategoryName</option>
+                }
+            </select>
+            <select id="filterBrand" class="form-control" style="width: 150px; padding: 6px 12px; font-size: 13px;" onchange="renderTables()">
+                <option value="">-- Mọi nhãn hàng --</option>
+                @foreach (var b in ViewBag.Brands)
+                {
+                    <option value="@b.BrandName">@b.BrandName</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div style="background: #F1F5F9; padding: 12px 24px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 13px; color: #64748B;">Tích chọn các mục bên dưới để áp dụng cấu hình chung.</span>
+        <button type="button" class="btn-dark" onclick="openConfigModal('bulk', null)">Cấu hình</button>
+    </div>
+
+    <div style="max-height: 500px; overflow-y: auto;">
+        <table class="data-table" style="width: 100%;">
+            <thead style="position: sticky; top: 0; z-index: 10;">
+                <tr>
+                    <th style="width: 5%;"><input type="checkbox" id="chkAllAvail" onchange="toggleAllAvail(this.checked)" /></th>
+                    <th style="width: 40%;">Sản phẩm & Biến thể</th>
+                    <th style="width: 15%;">Tồn kho</th>
+                    <th style="width: 20%;">Giá Vốn</th>
+                    <th style="width: 10%;">Giá Đang Bán</th>
+                    <th style="width: 10%; text-align: right;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="availTableBody">
+                <tr><td colspan="6" style="text-align: center; padding: 40px;">Đang phân tích dữ liệu kho hàng...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="admin-card" style="padding: 0; overflow: hidden; border-top: 4px solid #111827;">
+    <div class="section-title">
+        <span>HÀNG ĐỢI FLASH SALE (<span id="queueCount">0</span> mục)</span>
+        <span style="font-size: 12px; font-weight: normal; color: #64748B;">Bạn có thể sửa giá, số suất sale và giới hạn mỗi khách trực tiếp trên bảng này.</span>
+    </div>
+    <div style="max-height: 500px; overflow-y: auto;">
+        <table class="data-table" style="width: 100%;">
+            <thead style="position: sticky; top: 0; z-index: 10;">
+                <tr>
+                    <th style="width: 30%;">Sản phẩm & Biến thể</th>
+                    <th style="width: 15%;">Tồn / Vốn</th>
+                    <th style="width: 10%;">Giá Gốc</th>
+                    <th style="width: 15%;">Giá Flash Sale</th>
+                    <th style="width: 18%;">Suất sale / giới hạn khách</th>
+                    <th style="width: 7%; text-align: right;">Lãi/Món</th>
+                    <th style="width: 5%; text-align: center;">Hủy</th>
+                </tr>
+            </thead>
+            <tbody id="queueTableBody">
+                <tr><td colspan="7" style="text-align: center; color: #9CA3AF; padding: 40px;">Chưa có sản phẩm nào được cấu hình.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalConfigPrice">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 style="margin: 0; font-size: 16px; font-weight: 800;">Quy Tắc Cấu Hình</h3>
+            <button type="button" class="btn-close" style="background:none; color:#000; border:none; font-size: 18px; cursor: pointer;" onclick="document.getElementById('modalConfigPrice').style.display='none'">Đóng</button>
+        </div>
+        <div class="modal-body">
+            <div style="background: #F1F5F9; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; color: #334155; border-left: 4px solid #0F172A;">
+                Hệ thống sẽ áp dụng cấu hình này cho <strong id="lblConfigCount" style="color: #0F172A; font-size: 15px;">0</strong> biến thể sản phẩm đang chọn.
+            </div>
+
+            <label class="form-label">Tùy chọn Mức Giảm:</label>
+            <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="radio" name="discountType" value="percent" checked /> Giảm theo %
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="radio" name="discountType" value="fixed_reduce" /> Giảm thẳng tiền
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="radio" name="discountType" value="fixed_price" /> Đồng giá
+                </label>
+            </div>
+
+            <div class="form-row">
+                <label class="form-label" id="lblConfigInput">Nhập Giá trị (Ví dụ: 15 đối với %):</label>
+                <input type="number" id="configValue" class="form-control" placeholder="0" />
+            </div>
+
+            <div style="border-top: 1px solid #E2E8F0; padding-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="config-option-box">
+                    <div class="config-option-title">Số lượng Flash Sale</div>
+                    <div class="config-option-desc">Quy định tổng số suất sale được mở bán cho từng biến thể.</div>
+                    <label class="config-radio-line">
+                        <input type="radio" name="stockMode" value="all" checked onchange="toggleConfigStockMode()" />
+                        Dùng toàn bộ tồn kho hiện tại
+                    </label>
+                    <label class="config-radio-line">
+                        <input type="radio" name="stockMode" value="custom" onchange="toggleConfigStockMode()" />
+                        Nhập số lượng flash sale riêng
+                    </label>
+                    <input type="number" id="configQty" class="form-control" min="1" placeholder="Nhập số lượng sale" disabled />
+                </div>
+
+                <div class="config-option-box">
+                    <div class="config-option-title">Giới hạn mỗi khách</div>
+                    <div class="config-option-desc">Dùng để chống gom hàng. Chọn không giới hạn nếu muốn khách mua theo suất sale/tồn còn lại.</div>
+                    <label class="config-radio-line">
+                        <input type="radio" name="limitMode" value="limited" checked onchange="toggleConfigLimitMode()" />
+                        Giới hạn mỗi khách
+                    </label>
+                    <label class="config-radio-line">
+                        <input type="radio" name="limitMode" value="unlimited" onchange="toggleConfigLimitMode()" />
+                        Không giới hạn, mua theo tồn/suất còn lại
+                    </label>
+                    <input type="number" id="configLimit" class="form-control" min="1" value="1" />
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-outline" onclick="document.getElementById('modalConfigPrice').style.display='none'">Hủy</button>
+            <button type="button" class="btn-dark" onclick="applyConfigAndMoveToQueue()">Mô phỏng & Thêm</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let masterData = [];
+        let recommendedData = [];
+        let queueList = [];
+        let pendingConfigIds = [];
+        let currentTab = 'all'; // 'all' hoặc 'recommended'
+
+        const formatMoney = (val) => new Intl.NumberFormat('vi-VN').format(val) + ' đ';
+
+        // Helper fallback giá vốn để test Analytics (nếu DB đang thiếu CostPrice)
+        const getSafeCostPrice = (item) => {
+            let cost = parseFloat(item.costPrice ?? item.CostPrice) || 0;
+            if (cost === 0) {
+                let current = parseFloat(item.currentPrice ?? item.CurrentPrice) || 0;
+                cost = current * 0.7;
+            }
+            return cost;
+        };
+
+        // CHẠY KHI TẢI TRANG: Kéo đồng thời 2 luồng dữ liệu bằng Promise.all
+        window.onload = async () => {
+            try {
+                const [resAll, resRec] = await Promise.all([
+                    fetch('/Admin/PromotionEngine/GetVariantsByTarget?targetType=All&targetId='),
+                    fetch('/Admin/PromotionEngine/GetDeadStockSuggestions')
+                ]);
+
+                const jsonAll = await resAll.json();
+                const jsonRec = await resRec.json();
+
+                if(jsonAll.success) masterData = jsonAll.data;
+                if(jsonRec.success) recommendedData = jsonRec.data;
+
+                renderTables();
+            } catch(e) { alert("Lỗi khi tải dữ liệu từ máy chủ!"); }
+        };
+
+        // ĐIỀU CHUYỂN TAB
+        function switchTab(tabName) {
+            currentTab = tabName;
+            document.getElementById('tab-all').classList.remove('active');
+            document.getElementById('tab-recommended').classList.remove('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            renderAvailTable();
+        }
+
+        function renderTables() {
+            renderAvailTable();
+            renderQueueTable();
+        }
+
+        // VẼ BẢNG NGUỒN (TÙY THEO TAB ĐANG CHỌN)
+        function renderAvailTable() {
+            const tbody = document.getElementById('availTableBody');
+            tbody.innerHTML = '';
+            document.getElementById('chkAllAvail').checked = false;
+
+            let dataSource = currentTab === 'recommended' ? recommendedData : masterData;
+
+            const kw = document.getElementById('filterSearch').value.toLowerCase().trim();
+            const cat = document.getElementById('filterCategory').value;
+            const brand = document.getElementById('filterBrand').value;
+
+            // Lọc các item chưa có mặt trong Hàng đợi (Queue)
+            let availList = dataSource.filter(x => !queueList.some(q => q.variantId === x.variantId));
+
+            if(kw) availList = availList.filter(x => (x.productName && x.productName.toLowerCase().includes(kw)) || x.variantId.toString().includes(kw));
+            if(cat) availList = availList.filter(x => x.category === cat);
+            if(brand) availList = availList.filter(x => x.brand === brand);
+
+            document.getElementById('availCount').innerText = availList.length;
+
+            if(availList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #9CA3AF; padding: 30px;">
+                    ${currentTab === 'recommended' ? "Không có sản phẩm nào cần xả kho (Hàng hóa khỏe mạnh)." : "Không có sản phẩm phù hợp."}
+                </td></tr>`;
+                return;
+            }
+
+            // Gom nhóm bằng ProductId
+            const groups = availList.reduce((acc, item) => {
+                if(!acc[item.productId]) acc[item.productId] = [];
+                acc[item.productId].push(item);
+                return acc;
+            }, {});
+
+            Object.keys(groups).forEach(pid => {
+                const variants = groups[pid];
+                const productName = variants[0].productName;
+
+                let masterTr = document.createElement('tr');
+                masterTr.className = 'table-group-header';
+                masterTr.innerHTML = `
+                    <td><input type="checkbox" class="chk-avail-prod" data-pid="${pid}" onchange="toggleAvailGroup(this, '${pid}')" /></td>
+                    <td colspan="4" style="color: #0F172A;">${productName}</td>
+                    <td style="text-align: right;">
+                        <button type="button" class="btn-outline" style="padding: 4px 8px; font-size: 11px;" onclick="openConfigModal('product', '${pid}')">Cấu hình</button>
+                    </td>
+                `;
+                tbody.appendChild(masterTr);
+
+                variants.forEach(v => {
+                    let cost = getSafeCostPrice(v);
+
+                    // In kèm lý do đề xuất (nếu có)
+                    let reasonHtml = (currentTab === 'recommended' && v.reason)
+                        ? `<div style="font-size:11px; color:#DC2626; margin-top: 4px;">Lý do: ${v.reason}</div>`
+                        : '';
+
+                    let childTr = document.createElement('tr');
+                    childTr.className = 'table-child-row';
+                    childTr.innerHTML = `
+                        <td><input type="checkbox" class="chk-avail-var pid-avail-${pid}" value="${v.variantId}" /></td>
+                        <td style="padding-left: 30px;">
+                            <span style="font-size: 13px;">Bản ${v.attribute}</span>
+                            ${reasonHtml}
+                        </td>
+                        <td><div style="font-size:13px; font-weight:700;">${v.stock}</div></td>
+                        <td style="font-size:13px; color:#64748B;">${formatMoney(cost)}</td>
+                        <td style="font-size:13px; font-weight:600; color:#0F172A;">${formatMoney(v.currentPrice)}</td>
+                        <td style="text-align: right;">
+                            <button type="button" class="btn-outline" style="padding: 4px 8px; font-size: 11px; border-color: #CBD5E1;" onclick="openConfigModal('single', ${v.variantId})">Cấu hình</button>
+                        </td>
+                    `;
+                    tbody.appendChild(childTr);
+                });
+            });
+        }
+
+        function toggleAllAvail(isChecked) {
+            document.querySelectorAll('.chk-avail-prod').forEach(b => b.checked = isChecked);
+            document.querySelectorAll('.chk-avail-var').forEach(b => b.checked = isChecked);
+        }
+        function toggleAvailGroup(masterCb, pid) {
+            document.querySelectorAll(`.chk-avail-var.pid-avail-${pid}`).forEach(b => b.checked = masterCb.checked);
+        }
+
+        function openConfigModal(mode, targetId) {
+            pendingConfigIds = [];
+
+            if (mode === 'single') {
+                pendingConfigIds.push(targetId);
+            }
+            else if (mode === 'product') {
+                document.querySelectorAll(`.chk-avail-var.pid-avail-${targetId}`).forEach(b => pendingConfigIds.push(parseInt(b.value)));
+            }
+            else if (mode === 'bulk') {
+                const checkedBoxes = document.querySelectorAll('.chk-avail-var:checked');
+                if(checkedBoxes.length === 0) { alert("Vui lòng tích chọn biến thể cần cấu hình!"); return; }
+                checkedBoxes.forEach(b => pendingConfigIds.push(parseInt(b.value)));
+            }
+
+            if(pendingConfigIds.length === 0) return;
+
+            document.getElementById('lblConfigCount').innerText = pendingConfigIds.length;
+            document.getElementById('configValue').value = '';
+            document.querySelector('input[name="stockMode"][value="all"]').checked = true;
+            document.querySelector('input[name="limitMode"][value="limited"]').checked = true;
+            document.getElementById('configQty').value = '';
+            document.getElementById('configLimit').value = '1';
+            toggleConfigStockMode();
+            toggleConfigLimitMode();
+
+            document.getElementById('modalConfigPrice').style.display = 'flex';
+        }
+
+        function toggleConfigStockMode() {
+            const stockMode = document.querySelector('input[name="stockMode"]:checked')?.value || 'all';
+            const qtyInput = document.getElementById('configQty');
+            qtyInput.disabled = stockMode === 'all';
+            if(stockMode === 'all') qtyInput.value = '';
+        }
+
+        function toggleConfigLimitMode() {
+            const limitMode = document.querySelector('input[name="limitMode"]:checked')?.value || 'limited';
+            const limitInput = document.getElementById('configLimit');
+            limitInput.disabled = limitMode === 'unlimited';
+            if(limitMode === 'unlimited') limitInput.value = '';
+            else if(!limitInput.value || parseInt(limitInput.value) <= 0) limitInput.value = '1';
+        }
+
+        function applyConfigAndMoveToQueue() {
+            const type = document.querySelector('input[name="discountType"]:checked').value;
+            const val = parseFloat(document.getElementById('configValue').value);
+            const stockMode = document.querySelector('input[name="stockMode"]:checked')?.value || 'all';
+            const limitMode = document.querySelector('input[name="limitMode"]:checked')?.value || 'limited';
+            const qtyStr = document.getElementById('configQty').value;
+            const limitStr = document.getElementById('configLimit').value;
+
+            if(isNaN(val) || val < 0) { alert("Giá trị cấu hình không hợp lệ!"); return; }
+            if(stockMode === 'custom' && (!qtyStr || parseInt(qtyStr) <= 0)) { alert("Vui lòng nhập số lượng flash sale hợp lệ!"); return; }
+            if(limitMode === 'limited' && (!limitStr || parseInt(limitStr) <= 0)) { alert("Vui lòng nhập giới hạn mỗi khách hợp lệ!"); return; }
+
+            let lossWarnings = [];
+            let itemsToMove = [];
+
+            let dataSource = currentTab === 'recommended' ? recommendedData : masterData;
+
+            pendingConfigIds.forEach(vid => {
+                let item = dataSource.find(x => x.variantId === vid);
+                if(!item) return;
+
+                let saleP = item.currentPrice;
+                if(type === 'percent') saleP = item.currentPrice * (1 - val/100);
+                else if(type === 'fixed_reduce') saleP = item.currentPrice - val;
+                else if(type === 'fixed_price') saleP = val;
+
+                if(saleP < 0) saleP = 0;
+
+                let actualCost = getSafeCostPrice(item);
+
+                if(saleP < actualCost) {
+                    lossWarnings.push(`- ${item.productName} (${item.attribute}): Bán ${formatMoney(saleP)} < Vốn ${formatMoney(actualCost)}`);
+                }
+
+                let parsedQty = parseInt(qtyStr) || 0;
+                let finalQty = stockMode === 'all' ? item.stock : parsedQty;
+                if(finalQty > item.stock) finalQty = item.stock;
+                if(finalQty < 1) finalQty = 1;
+
+                let isUnlimitedPerUser = limitMode === 'unlimited';
+                let finalLimit = isUnlimitedPerUser ? 0 : (parseInt(limitStr) || 1);
+                if(!isUnlimitedPerUser && finalLimit > finalQty) finalLimit = finalQty;
+
+                itemsToMove.push({
+                    ...item,
+                    flashSalePrice: saleP,
+                    qtySale: finalQty,
+                    useAllStock: stockMode === 'all',
+                    isUnlimitedPerUser: isUnlimitedPerUser,
+                    limitPerUser: finalLimit,
+                    safeCostPrice: actualCost
+                });
+            });
+
+            if(lossWarnings.length > 0) {
+                let msg = `HỆ THỐNG CẢNH BÁO: BÁN ÂM VỐN\n\nCó ${lossWarnings.length} biến thể sẽ bị rớt giá dưới mức vốn nhập:\n`;
+                msg += lossWarnings.slice(0, 5).join('\n');
+                if(lossWarnings.length > 5) msg += `\n... và ${lossWarnings.length - 5} mục khác.`;
+                msg += `\n\nBạn có CHẮC CHẮN muốn tiếp tục lưu vào hàng đợi?`;
+
+                if(!confirm(msg)) return;
+            }
+
+            queueList.push(...itemsToMove);
+            document.getElementById('modalConfigPrice').style.display = 'none';
+            pendingConfigIds = [];
+            renderTables();
+        }
+
+        // RENDER BẢNG QUEUE VÀ TÍNH TOÁN REAL-TIME
+        function renderQueueTable() {
+            const tbody = document.getElementById('queueTableBody');
+            tbody.innerHTML = '';
+            document.getElementById('queueCount').innerText = queueList.length;
+
+            let cap = 0, disc = 0, rev = 0, prof = 0;
+
+            if(queueList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #9CA3AF; padding: 40px;">Chưa có sản phẩm nào được cấu hình.</td></tr>';
+                updateStats(0,0,0,0);
+                return;
+            }
+
+            const groups = queueList.reduce((acc, item) => {
+                if(!acc[item.productId]) acc[item.productId] = [];
+                acc[item.productId].push(item);
+                return acc;
+            }, {});
+
+            Object.keys(groups).forEach(pid => {
+                const variants = groups[pid];
+                const productName = variants[0].productName;
+
+                let masterTr = document.createElement('tr');
+                masterTr.className = 'table-group-header';
+                masterTr.innerHTML = `<td colspan="7" style="color:#0F172A;">${productName}</td>`;
+                tbody.appendChild(masterTr);
+
+                variants.forEach(v => {
+                    let cost = v.safeCostPrice || getSafeCostPrice(v);
+                    let curP = parseFloat(v.currentPrice) || 0;
+                    let saleP = parseFloat(v.flashSalePrice) || 0;
+                    let q = parseInt(v.qtySale) || 0;
+                    let margin = saleP - cost;
+                    let isLoss = margin < 0;
+
+                    cap += (cost * q);
+                    rev += (saleP * q);
+                    disc += ((curP - saleP) * q);
+                    prof += (margin * q);
+
+                    let childTr = document.createElement('tr');
+                    childTr.className = 'table-child-row';
+                    childTr.innerHTML = `
+                        <td style="padding-left: 30px;"><span style="font-size: 13px;">Bản ${v.attribute}</span></td>
+                        <td>
+                            <div style="font-size:12px; font-weight:700;">${v.stock} cái</div>
+                            <div style="font-size:11px; color:#64748B;">Vốn: ${formatMoney(cost)}</div>
+                        </td>
+                        <td style="font-size:12px; text-decoration:line-through; color:#9CA3AF;">${formatMoney(curP)}</td>
+                        <td>
+                            <input type="number" class="form-control" style="font-size:13px; font-weight:bold; padding:6px; color:${isLoss?'#DC2626':'#0F172A'};" value="${saleP}" onchange="updateQueueField(${v.variantId}, 'flashSalePrice', this.value)" />
+                        </td>
+                        <td>
+                            <div class="queue-mini-label">Suất sale</div>
+                            <div class="queue-control-stack">
+                                <select class="form-control" style="font-size:11px; padding:6px;" onchange="updateQueueStockMode(${v.variantId}, this.value)">
+                                    <option value="all" ${v.useAllStock ? 'selected' : ''}>Toàn kho</option>
+                                    <option value="custom" ${!v.useAllStock ? 'selected' : ''}>Nhập riêng</option>
+                                </select>
+                                <input type="number" class="form-control" title="Số lượng flash sale" style="font-size:12px; padding:6px;" value="${q}" ${v.useAllStock ? 'disabled' : ''} onchange="updateQueueField(${v.variantId}, 'qtySale', this.value, ${v.stock})" />
+                            </div>
+                            <div class="queue-mini-label">Mỗi khách</div>
+                            <div class="queue-control-stack" style="margin-bottom:0;">
+                                <select class="form-control" style="font-size:11px; padding:6px;" onchange="updateQueueLimitMode(${v.variantId}, this.value)">
+                                    <option value="limited" ${v.isUnlimitedPerUser ? '' : 'selected'}>Giới hạn</option>
+                                    <option value="unlimited" ${v.isUnlimitedPerUser ? 'selected' : ''}>Không giới hạn</option>
+                                </select>
+                                <input type="number" class="form-control" title="Max/Khách" style="font-size:12px; padding:6px;" value="${v.isUnlimitedPerUser ? '' : v.limitPerUser}" ${v.isUnlimitedPerUser ? 'disabled' : ''} onchange="updateQueueField(${v.variantId}, 'limitPerUser', this.value, ${q})" />
+                            </div>
+                        </td>
+                        <td style="text-align:right; font-size:13px; font-weight:600; color:${isLoss?'#DC2626':'#059669'};">
+                            ${formatMoney(margin)}
+                            ${isLoss ? '<br><span style="font-size:10px;">(LỖ VỐN)</span>' : ''}
+                        </td>
+                        <td style="text-align: center;">
+                            <button type="button" class="btn-close" style="width: 24px; height: 24px; background: #FEE2E2; color: #DC2626; border-radius: 4px; border: none; cursor: pointer; font-weight:bold;" onclick="removeFromQueue(${v.variantId})">X</button>
+                        </td>
+                    `;
+                    tbody.appendChild(childTr);
+                });
+            });
+
+            updateStats(cap, disc, rev, prof);
+        }
+
+        function updateStats(cap, disc, rev, prof) {
+            document.getElementById('statCapital').innerText = formatMoney(cap);
+            document.getElementById('statDiscount').innerText = formatMoney(disc);
+            document.getElementById('statRevenue').innerText = formatMoney(rev);
+            document.getElementById('statProfit').innerText = formatMoney(prof);
+            document.getElementById('boxProfit').className = prof < 0 ? 'stat-box danger' : 'stat-box success';
+            document.getElementById('statProfit').className = prof < 0 ? 'stat-value text-danger-custom' : 'stat-value text-success-custom';
+        }
+
+        function updateQueueField(vid, field, value, maxValue = null) {
+            let item = queueList.find(x => x.variantId == vid);
+            if(!item) return;
+            let val = parseInt(value) || 0;
+
+            if(field === 'qtySale') {
+                if(val < 1) val = 1;
+                if(maxValue !== null && val > maxValue) {
+                    alert("Số lượng flash sale không được vượt quá tồn kho!");
+                    val = maxValue;
+                }
+                item.qtySale = val;
+                item.useAllStock = false;
+                if(!item.isUnlimitedPerUser && item.limitPerUser > item.qtySale) item.limitPerUser = item.qtySale;
+            }
+            else if(field === 'limitPerUser') {
+                if(val < 1) val = 1;
+                const maxLimit = maxValue || item.qtySale || item.stock || 1;
+                if(val > maxLimit) {
+                    alert("Giới hạn mỗi khách không được vượt quá số lượng flash sale!");
+                    val = maxLimit;
+                }
+                item.limitPerUser = val;
+                item.isUnlimitedPerUser = false;
+            }
+            else {
+                let numericVal = parseFloat(value) || 0;
+                item[field] = numericVal;
+            }
+
+            renderQueueTable();
+        }
+
+        function updateQueueStockMode(vid, mode) {
+            let item = queueList.find(x => x.variantId == vid);
+            if(!item) return;
+            item.useAllStock = mode === 'all';
+            if(item.useAllStock) item.qtySale = item.stock;
+            else if(!item.qtySale || item.qtySale > item.stock) item.qtySale = item.stock;
+            if(!item.isUnlimitedPerUser && item.limitPerUser > item.qtySale) item.limitPerUser = item.qtySale;
+            renderQueueTable();
+        }
+
+        function updateQueueLimitMode(vid, mode) {
+            let item = queueList.find(x => x.variantId == vid);
+            if(!item) return;
+            item.isUnlimitedPerUser = mode === 'unlimited';
+            if(item.isUnlimitedPerUser) item.limitPerUser = 0;
+            else if(!item.limitPerUser || item.limitPerUser < 1) item.limitPerUser = 1;
+            if(!item.isUnlimitedPerUser && item.limitPerUser > item.qtySale) item.limitPerUser = item.qtySale;
+            renderQueueTable();
+        }
+
+        function removeFromQueue(vid) {
+            queueList = queueList.filter(x => x.variantId != vid);
+            renderTables();
+        }
+
+        async function submitFlashSale() {
+            const name = document.getElementById('fsName').value.trim();
+            const start = document.getElementById('fsStart').value;
+            const end = document.getElementById('fsEnd').value;
+
+            if(!name || !start || !end) { alert("Vui lòng nhập Tên và Thời gian chiến dịch!"); return; }
+
+            const validItems = queueList.filter(x => x.qtySale > 0);
+            if(validItems.length === 0) { alert("Chưa có sản phẩm nào có Số lượng > 0 trong Hàng đợi!"); return; }
+
+            for(const item of validItems) {
+                if((parseInt(item.qtySale) || 0) > (parseInt(item.stock) || 0)) {
+                    alert(`Số lượng flash sale của ${item.productName} - ${item.attribute} đang vượt tồn kho.`);
+                    return;
+                }
+                if(!item.isUnlimitedPerUser && ((parseInt(item.limitPerUser) || 0) < 1 || (parseInt(item.limitPerUser) || 0) > (parseInt(item.qtySale) || 0))) {
+                    alert(`Giới hạn mỗi khách của ${item.productName} - ${item.attribute} không hợp lệ.`);
+                    return;
+                }
+            }
+
+            const payload = {
+                Name: name, StartTime: start, EndTime: end,
+                Items: validItems.map(x => ({
+                    VariantId: x.variantId,
+                    FlashSalePrice: x.flashSalePrice,
+                    Quantity: x.qtySale,
+                    UseAllStock: x.useAllStock === true,
+                    IsUnlimitedPerUser: x.isUnlimitedPerUser === true,
+                    MaxPerUser: x.isUnlimitedPerUser ? 0 : x.limitPerUser
+                }))
+            };
+
+            try {
+                const res = await fetch('/Admin/FlashSale/CreateCampaign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                if(result.success) {
+                    alert("Khởi tạo Chiến dịch Flash Sale thành công!");
+                    window.location.href = '/Admin/FlashSale/Index';
+                } else alert(result.message);
+            } catch(e) { alert("Lỗi mạng máy chủ!"); }
+        }
+    </script>
+}

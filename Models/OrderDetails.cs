@@ -15,9 +15,16 @@ public partial class OrderDetails
 
     public decimal? UnitPrice { get; set; }
 
+    // Ghi nhận dòng chi tiết nào được hưởng Flash Sale để hoàn suất khi hủy đơn trước khi giao.
+    public bool IsFlashSaleItem { get; set; } = false;
+
+    public int? FlashSaleItemId { get; set; }
+
     public virtual Orders? Order { get; set; }
 
     public virtual ProductVariants? Variant { get; set; }
+
+    public virtual FlashSaleItems? FlashSaleItem { get; set; }
 
     // Cờ xác nhận khách hàng đã đánh giá sản phẩm này trong đơn hàng này chưa
     public bool IsReviewed { get; set; } = false;

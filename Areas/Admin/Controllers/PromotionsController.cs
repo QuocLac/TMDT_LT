@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
@@ -18,7 +20,6 @@ namespace TMDT_LT.Areas.Admin.Controllers
             _context = context;
         }
 
-        // HÀM 1: LIỆT KÊ DANH SÁCH KHUYẾN MÃI
         public async Task<IActionResult> Index()
         {
             var promotions = await _context.Promotions
@@ -29,23 +30,42 @@ namespace TMDT_LT.Areas.Admin.Controllers
             return View(promotions);
         }
 
-        // HÀM 2: MỞ GIAO DIỆN TẠO MỚI
         [HttpGet]
         public IActionResult Create()
         {
             return View(new PromotionCreateVM());
         }
 
-        // HÀM 3: XỬ LÝ DỮ LIỆU TẠO MỚI (CÓ BẢO VỆ TRANSACTION & TỰ ĐỘNG PHÁT VOUCHER)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(PromotionCreateVM vm)
         {
+            vm.Code = (vm.Code ?? string.Empty).Trim().ToUpperInvariant();
+            vm.Name = (vm.Name ?? string.Empty).Trim();
+            vm.Description = string.IsNullOrWhiteSpace(vm.Description) ? null : vm.Description.Trim();
+            vm.TargetCustomerType = string.IsNullOrWhiteSpace(vm.TargetCustomerType) ? null : vm.TargetCustomerType.Trim();
+            vm.TargetEmails = string.IsNullOrWhiteSpace(vm.TargetEmails) ? null : vm.TargetEmails.Trim();
+
+            ModelState.Clear();
+            TryValidateModel(vm);
+
             if (!ModelState.IsValid) return View(vm);
 
             if (vm.EndDate <= vm.StartDate)
             {
-                ModelState.AddModelError("EndDate", "Lỗi: Thời gian kết thúc phải diễn ra sau thời gian bắt đầu.");
+                ModelState.AddModelError("EndDate", "Thời gian kết thúc phải sau thời gian bắt đầu.");
+                return View(vm);
+            }
+
+            if (vm.TargetAudience == 2 && string.IsNullOrWhiteSpace(vm.TargetCustomerType))
+            {
+                ModelState.AddModelError("TargetCustomerType", "Vui lòng chọn phân khúc khách hàng nhận mã.");
+                return View(vm);
+            }
+
+            if (vm.TargetAudience == 3 && string.IsNullOrWhiteSpace(vm.TargetEmails))
+            {
+                ModelState.AddModelError("TargetEmails", "Vui lòng nhập ít nhất một email khách hàng nhận mã.");
                 return View(vm);
             }
 
@@ -62,25 +82,25 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 return View(vm);
             }
 
-            // XỬ LÝ LƯU VÀO DATABASE (PROMOTIONS + RULES + WALLETS)
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 1. Tạo Chiến dịch lõi
                 var promotion = new Promotions
                 {
-                    Code = vm.Code.ToUpper(),
+                    Code = vm.Code,
                     Name = vm.Name,
                     Description = vm.Description,
                     StartDate = vm.StartDate,
                     EndDate = vm.EndDate,
                     UsageLimit = vm.UsageLimit,
-                    IsActive = true
+                    UsedCount = 0,
+                    IsActive = true,
+                    TargetAudience = vm.TargetAudience
                 };
-                _context.Promotions.Add(promotion);
-                await _context.SaveChangesAsync(); // Cần Save để sinh ra PromotionId
 
-                // 2. Tạo Quy luật tính toán
+                _context.Promotions.Add(promotion);
+                await _context.SaveChangesAsync();
+
                 var rule = new PromotionRules
                 {
                     PromotionId = promotion.PromotionId,
@@ -89,47 +109,68 @@ namespace TMDT_LT.Areas.Admin.Controllers
                     DiscountValue = vm.DiscountValue,
                     MaxDiscountAmount = vm.MaxDiscountAmount
                 };
+
                 _context.PromotionRules.Add(rule);
                 await _context.SaveChangesAsync();
 
-                // ========================================================
-                // 3. ĐỘNG CƠ AIRDROP (TỰ ĐỘNG BƠM MÃ VÀO VÍ KHÁCH HÀNG)
-                // ========================================================
                 if (vm.TargetAudience > 0)
                 {
                     List<int> targetCustomerIds = new List<int>();
 
-                    if (vm.TargetAudience == 1) // Phát toàn bộ khách hàng
-                    {
-                        targetCustomerIds = await _context.Customer.Select(c => c.CustomerId).ToListAsync();
-                    }
-                    else if (vm.TargetAudience == 2 && !string.IsNullOrEmpty(vm.TargetCustomerType)) // Phát theo phân khúc CustomerType
+                    if (vm.TargetAudience == 1)
                     {
                         targetCustomerIds = await _context.Customer
-                                                  .Where(c => c.CustomerType == vm.TargetCustomerType)
-                                                  .Select(c => c.CustomerId).ToListAsync();
+                            .Select(c => c.CustomerId)
+                            .ToListAsync();
                     }
-                    else if (vm.TargetAudience == 3 && !string.IsNullOrWhiteSpace(vm.TargetEmails)) // Phát đích danh qua Email
+                    else if (vm.TargetAudience == 2)
                     {
-                        var emails = vm.TargetEmails.Split(new[] { ',', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                                                    .Select(e => e.Trim().ToLower()).ToList();
-
-                        // SỬA LỖI Ở ĐÂY: Nối sang bảng Account để tìm theo Email
                         targetCustomerIds = await _context.Customer
-                                                  .Include(c => c.Account)
-                                                  .Where(c => emails.Contains(c.Account.Email.ToLower()))
-                                                  .Select(c => c.CustomerId).ToListAsync();
+                            .Where(c => c.CustomerType == vm.TargetCustomerType)
+                            .Select(c => c.CustomerId)
+                            .ToListAsync();
+                    }
+                    else if (vm.TargetAudience == 3)
+                    {
+                        var emails = vm.TargetEmails!
+                            .Split(new[] { ',', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(e => e.Trim().ToLowerInvariant())
+                            .Where(e => !string.IsNullOrWhiteSpace(e))
+                            .Distinct()
+                            .ToList();
+
+                        targetCustomerIds = await _context.Customer
+                            .Include(c => c.Account)
+                            .Where(c => c.Account != null && emails.Contains(c.Account.Email.ToLower()))
+                            .Select(c => c.CustomerId)
+                            .ToListAsync();
                     }
 
-                    // Thực thi nạp hàng loạt (Bulk Insert) vào bảng CustomerWallets
-                    if (targetCustomerIds.Any())
+                    targetCustomerIds = targetCustomerIds.Distinct().ToList();
+
+                    if (!targetCustomerIds.Any())
                     {
-                        var wallets = targetCustomerIds.Select(id => new CustomerWallet
+                        ModelState.AddModelError("", "Không tìm thấy khách hàng phù hợp để phân phối mã. Vui lòng kiểm tra phân khúc hoặc danh sách email.");
+                        await transaction.RollbackAsync();
+                        return View(vm);
+                    }
+
+                    var existingWalletCustomerIds = await _context.CustomerWallet
+                        .Where(w => w.PromotionId == promotion.PromotionId)
+                        .Select(w => w.CustomerId)
+                        .ToListAsync();
+
+                    var finalCustomerIds = targetCustomerIds.Except(existingWalletCustomerIds).ToList();
+
+                    if (finalCustomerIds.Any())
+                    {
+                        var wallets = finalCustomerIds.Select(id => new CustomerWallet
                         {
                             CustomerId = id,
                             PromotionId = promotion.PromotionId,
-                            Status = 0, // 0 = Trạng thái: Đã lưu vào ví
-                            SavedAt = DateTime.Now
+                            Status = 0,
+                            SavedAt = DateTime.Now,
+                            UsedAt = null
                         }).ToList();
 
                         _context.CustomerWallet.AddRange(wallets);
@@ -138,19 +179,20 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 }
 
                 await transaction.CommitAsync();
+                TempData["Success"] = vm.TargetAudience == 0
+                    ? "Đã tạo mã khuyến mãi công khai. Khách hàng có thể lưu mã từ kho voucher."
+                    : "Đã tạo mã khuyến mãi và phân phối vào ví khách hàng phù hợp.";
+
                 return RedirectToAction(nameof(Index));
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                ModelState.AddModelError("", "Đã xảy ra lỗi hệ thống khi khởi tạo chiến dịch hoặc phân phối mã. Vui lòng thử lại.");
+                ModelState.AddModelError("", "Chưa thể lưu chương trình khuyến mãi. Chi tiết kỹ thuật: " + (ex.InnerException?.Message ?? ex.Message));
                 return View(vm);
             }
         }
 
-        // =======================================================
-        // API TÌM KIẾM ĐÍCH DANH EMAIL KHÁCH HÀNG (AUTOCOMPLETE)
-        // =======================================================
         [HttpGet]
         public async Task<IActionResult> SearchCustomerEmails(string term)
         {
@@ -158,12 +200,11 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
             term = term.ToLower().Trim();
 
-            // Tìm kiếm Email thông qua bảng Account được liên kết với bảng Customer
             var emails = await _context.Customer
                 .Include(c => c.Account)
-                .Where(c => c.Account.Email.ToLower().Contains(term))
+                .Where(c => c.Account != null && c.Account.Email.ToLower().Contains(term))
                 .Select(c => c.Account.Email)
-                .Take(10) // Tối ưu hiệu năng: Chỉ trả về tối đa 10 gợi ý gần đúng nhất
+                .Take(10)
                 .ToListAsync();
 
             return Json(emails);

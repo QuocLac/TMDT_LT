@@ -13,7 +13,6 @@
     <link rel="stylesheet" href="~/css/storefront/store-home.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/storefront/store-cart.css" asp-append-version="true" />
     <style>
-        /* Bố cục lưới chuẩn thương mại điện tử */
         .cart-table-header {
             display: grid;
             grid-template-columns: 40px 4fr 1.5fr 1.5fr 1.5fr 60px;
@@ -42,7 +41,7 @@
                 box-shadow: 0 4px 12px rgba(0,0,0,0.05);
                 border-color: #CBD5E1;
             }
-        /* Hình ảnh nhỏ nhắn, thông tin tinh gọn */
+
         .product-col {
             display: flex;
             gap: 16px;
@@ -83,14 +82,14 @@
             display: inline-block;
             width: fit-content;
         }
-        /* Checkbox Tùy chỉnh */
+
         .custom-checkbox {
             width: 20px;
             height: 20px;
             cursor: pointer;
             accent-color: var(--accent-red);
         }
-        /* Nút Tăng giảm số lượng */
+
         .qty-wrapper {
             display: flex;
             border: 1px solid var(--border-color);
@@ -161,48 +160,124 @@
 
             foreach (var item in Model)
             {
-                <div class="cart-item-row" id="item-row-@item.VariantId">
-                    <div>
-                        <input type="checkbox" class="custom-checkbox item-checkbox" value="@item.VariantId" onchange="recalculateSummary()" />
-                    </div>
+                <input type="hidden" id="total-qty-@item.VariantId" value="@item.Quantity" />
 
-                    <div class="product-col">
-                        <img src="@item.ImageUrl" alt="@item.ProductName" class="cart-item-img" />
-                        <div class="product-details">
-                            <a href="/Store/Product/@item.VariantId" class="cart-item-title">@item.ProductName</a>
-                            <div class="cart-item-variant">Phân loại: @item.Storage - @item.Color</div>
-                            @if (item.Stock < 5)
-                            {
-                                <div style="font-size: 11px; color: #DC2626; margin-top: 4px;">Chỉ còn @item.Stock sản phẩm</div>
+                @if (item.IsFlashSale && item.FlashSaleQty > 0)
+                {
+                    <div class="cart-item-row" id="item-row-fs-@item.VariantId">
+                        <div>
+                            <input type="checkbox" class="custom-checkbox item-checkbox checkbox-variant-@item.VariantId" value="@item.VariantId" onchange="syncCheckboxes(@item.VariantId, this.checked)" />
+                        </div>
+
+                        <div class="product-col">
+                            <div style="position: relative; display: inline-block;">
+                                <div style="position: absolute; top: -6px; left: -6px; background: #DC2626; color: white; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; z-index: 2; border: 1px solid #FFF; text-transform: uppercase;">Flash Sale</div>
+                                <img src="@item.ImageUrl" alt="@item.ProductName" class="cart-item-img" />
+                            </div>
+                            <div class="product-details">
+                                <a href="/Store/Product/@item.VariantId" class="cart-item-title">@item.ProductName</a>
+                                <div class="cart-item-variant">Phân loại: @item.Storage - @item.Color</div>
+                                @if (item.Stock < 5)
+                                {
+                                    <div style="font-size: 11px; color: #DC2626; margin-top: 4px;">Chỉ còn @item.Stock sản phẩm</div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="price-col">
+                            <div style="font-size: 11px; font-weight: 800; background: #FEF2F2; color: #DC2626; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; border: 1px solid #FECACA;">⚡ GIÁ SALE</div>
+                            <div style="color: #DC2626; font-size: 15px;">@string.Format("{0:N0}", item.FlashSalePrice) đ</div>
+                            <div style="font-size: 12px; color: #94A3B8; text-decoration: line-through; margin-top: 2px;">@string.Format("{0:N0}", item.RegularPrice) đ</div>
+                        </div>
+
+                        <div>
+                            <div class="qty-wrapper">
+                                <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, -1)">-</button>
+                                <input type="number" class="qty-input" value="@item.FlashSaleQty" readonly />
+                                <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, 1)">+</button>
+                            </div>
+                        </div>
+
+                        <div class="total-price-col" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
+                            <div style="font-size: 16px; font-weight: 800; color: #DC2626;">
+                                @string.Format("{0:N0}", item.FlashSalePrice * item.FlashSaleQty) đ
+                            </div>
+                            @{
+                                decimal savedAmount = (item.RegularPrice - item.FlashSalePrice) * item.FlashSaleQty;
                             }
+                            <div style="background: #F0FDF4; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px; margin-top: 6px; letter-spacing: 0.5px; text-transform: uppercase;">
+                                Giảm @string.Format("{0:N0}", savedAmount) đ
+                            </div>
+                            <div style="width: 120px; margin-top: 10px;">
+                                <div style="font-size: 10px; font-weight: 800; color: #64748B; text-align: right; margin-bottom: 6px; text-transform: uppercase;">
+                                    Kết thúc sau <span class="cart-fs-countdown" style="color: #DC2626; font-family: monospace; font-size: 13px; margin-left: 2px;">--:--:--</span>
+                                </div>
+                                <div style="width: 100%; background: #FEE2E2; height: 4px; border-radius: 2px; overflow: hidden;">
+                                    <div class="cart-fs-progress-bar" style="width: 100%; background: linear-gradient(90deg, #F59E0B 0%, #EF4444 100%); height: 100%; border-radius: 2px; transition: width 1s linear;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <form action="/Cart/RemoveItem" method="post" style="margin:0;">
+                                <input type="hidden" name="variantId" value="@item.VariantId" />
+                                <button type="submit" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:16px;" title="Xoá khỏi giỏ">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
                         </div>
                     </div>
+                }
 
-                    <div class="price-col">
-                        @string.Format("{0:N0}", item.Price) đ
-                    </div>
+                @if (item.RegularQty > 0)
+                {
+                    <div class="cart-item-row" id="item-row-reg-@item.VariantId">
+                        <div>
+                            <input type="checkbox" class="custom-checkbox item-checkbox checkbox-variant-@item.VariantId" value="@item.VariantId" onchange="syncCheckboxes(@item.VariantId, this.checked)" />
+                        </div>
 
-                    <div>
-                        <div class="qty-wrapper">
-                            <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, -1)">-</button>
-                            <input type="number" id="qty-@item.VariantId" class="qty-input" value="@item.Quantity" readonly />
-                            <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, 1)">+</button>
+                        <div class="product-col">
+                            <div style="position: relative; display: inline-block;">
+                                <img src="@item.ImageUrl" alt="@item.ProductName" class="cart-item-img" />
+                            </div>
+                            <div class="product-details">
+                                <a href="/Store/Product/@item.VariantId" class="cart-item-title">@item.ProductName</a>
+                                <div class="cart-item-variant">Phân loại: @item.Storage - @item.Color</div>
+                                @if (item.Stock < 5 && (!item.IsFlashSale || item.FlashSaleQty == 0))
+                                {
+                                    <div style="font-size: 11px; color: #DC2626; margin-top: 4px;">Chỉ còn @item.Stock sản phẩm</div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="price-col">
+                            <div>@string.Format("{0:N0}", item.RegularPrice) đ</div>
+                        </div>
+
+                        <div>
+                            <div class="qty-wrapper">
+                                <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, -1)">-</button>
+                                <input type="number" class="qty-input" value="@item.RegularQty" readonly />
+                                <button type="button" class="qty-btn" onclick="updateQty(@item.VariantId, 1)">+</button>
+                            </div>
+                        </div>
+
+                        <div class="total-price-col" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
+                            <div style="font-size: 16px; font-weight: 800; color: var(--accent-red);">
+                                @string.Format("{0:N0}", item.RegularPrice * item.RegularQty) đ
+                            </div>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <form action="/Cart/RemoveItem" method="post" style="margin:0;">
+                                <input type="hidden" name="variantId" value="@item.VariantId" />
+                                <button type="submit" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:16px;" title="Xoá khỏi giỏ">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
                         </div>
                     </div>
-
-                    <div class="total-price-col" id="price-@item.VariantId">
-                        @string.Format("{0:N0}", item.TotalPrice) đ
-                    </div>
-
-                    <div style="text-align: center;">
-                        <form action="/Cart/RemoveItem" method="post" style="margin:0;">
-                            <input type="hidden" name="variantId" value="@item.VariantId" />
-                            <button type="submit" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:16px;" title="Xoá khỏi giỏ">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </form>
-                    </div>
-                </div>
+                }
             }
         }
         else
@@ -247,7 +322,7 @@
 
             <form action="/Checkout/Index" method="get" id="checkoutForm">
                 <input type="hidden" name="selectedItems" id="checkoutSelectedItems" value="" />
-                <button type="button" id="btnCheckout" class="btn-dark btn-checkout-flat" style="width: 100%; border-radius: 4px; padding: 14px; font-size: 15px;">
+                <button type="button" id="btnCheckout" onclick="submitCheckout()" class="btn-dark btn-checkout-flat" style="width: 100%; border-radius: 4px; padding: 14px; font-size: 15px;">
                     Mua Hàng (<span id="lblCheckoutCount">0</span>)
                 </button>
             </form>
@@ -257,7 +332,13 @@
 
 @section Scripts {
     <script>
-        // 1. TÍNH NĂNG CHỌN TẤT CẢ SẢN PHẨM
+        function syncCheckboxes(variantId, isChecked) {
+            document.querySelectorAll(`.checkbox-variant-${variantId}`).forEach(cb => {
+                cb.checked = isChecked;
+            });
+            recalculateSummary();
+        }
+
         document.getElementById('selectAllCheckbox')?.addEventListener('change', function() {
             const isChecked = this.checked;
             document.querySelectorAll('.item-checkbox').forEach(cb => {
@@ -266,10 +347,9 @@
             recalculateSummary();
         });
 
-        // 2. CẬP NHẬT SỐ LƯỢNG SẢN PHẨM BẰNG AJAX VÀ HIỂN THỊ COMPONENT THÔNG BÁO
         function updateQty(variantId, change) {
-            const input = document.getElementById(`qty-${variantId}`);
-            let newQty = parseInt(input.value) + change;
+            const totalInput = document.getElementById(`total-qty-${variantId}`);
+            let newQty = parseInt(totalInput.value) + change;
             if (newQty < 1) newQty = 1;
 
             const formData = new FormData();
@@ -283,36 +363,25 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    input.value = data.actualQuantity;
-                    document.getElementById(`price-${variantId}`).innerText = data.itemTotalPrice;
-
-                    // Nếu khách bấm quá số lượng tồn kho -> Gọi component thông báo lỗi (Màu đỏ)
                     if (data.limitReached) {
-                        if (typeof window.showToast === 'function') {
-                            window.showToast(data.message, 'error');
-                        }
+                        if (typeof window.showToast === 'function') window.showToast(data.message, 'error');
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        window.location.reload();
                     }
-
-                    recalculateSummary();
                 } else {
-                    // Nếu lỗi từ server -> Gọi component thông báo lỗi
-                    if (typeof window.showToast === 'function') {
-                        window.showToast(data.message, 'error');
-                    }
+                    if (typeof window.showToast === 'function') window.showToast(data.message, 'error');
                 }
             })
             .catch(error => {
                 console.error('Lỗi kết nối API:', error);
-                if (typeof window.showToast === 'function') {
-                    window.showToast('Lỗi kết nối đến máy chủ.', 'error');
-                }
+                if (typeof window.showToast === 'function') window.showToast('Lỗi kết nối đến máy chủ.', 'error');
             });
         }
 
-        // 3. THUẬT TOÁN TÍNH TOÁN LẠI TỔNG TIỀN & VOUCHER DỰA TRÊN CHECKBOX
         function recalculateSummary() {
             const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
-            const selectedIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+            const selectedIds = [...new Set(Array.from(checkedBoxes).map(cb => parseInt(cb.value)))];
 
             document.getElementById('lblCheckoutCount').innerText = selectedIds.length;
             document.getElementById('checkoutSelectedItems').value = selectedIds.join(',');
@@ -334,11 +403,11 @@
             const allBoxes = document.querySelectorAll('.item-checkbox');
             const selectAllCb = document.getElementById('selectAllCheckbox');
             if(selectAllCb && allBoxes.length > 0) {
-                selectAllCb.checked = (checkedBoxes.length === allBoxes.length);
+                const uniqueAllIds = new Set(Array.from(allBoxes).map(cb => parseInt(cb.value)));
+                selectAllCb.checked = (selectedIds.length === uniqueAllIds.size);
             }
         }
 
-        // 4. CẬP NHẬT GIAO DIỆN VOUCHER (ĐỘNG)
         function updateSmartVoucherUI(vouchers, currentSubtotal) {
             const container = document.getElementById('smartVoucherContainer');
             const hintText = document.getElementById('voucherHintText');
@@ -394,20 +463,64 @@
             totalElement.innerText = new Intl.NumberFormat('vi-VN').format(finalTotal) + " đ";
         }
 
-        // 5. RÀNG BUỘC KHI BẤM NÚT MUA HÀNG VỚI COMPONENT THÔNG BÁO
-        document.getElementById('btnCheckout')?.addEventListener('click', function() {
+        function startCartCountdown() {
+            const countdownElements = document.querySelectorAll('.cart-fs-countdown');
+            const progressBars = document.querySelectorAll('.cart-fs-progress-bar');
+
+            if(countdownElements.length === 0) return;
+
+            const startTimeString = '@ViewBag.FlashSaleStartTime';
+            const endTimeString = '@ViewBag.FlashSaleEndTime';
+
+            if (!endTimeString || !startTimeString) {
+                countdownElements.forEach(el => el.innerText = "00:00:00");
+                progressBars.forEach(bar => bar.style.width = "0%");
+                return;
+            }
+
+            const startTime = new Date(startTimeString).getTime();
+            const endTime = new Date(endTimeString).getTime();
+            const totalDuration = endTime - startTime;
+
+            setInterval(() => {
+                const currentTime = new Date().getTime();
+                const distance = endTime - currentTime;
+
+                if (distance > 0) {
+                    const h = Math.floor((distance % (1000 * 60 * 60 * 24 * 99)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                    const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                    const s = Math.floor((distance % (1000 * 60)) / 1000).toString().padStart(2, '0');
+
+                    countdownElements.forEach(el => el.innerText = `${h}:${m}:${s}`);
+
+                    let percentage = 0;
+                    if (totalDuration > 0) {
+                        percentage = (distance / totalDuration) * 100;
+                    }
+
+                    if (percentage < 0) percentage = 0;
+                    if (percentage > 100) percentage = 100;
+
+                    const finalWidth = percentage.toFixed(3) + '%';
+                    progressBars.forEach(bar => bar.style.width = finalWidth);
+
+                } else {
+                    countdownElements.forEach(el => el.innerText = "00:00:00");
+                    progressBars.forEach(bar => bar.style.width = "0%");
+                    setTimeout(() => window.location.reload(), 1500);
+                }
+            }, 1000);
+        }
+
+        startCartCountdown();
+
+        function submitCheckout() {
             const selectedItems = document.getElementById('checkoutSelectedItems').value;
             if (!selectedItems) {
-                // Thay thế alert() bằng component thông báo Toast
-                if (typeof window.showToast === 'function') {
-                    window.showToast('Vui lòng chọn ít nhất một sản phẩm để thanh toán!', 'error');
-                }
+                if (typeof window.showToast === 'function') window.showToast('Vui lòng chọn ít nhất 1 sản phẩm để thanh toán!', 'error');
                 return;
             }
             document.getElementById('checkoutForm').submit();
-        });
-
-        // Chạy tính toán 1 lần khi load trang để reset Subtotal về 0 đ
-        document.addEventListener('DOMContentLoaded', recalculateSummary);
+        }
     </script>
 }
