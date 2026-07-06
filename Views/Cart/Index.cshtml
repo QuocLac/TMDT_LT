@@ -779,6 +779,55 @@
             }, 1000);
         }
 
+        function startCartCountdown() {
+            const countdownElements = document.querySelectorAll('.cart-fs-countdown');
+            const progressBars = document.querySelectorAll('.cart-fs-progress-bar');
+
+            if(countdownElements.length === 0) return;
+
+            const startTimeString = '@ViewBag.FlashSaleStartTime';
+            const endTimeString = '@ViewBag.FlashSaleEndTime';
+
+            if (!endTimeString || !startTimeString) {
+                countdownElements.forEach(el => el.innerText = "00:00:00");
+                progressBars.forEach(bar => bar.style.width = "0%");
+                return;
+            }
+
+            const startTime = new Date(startTimeString).getTime();
+            const endTime = new Date(endTimeString).getTime();
+            const totalDuration = endTime - startTime;
+
+            setInterval(() => {
+                const currentTime = new Date().getTime();
+                const distance = endTime - currentTime;
+
+                if (distance > 0) {
+                    const h = Math.floor((distance % (1000 * 60 * 60 * 24 * 99)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                    const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                    const s = Math.floor((distance % (1000 * 60)) / 1000).toString().padStart(2, '0');
+
+                    countdownElements.forEach(el => el.innerText = `${h}:${m}:${s}`);
+
+                    let percentage = 0;
+                    if (totalDuration > 0) {
+                        percentage = (distance / totalDuration) * 100;
+                    }
+
+                    if (percentage < 0) percentage = 0;
+                    if (percentage > 100) percentage = 100;
+
+                    const finalWidth = percentage.toFixed(3) + '%';
+                    progressBars.forEach(bar => bar.style.width = finalWidth);
+
+                } else {
+                    countdownElements.forEach(el => el.innerText = "00:00:00");
+                    progressBars.forEach(bar => bar.style.width = "0%");
+                    setTimeout(() => window.location.reload(), 1500);
+                }
+            }, 1000);
+        }
+
         startCartCountdown();
 
         function submitCheckout() {
