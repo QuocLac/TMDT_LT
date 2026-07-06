@@ -27,6 +27,12 @@ public partial class Orders
 
     public string? ShippingCountry { get; set; }
 
+    // Cờ kho chuẩn vận hành TMĐT:
+    // true = đơn này đã giữ/trừ tồn vật lý, khi hủy/hoàn cần hoàn lại đúng một lần.
+    public bool IsStockDeducted { get; set; } = false;
+
+    public DateTime? StockDeductedAt { get; set; }
+
     public virtual Customer? Customer { get; set; }
 
     public virtual ICollection<OrderDetails> OrderDetails { get; set; } = new List<OrderDetails>();

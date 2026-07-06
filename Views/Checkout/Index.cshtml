@@ -5,6 +5,8 @@
 
     var defaultAddress = Model.SavedAddresses.FirstOrDefault(a => a.IsDefault == true)
                          ?? Model.SavedAddresses.FirstOrDefault();
+
+    var bestVoucher = ViewBag.BestVoucher as TMDT_LT.Models.ViewModels.Storefront.CartVoucherStateVM;
 }
 
 @functions {
@@ -24,18 +26,15 @@
             font-family: 'Plus Jakarta Sans', sans-serif !important;
         }
 
-        /* =========================================================
-                   SIÊU PHẨM CSS: ÉP MODAL TỰ CO GIÃN 100% THEO NỘI DUNG FORM/LIST
-                   ========================================================= */
         .store-modal-content {
             background: #FFFFFF !important;
             border-radius: 12px !important;
             width: 90% !important;
             max-width: 520px !important;
-            padding: 0 !important; /* Trả padding về cho khối con tự quản lý */
+            padding: 0 !important;
             position: relative !important;
-            height: auto !important; /* Mấu chốt: Cho phép chiều cao co giãn tự do */
-            max-height: 85vh !important; /* Chặn trần để không đè vỡ màn hình */
+            height: auto !important;
+            max-height: 85vh !important;
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
@@ -55,11 +54,11 @@
 
         .store-modal-body {
             padding: 24px !important;
-            overflow-y: auto !important; /* Tự kích hoạt thanh cuộn nội bộ mượt mà khi mở Form dài */
+            overflow-y: auto !important;
             flex: 1 !important;
         }
 
-        .modal-address-item {
+        .modal-address-item, .modal-voucher-item {
             border: 1px solid #E2E8F0;
             border-radius: 8px;
             padding: 16px;
@@ -69,7 +68,7 @@
             transition: all 0.2s;
         }
 
-            .modal-address-item:hover {
+            .modal-address-item:hover, .modal-voucher-item:hover {
                 border-color: #0F172A;
             }
     </style>
@@ -77,7 +76,25 @@
 
 <form asp-controller="Checkout" asp-action="PlaceOrder" method="post" id="formCheckout">
     @Html.AntiForgeryToken()
-    <input type="hidden" name="addressId" id="selectedAddressId" value="@(defaultAddress?.AddressId ?? 0)" />
+    <input type="hidden" name="SelectedAddressId" id="selectedAddressId" value="@(defaultAddress?.AddressId ?? 0)" />
+    <input type="hidden" name="AppliedVoucherCode" id="finalAppliedVoucher" value="@(bestVoucher?.Code)" />
+
+    @if (TempData["Error"] != null)
+    {
+        <div style="margin-bottom:16px; padding:14px 16px; border:1px solid #FECACA; background:#FEF2F2; color:#991B1B; border-radius:10px; font-weight:700; font-size:13px;">
+            <i class="fas fa-circle-exclamation" style="margin-right:6px;"></i> @TempData["Error"]
+        </div>
+    }
+
+    @if (ViewBag.IsBuyNow == true)
+    {
+        <input type="hidden" name="buyNowVariantId" id="buyNowVariantId" value="@ViewBag.BuyNowVariantId" />
+        <input type="hidden" name="buyNowQty" id="buyNowQty" value="@ViewBag.BuyNowQty" />
+    }
+    else
+    {
+        <input type="hidden" name="selectedItems" id="checkoutSelectedItems" value="@ViewBag.SelectedItems" />
+    }
 
     <div class="checkout-grid">
         <div>
@@ -120,18 +137,53 @@
                 <div class="section-title"><i class="fas fa-box"></i> Chi tiết kiện hàng chính hãng</div>
                 @foreach (var item in Model.CartItems)
                 {
-                    <div class="checkout-prod-row">
-                        <img src="@item.ImageUrl" class="checkout-prod-img" />
+                    bool isSplit = item.IsFlashSale && item.RegularQty > 0;
+
+                    <div class="checkout-prod-row" style="display: flex; gap: 16px; margin-bottom: 12px; position: relative;">
+                        <div style="position: relative;">
+                            @if (item.IsFlashSale && item.FlashSaleQty > 0)
+                            {
+                                <div style="position: absolute; top: -6px; left: -6px; background: #DC2626; color: white; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; z-index: 2; text-transform: uppercase;">⚡ Sale</div>
+                            }
+                            <img src="@item.ImageUrl" class="checkout-prod-img" style="width: 60px; height: 60px; object-fit: contain; border-radius: 4px; border: 1px solid #E2E8F0;" />
+                        </div>
                         <div style="flex: 1;">
                             <div style="font-weight: 700; color: #0F172A; font-size: 14px;">@item.ProductName</div>
                             <div style="font-size: 12px; color: #6B7280; margin-top: 2px;">Cấu hình: @item.Storage | Màu: @item.Color</div>
                         </div>
                         <div style="text-align: right;">
-                            <div style="font-weight: 700; color: #0F172A; font-size: 14px;">@string.Format("{0:N0}", item.Price) đ</div>
-                            <div style="font-size: 12px; color: #9CA3AF; margin-top: 2px;">Số lượng: x@(item.Quantity)</div>
+                            @if (item.IsFlashSale && item.FlashSaleQty > 0)
+                            {
+                                <div style="font-weight: 800; color: #DC2626; font-size: 14px;">@string.Format("{0:N0}", item.FlashSalePrice) đ</div>
+                                <div style="font-size: 11px; color: #9CA3AF; text-decoration: line-through;">@string.Format("{0:N0}", item.RegularPrice) đ</div>
+                                <div style="font-size: 12px; color: #9CA3AF; margin-top: 2px;">Số lượng: x@(item.FlashSaleQty)</div>
+                            }
+                            else
+                            {
+                                <div style="font-weight: 700; color: #0F172A; font-size: 14px;">@string.Format("{0:N0}", item.RegularPrice) đ</div>
+                                <div style="font-size: 12px; color: #9CA3AF; margin-top: 2px;">Số lượng: x@(item.RegularQty)</div>
+                            }
                         </div>
                     </div>
+
+                    @if (isSplit)
+                    {
+                        <div class="checkout-prod-row" style="display: flex; gap: 16px; margin-bottom: 12px; background: #F8FAFC; border-radius: 6px; padding: 12px; border: 1px dashed #CBD5E1;">
+                            <div style="width: 60px; text-align: center; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-level-up-alt fa-rotate-90" style="color: #94A3B8; font-size: 20px;"></i>
+                            </div>
+                            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-size: 13px; font-weight: 700; color: #475569;">Sản phẩm mua thêm</div>
+                                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">(Hết suất Sale, áp dụng giá gốc)</div>
+                            </div>
+                            <div style="text-align: right; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-weight: 700; color: #0F172A; font-size: 14px;">@string.Format("{0:N0}", item.RegularPrice) đ</div>
+                                <div style="font-size: 12px; color: #9CA3AF; margin-top: 2px;">Số lượng: x@(item.RegularQty)</div>
+                            </div>
+                        </div>
+                    }
                 }
+
                 <div style="margin-top: 20px;">
                     <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 6px;">LƯU Ý HOẶC LỜI NHẮN</label>
                     <input type="text" name="note" placeholder="Ví dụ: Giao giờ hành chính..." class="checkout-input" />
@@ -139,19 +191,39 @@
             </div>
 
             <div class="checkout-section-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div class="section-title" style="margin-bottom: 0; border: none; padding: 0; color: var(--navy-deep);">
+                        <i class="fas fa-ticket-alt"></i> Khuyến mãi & Voucher
+                    </div>
+                    <button type="button" class="btn-text-action" onclick="openVoucherModal()">CHỌN TỪ VÍ</button>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="manualVoucherCode" placeholder="Nhập mã khuyến mãi..." class="checkout-input" style="flex: 1; padding: 10px; border: 1px solid #CBD5E1; border-radius: 4px; text-transform: uppercase;" value="@(bestVoucher?.Code)" />
+                    <button type="button" class="btn-dark" style="border-radius: 4px; padding: 10px 20px; font-weight: 700;" onclick="applyManualVoucher()">ÁP DỤNG</button>
+                </div>
+
+                <div id="voucherMessage" style="font-size: 13px; margin-top: 10px; font-weight: 700; color: #059669;">
+                    @(bestVoucher != null ? "Áp dụng mã ưu đãi thành công!" : "")
+                </div>
+            </div>
+
+            <div class="checkout-section-box">
                 <div class="section-title"><i class="fas fa-credit-card"></i> Phương thức thanh toán bảo mật</div>
                 <label class="payment-method-row" style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center; cursor: pointer;">
-                    <input type="radio" name="paymentMethod" value="COD" checked />
+                    <input type="radio" name="PaymentMethod" value="COD" checked />
                     <i class="fas fa-truck" style="font-size: 18px; color: #475569; width: 24px;"></i>
                     <div>
-                        <div style="font-weight: 700; color: #0F172A; font-size: 14px;">Thanh toán khi nhận hàng (COD)</div>
+                        <div style="font-weight: 700; color: #0F172A; font-size: 14px;">Thanh toán khi nhận hàng</div>
+                        <div style="font-size:12px; color:#64748B; margin-top:2px;">Shop xác nhận đơn trước, khách thanh toán cho đơn vị vận chuyển khi nhận hàng.</div>
                     </div>
                 </label>
                 <label class="payment-method-row" style="display: flex; gap: 12px; align-items: center; cursor: pointer;">
-                    <input type="radio" name="paymentMethod" value="VNPAY" />
+                    <input type="radio" name="PaymentMethod" value="VNPAY" />
                     <i class="fas fa-university" style="font-size: 18px; color: #2563EB; width: 24px;"></i>
                     <div>
-                        <div style="font-weight: 700; color: #0F172A; font-size: 14px;">Liên kết ứng dụng Ngân hàng (VNPAY-QR)</div>
+                        <div style="font-weight: 700; color: #0F172A; font-size: 14px;">Thanh toán qua VNPAY-QR / ATM nội địa</div>
+                        <div style="font-size:12px; color:#64748B; margin-top:2px;">Sau khi xác nhận đơn, hệ thống chuyển sang cổng thanh toán VNPAY bảo mật.</div>
                     </div>
                 </label>
             </div>
@@ -161,22 +233,80 @@
             <div class="checkout-section-box" style="border-top: 4px solid #0F172A;">
                 <div style="font-size: 15px; font-weight: 800; color: #0F172A; margin-bottom: 20px; text-transform: uppercase;">Tóm tắt thanh toán</div>
                 <div class="bill-row"><span>Tổng tiền hàng</span><span style="font-weight: 700;">@string.Format("{0:N0}", Model.Subtotal) đ</span></div>
-                <div class="bill-row"><span>Voucher đã giảm</span><span style="color: #059669; font-weight: 700;">-(@string.Format("{0:N0}", Model.DiscountAmount) đ)</span></div>
+
+                <div class="bill-row">
+                    <span>Voucher đã giảm</span>
+                    <span id="lblDiscountAmount" style="color: #059669; font-weight: 700;">-(@string.Format("{0:N0}", Model.DiscountAmount) đ)</span>
+                </div>
+
                 <div class="bill-row">
                     <span>Phí vận chuyển (GHN)</span>
                     <span id="lblShippingFee" style="font-weight: 700; color: #0F172A;">
                         <i class="fas fa-spinner fa-spin" style="font-size: 12px; margin-right:4px;"></i> Đang tính...
                     </span>
                 </div>
+
                 <div class="bill-total-row">
                     <span>Tổng thanh toán</span>
                     <span id="lblFinalTotal" style="font-size: 20px; font-weight: 800; color: #0F172A;">@string.Format("{0:N0}", Model.FinalTotal) đ</span>
                 </div>
-                <button type="submit" id="btnSubmitOrder" class="btn-dark" disabled style="opacity: 0.5; width: 100%; padding: 14px; margin-top: 15px;">Đang tải phí Ship...</button>
+                <button type="submit" id="btnSubmitOrder" class="btn-dark" disabled style="opacity: 0.5; width: 100%; padding: 14px; margin-top: 15px; font-size: 14px; text-transform: uppercase;">Đang cập nhật phí vận chuyển...</button>
             </div>
         </div>
     </div>
 </form>
+
+<div class="store-modal-overlay" id="voucherModalOverlay" onclick="closeVoucherModal()">
+    <div class="store-modal-content" onclick="event.stopPropagation()">
+        <div class="store-modal-header">
+            <span style="font-weight:800; font-size:16px; color:#0F172A;">Chọn Voucher</span>
+            <button type="button" class="btn-close" onclick="closeVoucherModal()"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="store-modal-body" style="background: #F8FAFC;">
+            @if (ViewBag.VoucherStates != null)
+            {
+                var vouchers = ViewBag.VoucherStates as List<TMDT_LT.Models.ViewModels.Storefront.CartVoucherStateVM>;
+                if (vouchers != null && vouchers.Any())
+                {
+                    foreach (var v in vouchers)
+                    {
+                        bool isEligible = v.IsEligible;
+                        <div class="modal-voucher-item" style="background: #FFF; display:flex; align-items:center; cursor:@(isEligible ? "pointer" : "not-allowed"); opacity: @(isEligible ? "1" : "0.6");" onclick="@(isEligible ? $"selectVoucher('{v.Code}')" : "")">
+
+                            <div style="width: 70px; height: 70px; background: linear-gradient(135deg, var(--accent-red), #F43F5E); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px;">
+                                <i class="fas fa-ticket-alt"></i>
+                            </div>
+
+                            <div style="flex:1; margin-left: 16px;">
+                                <div style="font-weight: 800; color: #0F172A; font-size: 14px;">Mã: @v.Code</div>
+                                <div style="font-size: 12px; color: #475569; margin-top: 4px; line-height: 1.4;">
+                                    Giảm @string.Format("{0:N0}", v.DiscountType == 1 ? v.DiscountValue : v.EstimatedDiscountAmount) @(v.DiscountType == 1 ? "đ" : "")
+                                </div>
+                                @if (!isEligible)
+                                {
+                                    <div style="font-size: 11px; color: #DC2626; margin-top: 6px; font-weight: 700;">Mua thêm @string.Format("{0:N0}", v.GapAmount)đ để áp dụng</div>
+                                }
+                            </div>
+
+                            @if (isEligible)
+                            {
+                                <input type="radio" name="modalVoucherSelect" value="@v.Code" style="width: 20px; height: 20px; accent-color: var(--accent-red);" @(bestVoucher?.Code == v.Code ? "checked" : "") />
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div style="text-align: center; padding: 40px 20px; color: #64748B;">
+                        <i class="fas fa-box-open" style="font-size: 32px; color: #CBD5E1; margin-bottom: 12px;"></i><br />
+                        Bạn chưa có mã khuyến mãi nào trong ví.
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
 
 <div class="store-modal-overlay" id="addressModalOverlay" onclick="closeAddressModal()">
     <div class="store-modal-content" onclick="event.stopPropagation()">
@@ -260,7 +390,25 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             loadGhnProvinces();
+
             const fullAddressBlock = document.getElementById('dispFullAddress');
+            const btnSubmit = document.getElementById('btnSubmitOrder');
+            updateCheckoutButtonLabel();
+
+            document.querySelectorAll('input[name="PaymentMethod"]').forEach(radio => {
+                radio.addEventListener('change', updateCheckoutButtonLabel);
+            });
+
+            const checkoutForm = document.getElementById('formCheckout');
+            if (checkoutForm) {
+                checkoutForm.addEventListener('submit', function () {
+                    const selectedMethod = document.querySelector('input[name="PaymentMethod"]:checked')?.value || 'COD';
+                    btnSubmit.disabled = true;
+                    btnSubmit.style.opacity = 0.7;
+                    btnSubmit.innerText = selectedMethod === 'VNPAY' ? 'Đang chuyển sang VNPAY...' : 'Đang ghi nhận đơn hàng...';
+                });
+            }
+
             if (fullAddressBlock) {
                 const distFull = fullAddressBlock.getAttribute('data-district-full');
                 const wardFull = fullAddressBlock.getAttribute('data-ward-full');
@@ -269,42 +417,93 @@
                 }
             } else {
                 document.getElementById('lblShippingFee').innerText = "Vui lòng thêm địa chỉ";
+                btnSubmit.innerText = "CHƯA CÓ ĐỊA CHỈ";
+                btnSubmit.disabled = true;
             }
         });
 
-        function openAddressModal(view = 'list') {
-            document.getElementById('addressModalOverlay').classList.add('show');
-            switchModalView(view);
+        function updateCheckoutButtonLabel() {
+            const btnSubmit = document.getElementById('btnSubmitOrder');
+            if (!btnSubmit || btnSubmit.disabled) return;
+
+            const selectedMethod = document.querySelector('input[name="PaymentMethod"]:checked')?.value || 'COD';
+            if (selectedMethod === 'VNPAY') {
+                btnSubmit.innerText = 'TIẾP TỤC THANH TOÁN VNPAY';
+            } else {
+                btnSubmit.innerText = 'XÁC NHẬN ĐẶT HÀNG';
+            }
         }
 
-        function closeAddressModal() {
-            document.getElementById('addressModalOverlay').classList.remove('show');
+        function openVoucherModal() { document.getElementById('voucherModalOverlay').classList.add('show'); }
+        function closeVoucherModal() { document.getElementById('voucherModalOverlay').classList.remove('show'); }
+
+        function selectVoucher(code) {
+            document.getElementById('manualVoucherCode').value = code;
+            closeVoucherModal();
+            document.querySelectorAll('input[name="modalVoucherSelect"]').forEach(radio => { radio.checked = (radio.value === code); });
+            validateAndApplyVoucher(code);
         }
+
+        function applyManualVoucher() {
+            const code = document.getElementById('manualVoucherCode').value.trim();
+            if (!code) {
+                baseDiscount = 0; document.getElementById('finalAppliedVoucher').value = "";
+                document.getElementById('voucherMessage').innerText = "Đã bỏ chọn mã khuyến mãi.";
+                document.getElementById('voucherMessage').style.color = "#64748B";
+                document.querySelectorAll('input[name="modalVoucherSelect"]').forEach(r => r.checked = false);
+                updateSummaryUI(); return;
+            }
+            validateAndApplyVoucher(code);
+        }
+
+        function validateAndApplyVoucher(code) {
+            const formData = new FormData();
+            formData.append('code', code); formData.append('subtotal', baseSubtotal);
+
+            fetch('/Checkout/ValidateVoucher', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                const msgEl = document.getElementById('voucherMessage');
+                if (data.success) {
+                    baseDiscount = data.discountAmount; document.getElementById('finalAppliedVoucher').value = data.code;
+                    msgEl.innerText = "Áp dụng mã ưu đãi thành công!"; msgEl.style.color = "#059669";
+                } else {
+                    baseDiscount = 0; document.getElementById('finalAppliedVoucher').value = "";
+                    msgEl.innerText = data.message; msgEl.style.color = "#DC2626";
+                }
+                updateSummaryUI();
+            });
+        }
+
+        function updateSummaryUI() {
+            document.getElementById('lblDiscountAmount').innerText = "-(" + new Intl.NumberFormat('vi-VN').format(baseDiscount) + " đ)";
+            const fullAddressBlock = document.getElementById('dispFullAddress');
+            if (fullAddressBlock) {
+                const distFull = fullAddressBlock.getAttribute('data-district-full');
+                const wardFull = fullAddressBlock.getAttribute('data-ward-full');
+                if (distFull && wardFull) fetchShippingFee(distFull, wardFull);
+            } else {
+                let finalTotal = (baseSubtotal - baseDiscount);
+                document.getElementById('lblFinalTotal').innerText = new Intl.NumberFormat('vi-VN').format(finalTotal > 0 ? finalTotal : 0) + " đ";
+            }
+        }
+
+        function openAddressModal(view = 'list') { document.getElementById('addressModalOverlay').classList.add('show'); switchModalView(view); }
+        function closeAddressModal() { document.getElementById('addressModalOverlay').classList.remove('show'); }
 
         function switchModalView(view) {
-            if (view === 'list') {
-                document.getElementById('modalViewList').style.display = 'block';
-                document.getElementById('modalViewForm').style.display = 'none';
-                document.getElementById('modalTitle').innerText = 'Địa chỉ của tôi';
-            } else {
-                document.getElementById('modalViewList').style.display = 'none';
-                document.getElementById('modalViewForm').style.display = 'block';
-                document.getElementById('modalTitle').innerText = 'Thêm địa chỉ mới';
-            }
+            if (view === 'list') { document.getElementById('modalViewList').style.display = 'block'; document.getElementById('modalViewForm').style.display = 'none'; document.getElementById('modalTitle').innerText = 'Địa chỉ của tôi'; }
+            else { document.getElementById('modalViewList').style.display = 'none'; document.getElementById('modalViewForm').style.display = 'block'; document.getElementById('modalTitle').innerText = 'Thêm địa chỉ mới'; }
         }
 
         function confirmSelectedAddress() {
             const selectedRadio = document.querySelector('input[name="modalAddressSelect"]:checked');
             if (selectedRadio) {
                 document.getElementById('selectedAddressId').value = selectedRadio.value;
-
                 const btnSubmit = document.getElementById('btnSubmitOrder');
-                btnSubmit.disabled = true;
-                btnSubmit.style.opacity = 0.5;
-                btnSubmit.innerText = "Đang tính lại phí Ship...";
+                btnSubmit.disabled = true; btnSubmit.style.opacity = 0.5; btnSubmit.innerText = "Đang tính lại phí Ship...";
 
-                const block = document.getElementById('displayAddressBlock');
-                block.innerHTML = `
+                document.getElementById('displayAddressBlock').innerHTML = `
                     <div>
                         <div style="font-weight: 800; color: #0F172A; font-size: 15px; margin-bottom: 4px;">
                             <span id="dispName">${selectedRadio.dataset.name}</span>
@@ -322,111 +521,96 @@
         }
 
         function saveAddressAjax() {
-            const provSelect = document.getElementById('ddlProvince');
-            const distSelect = document.getElementById('ddlDistrict');
-            const wardSelect = document.getElementById('ddlWard');
-
-            if(!provSelect.value || !distSelect.value || !wardSelect.value || !document.getElementById('frmName').value) {
-                alert("Vui lòng điền đầy đủ thông tin vùng miền!"); return;
-            }
+            const provSelect = document.getElementById('ddlProvince'); const distSelect = document.getElementById('ddlDistrict'); const wardSelect = document.getElementById('ddlWard');
+            if(!provSelect.value || !distSelect.value || !wardSelect.value || !document.getElementById('frmName').value) { alert("Vui lòng điền đầy đủ thông tin vùng miền!"); return; }
 
             const formData = new FormData();
-            formData.append('addressId', 0);
-            formData.append('receiverName', document.getElementById('frmName').value);
-            formData.append('receiverPhone', document.getElementById('frmPhone').value);
-            formData.append('street', document.getElementById('frmStreet').value);
-            formData.append('ward', wardSelect.value);
-            formData.append('district', distSelect.value);
-            formData.append('city', provSelect.value);
-            formData.append('isDefault', document.getElementById('frmIsDefault').checked);
+            formData.append('addressId', 0); formData.append('receiverName', document.getElementById('frmName').value); formData.append('receiverPhone', document.getElementById('frmPhone').value); formData.append('street', document.getElementById('frmStreet').value); formData.append('ward', wardSelect.value); formData.append('district', distSelect.value); formData.append('city', provSelect.value); formData.append('isDefault', document.getElementById('frmIsDefault').checked);
 
-            fetch('/Checkout/SaveAddressAjax', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => { if (data.success) location.reload(); });
+            fetch('/Checkout/SaveAddressAjax', { method: 'POST', body: formData }).then(res => res.json()).then(data => { if (data.success) location.reload(); });
         }
 
         function deleteAddress(event, id) {
-            event.preventDefault();
-            event.stopPropagation();
+            event.preventDefault(); event.stopPropagation();
             if(confirm("Bạn có chắc chắn muốn xóa địa chỉ này?")) {
-                const formData = new FormData();
-                formData.append('addressId', id);
-                fetch('/Checkout/DeleteAddressAjax', { method: 'POST', body: formData })
-                .then(res => res.json())
-                .then(data => { if(data.success) location.reload(); });
+                const formData = new FormData(); formData.append('addressId', id);
+                fetch('/Checkout/DeleteAddressAjax', { method: 'POST', body: formData }).then(res => res.json()).then(data => { if(data.success) location.reload(); });
             }
         }
 
         function loadGhnProvinces() {
-            fetch('/Checkout/GetGhnProvinces').then(res => res.json()).then(res => {
-                const ddl = document.getElementById('ddlProvince');
-                if(res.code === 200 && res.data) {
-                    res.data.forEach(p => ddl.innerHTML += `<option value="${p.ProvinceID}|${p.ProvinceName}">${p.ProvinceName}</option>`);
-                }
-            });
+            const ddl = document.getElementById('ddlProvince');
+            if (!ddl) return;
+
+            fetch('/Checkout/GetGhnProvinces')
+                .then(res => res.ok ? res.json() : Promise.reject(new Error('Không tải được danh mục tỉnh/thành')))
+                .then(res => {
+                    if(res.code === 200 && res.data && res.data.length) {
+                        res.data.forEach(p => ddl.innerHTML += `<option value="${p.ProvinceID}|${p.ProvinceName}">${p.ProvinceName}</option>`);
+                    } else {
+                        ddl.innerHTML += '<option value="">Chưa đồng bộ danh mục GHN</option>';
+                    }
+                })
+                .catch(() => {
+                    ddl.innerHTML += '<option value="">Chưa đồng bộ danh mục GHN</option>';
+                });
         }
 
         function onProvinceChange() {
-            const pVal = document.getElementById('ddlProvince').value;
-            const pId = pVal.split('|')[0];
-            const ddlDist = document.getElementById('ddlDistrict');
-            ddlDist.innerHTML = '<option value="">Quận / Huyện</option>';
-            document.getElementById('ddlWard').innerHTML = '<option value="">Phường / Xã</option>';
-            document.getElementById('ddlWard').disabled = true;
-
+            const pId = document.getElementById('ddlProvince').value.split('|')[0];
+            const ddlDist = document.getElementById('ddlDistrict'); ddlDist.innerHTML = '<option value="">Quận / Huyện</option>';
+            document.getElementById('ddlWard').innerHTML = '<option value="">Phường / Xã</option>'; document.getElementById('ddlWard').disabled = true;
             if (!pId) { ddlDist.disabled = true; return; }
-            fetch(`/Checkout/GetGhnDistricts?provinceId=${pId}`).then(res => res.json()).then(res => {
-                if(res.code === 200 && res.data) {
-                    ddlDist.disabled = false;
-                    res.data.forEach(d => ddlDist.innerHTML += `<option value="${d.DistrictID}|${d.DistrictName}">${d.DistrictName}</option>`);
-                }
-            });
+            fetch(`/Checkout/GetGhnDistricts?provinceId=${pId}`)
+                .then(res => res.ok ? res.json() : Promise.reject())
+                .then(res => { if(res.code === 200 && res.data && res.data.length) { ddlDist.disabled = false; res.data.forEach(d => ddlDist.innerHTML += `<option value="${d.DistrictID}|${d.DistrictName}">${d.DistrictName}</option>`); } });
         }
 
         function onDistrictChange() {
-            const dVal = document.getElementById('ddlDistrict').value;
-            const dId = dVal.split('|')[0];
-            const ddlWard = document.getElementById('ddlWard');
-            ddlWard.innerHTML = '<option value="">Phường / Xã</option>';
-
+            const dId = document.getElementById('ddlDistrict').value.split('|')[0];
+            const ddlWard = document.getElementById('ddlWard'); ddlWard.innerHTML = '<option value="">Phường / Xã</option>';
             if (!dId) { ddlWard.disabled = true; return; }
-            fetch(`/Checkout/GetGhnWards?districtId=${dId}`).then(res => res.json()).then(res => {
-                if(res.code === 200 && res.data) {
-                    ddlWard.disabled = false;
-                    res.data.forEach(w => ddlWard.innerHTML += `<option value="${w.WardCode}|${w.WardName}">${w.WardName}</option>`);
-                }
-            });
+            fetch(`/Checkout/GetGhnWards?districtId=${dId}`)
+                .then(res => res.ok ? res.json() : Promise.reject())
+                .then(res => { if(res.code === 200 && res.data && res.data.length) { ddlWard.disabled = false; res.data.forEach(w => ddlWard.innerHTML += `<option value="${w.WardCode}|${w.WardName}">${w.WardName}</option>`); } });
         }
 
         function fetchShippingFee(districtCombo, wardCombo) {
-            if(!districtCombo || !wardCombo) return;
+                    if(!districtCombo || !wardCombo) return;
+                    const dId = districtCombo.split('|')[0]; const wCode = wardCombo.split('|')[0];
+                    const formData = new FormData(); formData.append('districtId', dId); formData.append('wardCode', wCode);
 
-            const dId = districtCombo.split('|')[0];
-            const wCode = wardCombo.split('|')[0];
+                    // XÁC ĐỊNH XEM ĐANG TÍNH SHIP CHO LUỒNG NÀO
+                    const selectedItemsInput = document.getElementById('checkoutSelectedItems');
+                    const buyNowVariantInput = document.getElementById('buyNowVariantId');
+                    const buyNowQtyInput = document.getElementById('buyNowQty');
 
-            const formData = new FormData();
-            formData.append('districtId', dId);
-            formData.append('wardCode', wCode);
+                    if (buyNowVariantInput && buyNowQtyInput) {
+                        formData.append('buyNowVariantId', buyNowVariantInput.value);
+                        formData.append('buyNowQty', buyNowQtyInput.value);
+                    } else if (selectedItemsInput) {
+                        formData.append('selectedItems', selectedItemsInput.value);
+                    }
 
-            fetch('/Checkout/CalculateShippingFee', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => {
-                // Đọc kết quả động từ GHN bắn về
-                document.getElementById('lblShippingFee').innerText = data.feeFormatted;
+                    fetch('/Checkout/CalculateShippingFee', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(data => {
+                        document.getElementById('lblShippingFee').innerText = data.feeFormatted;
+                        let currentFee = data.success ? data.fee : 30000;
+                        let finalTotal = (baseSubtotal - baseDiscount) + currentFee;
+                        document.getElementById('lblFinalTotal').innerText = new Intl.NumberFormat('vi-VN').format(finalTotal > 0 ? finalTotal : 0) + " đ";
 
-                let currentFee = data.success ? data.fee : 30000;
-                let finalTotal = (baseSubtotal - baseDiscount) + currentFee;
-                document.getElementById('lblFinalTotal').innerText = new Intl.NumberFormat('vi-VN').format(finalTotal > 0 ? finalTotal : 0) + " đ";
+                        const btnSubmit = document.getElementById('btnSubmitOrder');
+                        btnSubmit.disabled = false; btnSubmit.style.opacity = 1; updateCheckoutButtonLabel();
+                    })
+                    .catch(err => {
+                        document.getElementById('lblShippingFee').innerText = "30.000 đ";
+                        let finalTotal = (baseSubtotal - baseDiscount) + 30000;
+                        document.getElementById('lblFinalTotal').innerText = new Intl.NumberFormat('vi-VN').format(finalTotal > 0 ? finalTotal : 0) + " đ";
 
-                if(!data.success) {
-                    console.error("Chi tiết lỗi tính phí từ máy chủ GHN:", data.message);
+                        const btnSubmit = document.getElementById('btnSubmitOrder');
+                        btnSubmit.disabled = false; btnSubmit.style.opacity = 1; updateCheckoutButtonLabel();
+                    });
                 }
-
-                const btnSubmit = document.getElementById('btnSubmitOrder');
-                btnSubmit.disabled = false;
-                btnSubmit.style.opacity = 1;
-                btnSubmit.innerText = "Đặt hàng ngay";
-            });
-        }
     </script>
 }

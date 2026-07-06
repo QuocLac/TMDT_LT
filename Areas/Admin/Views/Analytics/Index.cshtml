@@ -1,0 +1,183 @@
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Phân tích hành vi khách hàng";
+    var dailyJson = JsonSerializer.Serialize(ViewBag.Daily ?? new List<object>());
+    dynamic gaStatus = ViewBag.GoogleAnalyticsStatus;
+    var gaLevel = gaStatus?.Level ?? "danger";
+    var gaIcon = gaLevel == "success" ? "fa-circle-check" : (gaLevel == "warning" ? "fa-triangle-exclamation" : "fa-circle-xmark");
+    string gaMeasurementIdText = Convert.ToString(gaStatus?.MeasurementId) ?? "";
+    string gaPropertyIdText = Convert.ToString(gaStatus?.PropertyId) ?? "";
+    string gaTechnicalText = Convert.ToString(gaStatus?.TechnicalDetail) ?? "";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Phân tích hành vi khách hàng</h2>
+            <div class="text-muted">Theo dõi lượt ghé trang, phễu chuyển đổi và sản phẩm có tín hiệu mua cao.</div>
+        </div>
+        <form method="get" class="d-flex gap-2 align-items-end">
+            <div><label class="form-label small fw-bold">Từ ngày</label><input type="date" name="fromDate" value="@ViewBag.FromDate" class="form-control" /></div>
+            <div><label class="form-label small fw-bold">Đến ngày</label><input type="date" name="toDate" value="@ViewBag.ToDate" class="form-control" /></div>
+            <button class="btn btn-dark" type="submit"><i class="fas fa-filter me-1"></i> Lọc</button>
+        </form>
+    </div>
+
+
+    <div id="gaHealthCard" class="alert alert-@gaLevel border-0 shadow-sm mb-4" role="alert">
+        <div class="d-flex justify-content-between gap-3 align-items-start">
+            <div>
+                <div class="fw-bold mb-1">
+                    <i class="fas @gaIcon me-2"></i><span id="gaHealthTitle">@(gaStatus?.Title ?? "Google Analytics chưa kiểm tra")</span>
+                </div>
+                <div id="gaHealthMessage">@(gaStatus?.Message ?? "Chưa có trạng thái kết nối Google Analytics.")</div>
+                <div class="small mt-2 opacity-75">
+                    Measurement ID: <strong>@(string.IsNullOrWhiteSpace(gaMeasurementIdText) ? "Chưa cấu hình" : gaMeasurementIdText)</strong>
+                    <span class="mx-2">•</span>
+                    Property ID: <strong>@(string.IsNullOrWhiteSpace(gaPropertyIdText) ? "Chưa cấu hình" : gaPropertyIdText)</strong>
+                    <span class="mx-2">•</span>
+                    Credentials: <strong>@((gaStatus?.CredentialsFileExists == true) ? "Đã tìm thấy" : "Chưa hợp lệ")</strong>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(gaTechnicalText))
+                {
+                    <div id="gaTechnicalDetail" class="small mt-2 bg-white bg-opacity-50 rounded px-2 py-1">
+                        Chi tiết kỹ thuật: @gaTechnicalText
+                    </div>
+                }
+                else
+                {
+                    <div id="gaTechnicalDetail" class="small mt-2 bg-white bg-opacity-50 rounded px-2 py-1 d-none"></div>
+                }
+            </div>
+            <button type="button" id="btnCheckGaHealth" class="btn btn-sm btn-outline-dark text-nowrap">
+                <i class="fas fa-rotate me-1"></i> Kiểm tra lại
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-2"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-muted small">Phiên truy cập</div><div class="h3 fw-bold">@ViewBag.Sessions</div></div></div></div>
+        <div class="col-md-2"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-muted small">Lượt xem trang</div><div class="h3 fw-bold">@ViewBag.PageViews</div></div></div></div>
+        <div class="col-md-2"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-muted small">Xem sản phẩm</div><div class="h3 fw-bold">@ViewBag.ProductViews</div></div></div></div>
+        <div class="col-md-2"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-muted small">Thêm giỏ</div><div class="h3 fw-bold">@ViewBag.AddToCartSessions</div><div class="small text-success">@ViewBag.AddToCartRate%</div></div></div></div>
+        <div class="col-md-2"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-muted small">Vào checkout</div><div class="h3 fw-bold">@ViewBag.CheckoutSessions</div><div class="small text-primary">@ViewBag.CheckoutRate%</div></div></div></div>
+        <div class="col-md-2"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-muted small">Chuyển đổi</div><div class="h3 fw-bold">@ViewBag.PurchaseRate%</div><div class="small text-muted">@string.Format("{0:N0}", ViewBag.Revenue) đ</div></div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold">Phễu hành vi theo ngày</div>
+                <div class="card-body"><canvas id="analyticsFunnelChart" height="120"></canvas></div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold">Từ khóa có tín hiệu mua</div>
+                <div class="card-body p-0">
+                    <table class="table mb-0 align-middle">
+                        <thead><tr><th>Từ khóa</th><th class="text-end">Lượt</th></tr></thead>
+                        <tbody>
+                        @foreach (var item in ViewBag.TopSearches)
+                        {
+                            <tr><td>@item.Keyword</td><td class="text-end fw-bold">@item.Count</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mt-3">
+        <div class="card-header bg-white fw-bold">Sản phẩm có tín hiệu chuyển đổi cao</div>
+        <div class="card-body p-0">
+            <table class="table mb-0 align-middle">
+                <thead><tr><th>Sản phẩm</th><th class="text-end">Xem</th><th class="text-end">Thêm giỏ</th><th class="text-end">Mua</th></tr></thead>
+                <tbody>
+                @foreach (var p in ViewBag.TopProducts)
+                {
+                    <tr><td>@p.Name</td><td class="text-end">@p.Views</td><td class="text-end">@p.AddToCart</td><td class="text-end fw-bold">@p.Purchases</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const daily = @Html.Raw(dailyJson);
+        const labels = daily.map(x => x.Date);
+        const ctx = document.getElementById('analyticsFunnelChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Page views', data: daily.map(x => x.PageViews), tension: .35 },
+                        { label: 'Xem sản phẩm', data: daily.map(x => x.ProductViews), tension: .35 },
+                        { label: 'Thêm giỏ', data: daily.map(x => x.AddToCart), tension: .35 },
+                        { label: 'Checkout', data: daily.map(x => x.Checkout), tension: .35 },
+                        { label: 'Mua hàng', data: daily.map(x => x.Purchase), tension: .35 }
+                    ]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+
+        const gaHealthButton = document.getElementById('btnCheckGaHealth');
+        if (gaHealthButton) {
+            gaHealthButton.addEventListener('click', async () => {
+                const card = document.getElementById('gaHealthCard');
+                const title = document.getElementById('gaHealthTitle');
+                const message = document.getElementById('gaHealthMessage');
+                const technical = document.getElementById('gaTechnicalDetail');
+
+                gaHealthButton.disabled = true;
+                gaHealthButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Đang kiểm tra';
+
+                try {
+                    const res = await fetch('@Url.Action("GoogleAnalyticsHealth", "Analytics", new { area = "Admin" })', {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await res.json();
+
+                    if (card) {
+                        card.classList.remove('alert-success', 'alert-warning', 'alert-danger');
+                        card.classList.add('alert-' + (data.level || 'danger'));
+                    }
+                    if (title) title.textContent = data.title || 'Google Analytics chưa kết nối';
+                    if (message) message.textContent = data.message || 'Chưa đọc được trạng thái kết nối Google Analytics.';
+
+                    if (technical) {
+                        if (data.technicalDetail) {
+                            technical.classList.remove('d-none');
+                            technical.textContent = 'Chi tiết kỹ thuật: ' + data.technicalDetail;
+                        } else {
+                            technical.classList.add('d-none');
+                            technical.textContent = '';
+                        }
+                    }
+                } catch (err) {
+                    if (card) {
+                        card.classList.remove('alert-success', 'alert-warning');
+                        card.classList.add('alert-danger');
+                    }
+                    if (title) title.textContent = 'Không kiểm tra được Google Analytics';
+                    if (message) message.textContent = 'Endpoint kiểm tra kết nối đang lỗi hoặc server chưa phản hồi.';
+                    if (technical) {
+                        technical.classList.remove('d-none');
+                        technical.textContent = 'Chi tiết kỹ thuật: ' + err;
+                    }
+                } finally {
+                    gaHealthButton.disabled = false;
+                    gaHealthButton.innerHTML = '<i class="fas fa-rotate me-1"></i> Kiểm tra lại';
+                }
+            });
+        }
+    </script>
+}

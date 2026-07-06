@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Security.Claims;
-using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
+using System.Text.Json;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
 using TMDT_LT.Models.ViewModels.Storefront;
@@ -20,353 +20,580 @@ namespace TMDT_LT.Controllers
         private readonly ApplicationDbContext _context;
         private readonly PromotionEngine _promotionEngine;
         private readonly VnPayService _vnPayService;
-        private readonly GhnService _ghnService; // TIÊM DỊCH VỤ GHN VÀO
+        private readonly GhnService _ghnService;
+        private readonly ICrossSellAprioriService _crossSellAprioriService;
 
-        private const string CART_SESSION_KEY = "PhoneStCartSession";
-
-        public CheckoutController(ApplicationDbContext context, PromotionEngine promotionEngine, VnPayService vnPayService, GhnService ghnService)
+        public CheckoutController(ApplicationDbContext context, PromotionEngine promotionEngine, VnPayService vnPayService, GhnService ghnService, ICrossSellAprioriService crossSellAprioriService)
         {
             _context = context;
             _promotionEngine = promotionEngine;
             _vnPayService = vnPayService;
             _ghnService = ghnService;
+            _crossSellAprioriService = crossSellAprioriService;
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string? selectedItems)
+        public async Task<IActionResult> Index(string? selectedItems, int? buyNowVariantId, int? buyNowQty)
         {
             int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
-            string email = User.FindFirstValue(ClaimTypes.Email) ?? "";
-            List<CartItemVM> cart = new List<CartItemVM>();
+            var customer = await _context.Customer.Include(c => c.Account).FirstOrDefaultAsync(c => c.CustomerId == customerId);
+            if (customer == null) return RedirectToAction("Login", "Account");
 
-            if (!string.IsNullOrWhiteSpace(selectedItems))
+            var cartVM = new List<CartItemVM>();
+
+            if (buyNowVariantId.HasValue && buyNowVariantId > 0 && buyNowQty.HasValue && buyNowQty > 0)
             {
-                var variantIds = selectedItems.Split(',').Select(int.Parse).ToList();
-                var dbItems = await _context.CartItems
-                    .Include(c => c.Variant)
-                    .ThenInclude(v => v.Product)
-                    .Where(c => c.CustomerId == customerId && variantIds.Contains((int)c.VariantId))
-                    .ToListAsync();
+                var variant = await _context.ProductVariants.Include(v => v.Product).FirstOrDefaultAsync(v => v.VariantId == buyNowVariantId && v.IsActive == true);
+                if (variant == null) return RedirectToAction("Index", "Store");
 
-                cart = dbItems.Select(c => {
-                    decimal price = c.Variant.DiscountPrice > 0 ? c.Variant.DiscountPrice.Value : (c.Variant.Price ?? 0);
-                    return new CartItemVM
-                    {
-                        VariantId = (int)c.VariantId,
-                        ProductName = c.Variant.Product.Name,
-                        ImageUrl = c.Variant.ImageUrl ?? c.Variant.Product.MainImage,
-                        Storage = c.Variant.Storage ?? "",
-                        Color = c.Variant.Color ?? "",
-                        Price = price,
-                        Quantity = (int)c.Quantity,
-                        Stock = c.Variant.Stock ?? 0
-                    };
-                }).ToList();
+                cartVM.Add(new CartItemVM
+                {
+                    VariantId = variant.VariantId,
+                    ProductName = variant.Product?.Name ?? "",
+                    Color = variant.Color ?? "",
+                    Storage = variant.Storage ?? "",
+                    ImageUrl = variant.ImageUrl ?? variant.Product?.MainImage ?? "",
+                    Quantity = buyNowQty.Value,
+                    Stock = variant.Stock ?? 0
+                });
 
-                HttpContext.Session.SetString(CART_SESSION_KEY, JsonSerializer.Serialize(cart));
+                ViewBag.IsBuyNow = true;
+                ViewBag.BuyNowVariantId = buyNowVariantId;
+                ViewBag.BuyNowQty = buyNowQty;
             }
             else
             {
-                cart = GetCartFromSession();
+                if (string.IsNullOrWhiteSpace(selectedItems)) return RedirectToAction("Index", "Cart");
+
+                var selectedIds = selectedItems.Split(',').Where(x => int.TryParse(x, out _)).Select(int.Parse).ToList();
+                var cartItems = await _context.CartItems
+                    .Include(c => c.Variant).ThenInclude(v => v!.Product)
+                    .Where(c => c.CustomerId == customerId && selectedIds.Contains(c.VariantId ?? 0))
+                    .ToListAsync();
+
+                if (!cartItems.Any()) return RedirectToAction("Index", "Cart");
+
+                cartVM = cartItems.Select(c => new CartItemVM
+                {
+                    VariantId = c.VariantId ?? 0,
+                    ProductName = c.Variant?.Product?.Name ?? "",
+                    Color = c.Variant?.Color ?? "",
+                    Storage = c.Variant?.Storage ?? "",
+                    ImageUrl = c.Variant?.ImageUrl ?? c.Variant?.Product?.MainImage ?? "",
+                    Quantity = c.Quantity ?? 1,
+                    Stock = c.Variant?.Stock ?? 0
+                }).ToList();
+
+                ViewBag.SelectedItems = selectedItems;
             }
 
-            if (!cart.Any()) return RedirectToAction("Index", "Cart");
+            await RefreshCartMetadataAsync(cartVM, customerId);
+            cartVM = cartVM.Where(c => c.Quantity > 0).ToList();
+            decimal subtotal = cartVM.Sum(c => c.TotalPrice);
 
-            var customer = await _context.Customer
-                .Include(c => c.Address)
-                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+            var voucherStates = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal, customerId);
+            ViewBag.VoucherStates = voucherStates;
+            var bestVoucher = voucherStates.FirstOrDefault(v => v.IsEligible);
+            ViewBag.BestVoucher = bestVoucher;
+            decimal initialDiscount = bestVoucher != null ? bestVoucher.EstimatedDiscountAmount : 0;
 
-            if (customer == null) return RedirectToAction("Login", "Auth");
-
-            decimal subtotal = cart.Sum(x => x.TotalPrice);
-            var vouchers = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
-            var bestVoucher = vouchers.FirstOrDefault(v => v.IsEligible);
-            decimal discount = bestVoucher?.EstimatedDiscountAmount ?? 0;
-
-            var carriers = await _context.ShippingCarriers.Where(c => c.IsActive).ToListAsync();
-            decimal defaultShippingFee = 0; // Phí ship ban đầu là 0, đợi khách chọn địa chỉ gọi API GHN
-
-            var vm = new CheckoutVM
+            var model = new CheckoutVM
             {
-                CartItems = cart,
+                CartItems = cartVM,
                 Subtotal = subtotal,
-                DiscountAmount = discount,
-                AppliedVoucherCode = bestVoucher?.Code,
-                ShippingFee = defaultShippingFee,
-                FinalTotal = (subtotal - discount) + defaultShippingFee,
+                DiscountAmount = initialDiscount,
+                FinalTotal = subtotal - initialDiscount,
                 CustomerName = customer.FullName,
                 CustomerPhone = customer.Phone ?? "",
-                CustomerEmail = email,
-                SavedAddresses = customer.Address.OrderByDescending(a => a.IsDefault).ToList(),
-                AvailableCarriers = carriers
+                CustomerEmail = customer.Account.Email ?? "",
+                SavedAddresses = await _context.Address.Where(a => a.CustomerId == customerId).ToListAsync(),
+                AvailableCarriers = await _context.ShippingCarriers.Where(c => c.IsActive).ToListAsync()
             };
 
-            return View(vm);
+            return View(model);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> PlaceOrder(
-            int addressId, string? newFullName, string? newPhone, string? newStreet, string? newWard, string? newDistrict, string? newProvince,
-            string paymentMethod, string? note)
+        public async Task<IActionResult> PlaceOrder(int SelectedAddressId, string PaymentMethod, string? AppliedVoucherCode, string? selectedItems, int? buyNowVariantId, int? buyNowQty)
         {
-            var cart = GetCartFromSession();
-            if (!cart.Any()) return RedirectToAction("Index", "Store");
-
             int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // Form cũ từng dùng name="paymentMethod". Đọc cả hai key để tránh submit xong quay lại trang checkout.
+            if (string.IsNullOrWhiteSpace(PaymentMethod) && Request.HasFormContentType)
+            {
+                PaymentMethod = Request.Form["PaymentMethod"].ToString();
+                if (string.IsNullOrWhiteSpace(PaymentMethod))
+                {
+                    PaymentMethod = Request.Form["paymentMethod"].ToString();
+                }
+            }
+
+            PaymentMethod = string.IsNullOrWhiteSpace(PaymentMethod) ? "COD" : PaymentMethod.Trim();
+            bool isVnPay = PaymentMethod.Equals("VNPAY", StringComparison.OrdinalIgnoreCase);
+            bool isBankTransfer = PaymentMethod.Equals("BankTransfer", StringComparison.OrdinalIgnoreCase);
+            bool isCod = PaymentMethod.Equals("COD", StringComparison.OrdinalIgnoreCase);
+
+            if (!isCod && !isVnPay && !isBankTransfer)
+            {
+                PaymentMethod = "COD";
+                isCod = true;
+            }
+
+            var address = await _context.Address.Include(a => a.Customer).FirstOrDefaultAsync(a => a.AddressId == SelectedAddressId && a.CustomerId == customerId);
+            if (address == null)
+            {
+                TempData["Error"] = "Vui lòng chọn địa chỉ giao hàng hợp lệ.";
+                return RedirectToAction("Index", new { selectedItems, buyNowVariantId, buyNowQty });
+            }
+
+            var cartVM = new List<CartItemVM>();
+            var dbCartItemsToRemove = new List<CartItems>();
+
+            if (buyNowVariantId.HasValue && buyNowQty.HasValue)
+            {
+                var variant = await _context.ProductVariants.FirstOrDefaultAsync(v => v.VariantId == buyNowVariantId && v.IsActive == true);
+                if (variant == null) return RedirectToAction("Index", "Store");
+
+                cartVM.Add(new CartItemVM { VariantId = variant.VariantId, Quantity = buyNowQty.Value });
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(selectedItems)) return RedirectToAction("Index", "Cart");
+                var selectedIds = selectedItems.Split(',').Where(x => int.TryParse(x, out _)).Select(int.Parse).ToList();
+                dbCartItemsToRemove = await _context.CartItems.Where(c => c.CustomerId == customerId && selectedIds.Contains(c.VariantId ?? 0)).ToListAsync();
+                cartVM = dbCartItemsToRemove.Select(c => new CartItemVM { VariantId = c.VariantId ?? 0, Quantity = c.Quantity ?? 1 }).ToList();
+            }
+
+            if (!cartVM.Any()) return RedirectToAction("Index", "Cart");
+
+            using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            bool transactionCommitted = false;
+            int createdOrderId = 0;
             try
             {
-                string shipName, shipPhone, shipStreet, shipWard, shipDistrict, shipCity;
+                var now = DateTime.Now;
+                await RefreshCartMetadataAsync(cartVM, customerId);
+                cartVM = cartVM.Where(c => c.Quantity > 0).ToList();
+                if (!cartVM.Any()) throw new Exception("Sản phẩm đã hết hàng hoặc không còn đủ điều kiện mua.");
 
-                if (addressId == 0) // Địa chỉ mới
+                var activeFlashSale = await _context.FlashSales
+                    .Include(f => f.FlashSaleItems)
+                    .Where(f => f.IsActive && f.StartTime <= now && f.EndTime >= now)
+                    .OrderByDescending(f => f.StartTime)
+                    .FirstOrDefaultAsync();
+
+                decimal subtotal = 0;
+                var orderDetailsList = new List<OrderDetails>();
+
+                foreach (var item in cartVM)
                 {
-                    shipName = newFullName ?? "";
-                    shipPhone = newPhone ?? "";
-                    shipStreet = newStreet ?? ""; // Không gộp chung với Ward nữa
-                    shipWard = newWard ?? "";
-                    shipDistrict = newDistrict ?? "";
-                    shipCity = newProvince ?? "";
+                    var variant = await _context.ProductVariants.Include(v => v.Product).FirstOrDefaultAsync(v => v.VariantId == item.VariantId && v.IsActive == true);
+                    if (variant == null) throw new Exception("Sản phẩm không tồn tại hoặc đã ngừng bán.");
 
-                    var newAddress = new Address
+                    int currentStock = variant.Stock ?? 0;
+                    if (currentStock < item.Quantity) throw new Exception($"Sản phẩm '{variant.Product?.Name}' chỉ còn {currentStock} sản phẩm.");
+
+                    if (item.IsFlashSale && item.FlashSaleQty > 0)
                     {
-                        CustomerId = customerId,
-                        Street = shipStreet,
-                        Ward = shipWard,
-                        District = shipDistrict,
-                        City = shipCity,
-                        IsDefault = false
-                    };
-                    _context.Address.Add(newAddress);
-                }
-                else // Địa chỉ cũ
-                {
-                    var existingAddress = await _context.Address.FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
-                    if (existingAddress == null) throw new Exception("Địa chỉ không hợp lệ.");
+                        var fsItem = activeFlashSale?.FlashSaleItems.FirstOrDefault(i => i.VariantId == item.VariantId);
+                        if (fsItem == null) throw new Exception($"Suất Flash Sale cho '{variant.Product?.Name}' vừa kết thúc.");
 
-                    var customer = await _context.Customer.FindAsync(customerId);
-                    shipName = customer?.FullName ?? "";
-                    shipPhone = customer?.Phone ?? "";
-                    shipStreet = existingAddress.Street ?? "";
-                    shipWard = existingAddress.Ward ?? "";
-                    shipDistrict = existingAddress.District ?? "";
-                    shipCity = existingAddress.City ?? "";
-                }
+                        int alreadyBought = await GetCustomerFlashSaleBoughtQtyAsync(customerId, fsItem.ItemId);
+                        int remainingByCustomerLimit = fsItem.MaxPerUser > 0 ? Math.Max(0, fsItem.MaxPerUser - alreadyBought) : int.MaxValue;
+                        int availableFsStock = Math.Max(0, fsItem.Quantity - fsItem.Sold);
+                        int allowedFlashSaleQty = Math.Min(item.FlashSaleQty, Math.Min(availableFsStock, remainingByCustomerLimit));
 
-                foreach (var item in cart)
-                {
-                    var variant = await _context.ProductVariants.FindAsync(item.VariantId);
-                    if (variant == null || variant.Stock < item.Quantity)
-                    {
-                        TempData["Error"] = $"Sản phẩm {item.ProductName} ({item.Storage}-{item.Color}) đã hết hàng hoặc không đủ số lượng.";
-                        return RedirectToAction("Index");
+                        if (allowedFlashSaleQty < item.FlashSaleQty)
+                        {
+                            item.RegularQty += item.FlashSaleQty - allowedFlashSaleQty;
+                            item.FlashSaleQty = allowedFlashSaleQty;
+                        }
+
+                        if (item.FlashSaleQty > 0)
+                        {
+                            fsItem.Sold += item.FlashSaleQty;
+                            subtotal += item.FlashSalePrice * item.FlashSaleQty;
+                            orderDetailsList.Add(new OrderDetails
+                            {
+                                VariantId = item.VariantId,
+                                Quantity = item.FlashSaleQty,
+                                UnitPrice = item.FlashSalePrice,
+                                IsFlashSaleItem = true,
+                                FlashSaleItemId = fsItem.ItemId,
+                                IsReviewed = false
+                            });
+                        }
                     }
-                    variant.Stock -= item.Quantity;
+
+                    if (item.RegularQty > 0)
+                    {
+                        subtotal += item.RegularPrice * item.RegularQty;
+                        orderDetailsList.Add(new OrderDetails
+                        {
+                            VariantId = item.VariantId,
+                            Quantity = item.RegularQty,
+                            UnitPrice = item.RegularPrice,
+                            IsFlashSaleItem = false,
+                            IsReviewed = false
+                        });
+                    }
+
+                    variant.Stock = currentStock - item.Quantity;
                 }
 
-                decimal subtotal = cart.Sum(x => x.TotalPrice);
-                var vouchers = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal);
-                decimal discount = vouchers.FirstOrDefault(v => v.IsEligible)?.EstimatedDiscountAmount ?? 0;
+                decimal discountAmount = 0;
+                if (!string.IsNullOrWhiteSpace(AppliedVoucherCode))
+                {
+                    var voucherStates = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal, customerId);
+                    var validVoucher = voucherStates.FirstOrDefault(v => v.Code.Equals(AppliedVoucherCode, StringComparison.OrdinalIgnoreCase) && v.IsEligible);
 
-                // Gọi API tính lại phí ship lần cuối trước khi chốt đơn đề phòng khách F12 sửa Code HTML
-                int totalWeight = cart.Sum(c => c.Quantity) * 500;
-                int insuranceValue = (int)subtotal > 5000000 ? 5000000 : (int)subtotal;
-                string dIdStr = shipDistrict.Contains("|") ? shipDistrict.Split('|')[0] : "0";
-                string wCodeStr = shipWard.Contains("|") ? shipWard.Split('|')[0] : "0";
-                int dId = int.Parse(dIdStr);
+                    if (validVoucher != null)
+                    {
+                        discountAmount = validVoucher.EstimatedDiscountAmount;
+                        var promotion = await _context.Promotions.FindAsync(validVoucher.PromotionId);
+                        if (promotion != null) promotion.UsedCount++;
 
-                decimal shippingFee = await _ghnService.CalculateFeeAsync(dId, wCodeStr, totalWeight, insuranceValue);
-                decimal totalAmount = (subtotal - discount) + shippingFee;
+                        var wallet = await _context.CustomerWallet.FirstOrDefaultAsync(w => w.CustomerId == customerId && w.PromotionId == validVoucher.PromotionId);
+                        if (wallet != null) { wallet.Status = 1; wallet.UsedAt = now; }
+                    }
+                }
 
-                var order = new Orders
+                decimal shippingFee = 30000;
+                if (!string.IsNullOrEmpty(address.District) && !string.IsNullOrEmpty(address.Ward))
+                {
+                    try
+                    {
+                        int districtId = int.Parse(address.District.Split('|')[0]);
+                        string wardCode = address.Ward.Split('|')[0];
+                        int totalWeight = cartVM.Sum(c => c.Quantity * 500);
+                        int insuranceValue = (int)subtotal;
+                        shippingFee = await _ghnService.CalculateFeeAsync(districtId, wardCode, totalWeight, insuranceValue);
+                    }
+                    catch { }
+                }
+
+                decimal finalTotal = subtotal - discountAmount + shippingFee;
+                if (finalTotal < 0) finalTotal = 0;
+
+                var newOrder = new Orders
                 {
                     CustomerId = customerId,
-                    OrderDate = DateTime.Now,
+                    OrderDate = now,
                     Status = "Chờ xác nhận",
-                    TotalAmount = totalAmount,
-                    ShippingFullName = shipName,
-                    ShippingPhone = shipPhone,
-                    ShippingStreet = shipStreet,
-                    ShippingDistrict = shipDistrict.Contains("|") ? shipDistrict.Split('|')[1] : shipDistrict, // Lưu tên Quận vào DB
-                    ShippingCity = shipCity.Contains("|") ? shipCity.Split('|')[1] : shipCity // Lưu tên Tỉnh vào DB
+                    TotalAmount = finalTotal,
+                    ShippingFullName = address.ReceiverName ?? address.Customer?.FullName,
+                    ShippingPhone = address.ReceiverPhone ?? address.Customer?.Phone,
+                    ShippingStreet = address.Street,
+                    ShippingDistrict = address.District,
+                    ShippingCity = address.City,
+                    ShippingCountry = address.Country ?? "Việt Nam",
+                    IsStockDeducted = true,
+                    StockDeductedAt = now,
+                    OrderDetails = orderDetailsList
                 };
-                _context.Orders.Add(order);
+
+                _context.Orders.Add(newOrder);
                 await _context.SaveChangesAsync();
+                createdOrderId = newOrder.OrderId;
 
-                var orderDetails = cart.Select(item => new OrderDetails
+                foreach (var detail in orderDetailsList)
                 {
-                    OrderId = order.OrderId,
-                    VariantId = item.VariantId,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.Price
-                }).ToList();
-                _context.OrderDetails.AddRange(orderDetails);
+                    if (detail.VariantId.HasValue && detail.Quantity.HasValue && detail.Quantity.Value > 0)
+                    {
+                        _context.InventoryTransactions.Add(new InventoryTransactions
+                        {
+                            VariantId = detail.VariantId.Value,
+                            TransactionType = "ADJUST",
+                            Quantity = -detail.Quantity.Value,
+                            ReferenceId = newOrder.OrderId,
+                            TransactionDate = now,
+                            Note = detail.IsFlashSaleItem ? $"Trừ kho đơn #{newOrder.OrderId} - Flash Sale" : $"Trừ kho đơn #{newOrder.OrderId}"
+                        });
+                    }
+                }
 
-                // LƯU TRỮ ID GHN VÀO TRƯỜNG TRACKING NUMBER CHỜ ADMIN SỬ DỤNG
-                var shipping = new Shipping
-                {
-                    OrderId = order.OrderId,
-                    Carrier = "GHN",
-                    Status = "Chờ lấy hàng",
-                    TrackingNumber = $"{dIdStr}_{wCodeStr}", // Mẹo: Lưu tạm ID Tỉnh Quận tại đây
-                    Note = note
-                };
-                _context.Shipping.Add(shipping);
+                string paymentStatus = isCod
+                    ? "Chưa thanh toán"
+                    : isBankTransfer
+                        ? "Chờ xác nhận chuyển khoản"
+                        : "Chờ thanh toán qua Cổng";
 
-                var payment = new Payments
-                {
-                    OrderId = order.OrderId,
-                    PaymentMethod = paymentMethod,
-                    PaymentDate = DateTime.Now,
-                    PaymentStatus = paymentMethod == "COD" ? "Chưa thanh toán" : "Đang chờ cổng thanh toán"
-                };
-                _context.Payments.Add(payment);
+                string orderCreatedNote = isBankTransfer
+                    ? "Đơn hàng mới được hệ thống ghi nhận, đang chờ xác nhận chuyển khoản. Tồn kho đã được giữ cho đơn này."
+                    : "Đơn hàng mới được hệ thống ghi nhận, tồn kho đã được giữ cho đơn này.";
 
-                var purchasedVariantIds = cart.Select(x => x.VariantId).ToList();
-                var cartItemsToRemove = await _context.CartItems
-                    .Where(c => c.CustomerId == customerId && purchasedVariantIds.Contains((int)c.VariantId))
-                    .ToListAsync();
+                _context.Payments.Add(new Payments { OrderId = newOrder.OrderId, PaymentMethod = PaymentMethod, PaymentDate = now, PaymentStatus = paymentStatus });
+                _context.Shipping.Add(new Shipping { OrderId = newOrder.OrderId, Carrier = "Giao hàng tiêu chuẩn", Status = "Chờ lấy hàng" });
+                _context.OrderHistories.Add(new OrderHistory { OrderId = newOrder.OrderId, Status = "Chờ xác nhận", UpdatedAt = now, Note = orderCreatedNote });
 
-                _context.CartItems.RemoveRange(cartItemsToRemove);
-
-                _context.OrderHistories.Add(new OrderHistory
-                {
-                    OrderId = order.OrderId,
-                    Status = "Chờ xác nhận",
-                    UpdatedAt = DateTime.Now,
-                    Note = "Khách hàng đặt đơn thành công."
-                });
+                if (dbCartItemsToRemove.Any()) _context.CartItems.RemoveRange(dbCartItemsToRemove);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+                transactionCommitted = true;
 
-                HttpContext.Session.Remove(CART_SESSION_KEY);
-
-                if (paymentMethod == "VNPAY")
+                if (isVnPay)
                 {
-                    string vnpayUrl = _vnPayService.CreatePaymentUrl(HttpContext, order.OrderId, (double)totalAmount);
-                    return Redirect(vnpayUrl);
+                    try
+                    {
+                        string paymentUrl = _vnPayService.CreatePaymentUrl(HttpContext, newOrder.OrderId, (double)finalTotal);
+                        if (string.IsNullOrWhiteSpace(paymentUrl))
+                        {
+                            throw new InvalidOperationException("Không tạo được đường dẫn thanh toán VNPAY.");
+                        }
+
+                        return Redirect(paymentUrl);
+                    }
+                    catch (Exception paymentEx)
+                    {
+                        TempData["Error"] = "Đơn hàng đã được ghi nhận, nhưng cổng VNPAY chưa mở được. Bạn có thể thanh toán lại trong chi tiết đơn hàng. Chi tiết: " + paymentEx.Message;
+                        return RedirectToAction("OrderPlaced", new { orderId = newOrder.OrderId });
+                    }
                 }
 
-                TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = order.OrderId, Method = "COD" });
-                return RedirectToAction("Orders", "Customer");
+                TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = newOrder.OrderId, Method = PaymentMethod });
+                return RedirectToAction("OrderPlaced", new { orderId = newOrder.OrderId });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                TempData["Error"] = "Có lỗi xảy ra: " + ex.Message;
-                return RedirectToAction("Index");
+                string rootError = ex.InnerException?.Message ?? ex.Message;
+
+                if (!transactionCommitted)
+                {
+                    await transaction.RollbackAsync();
+                    TempData["Error"] = "Đơn hàng chưa thể ghi nhận do dữ liệu chưa khớp với cấu trúc hệ thống. Chi tiết kỹ thuật: " + rootError;
+                    return RedirectToAction("Index", new { selectedItems, buyNowVariantId, buyNowQty });
+                }
+
+                TempData["Error"] = "Đơn hàng đã được ghi nhận nhưng có lỗi khi chuyển bước thanh toán. Vui lòng kiểm tra lại đơn hàng trong tài khoản. Chi tiết kỹ thuật: " + rootError;
+                return createdOrderId > 0
+                    ? RedirectToAction("OrderPlaced", new { orderId = createdOrderId })
+                    : RedirectToAction("Orders", "Customer");
             }
         }
 
-        // =================================================================
-        // 3. API TÍNH PHÍ SHIP ĐỘNG (GỌI THẲNG QUA GIAO HÀNG NHANH)
-        // =================================================================
+        [HttpGet]
+        public async Task<IActionResult> OrderPlaced(int orderId)
+        {
+            int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
+
+            var order = await _context.Orders
+                .Include(o => o.Payments)
+                .Include(o => o.OrderDetails)
+                    .ThenInclude(d => d.Variant)
+                        .ThenInclude(v => v!.Product)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.CustomerId == customerId);
+
+            if (order == null) return RedirectToAction("Orders", "Customer");
+
+            return View(order);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Success(int orderId)
+        {
+            int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
+            bool isOwnerOrder = await _context.Orders.AnyAsync(o => o.OrderId == orderId && o.CustomerId == customerId);
+            if (!isOwnerOrder) return RedirectToAction("Index", "Home");
+
+            TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = orderId, Method = "ORDER" });
+            return RedirectToAction("Orders", "Customer");
+        }
+
+        private async Task RefreshCartMetadataAsync(List<CartItemVM> cart, int? customerId = null)
+        {
+            var now = DateTime.Now;
+            var activeFlashSale = await _context.FlashSales
+                .Include(f => f.FlashSaleItems)
+                .Where(f => f.IsActive && f.StartTime <= now && f.EndTime >= now)
+                .OrderByDescending(f => f.StartTime)
+                .FirstOrDefaultAsync();
+
+            foreach (var item in cart)
+            {
+                item.IsBundleDiscount = false;
+                item.BundleOriginalRegularPrice = 0m;
+                item.BundleDiscountAmountPerUnit = 0m;
+                item.BundleDiscountLabel = string.Empty;
+
+                var variant = await _context.ProductVariants.FindAsync(item.VariantId);
+                if (variant == null)
+                {
+                    item.Quantity = 0;
+                    continue;
+                }
+
+                item.ProductId = variant.ProductId;
+                item.Stock = variant.Stock ?? 0;
+                if (item.Quantity > item.Stock) item.Quantity = item.Stock;
+                if (item.Quantity < 0) item.Quantity = 0;
+
+                item.RegularPrice = variant.DiscountPrice > 0 ? variant.DiscountPrice.Value : (variant.Price ?? 0);
+                item.RegularQty = item.Quantity;
+                item.IsFlashSale = false;
+                item.FlashSalePrice = 0;
+                item.FlashSaleQty = 0;
+                item.MaxPerUser = 0;
+
+                if (item.Quantity == 0 || activeFlashSale == null) continue;
+
+                var fsItem = activeFlashSale.FlashSaleItems.FirstOrDefault(i => i.VariantId == item.VariantId);
+                if (fsItem == null || fsItem.Sold >= fsItem.Quantity) continue;
+
+                int availableSaleStock = Math.Max(0, fsItem.Quantity - fsItem.Sold);
+                int eligibleSaleQty = Math.Min(item.Quantity, availableSaleStock);
+
+                if (fsItem.MaxPerUser > 0 && customerId.HasValue && customerId.Value > 0)
+                {
+                    int alreadyBought = await GetCustomerFlashSaleBoughtQtyAsync(customerId.Value, fsItem.ItemId);
+                    eligibleSaleQty = Math.Min(eligibleSaleQty, Math.Max(0, fsItem.MaxPerUser - alreadyBought));
+                }
+                else if (fsItem.MaxPerUser > 0)
+                {
+                    eligibleSaleQty = Math.Min(eligibleSaleQty, fsItem.MaxPerUser);
+                }
+
+                if (eligibleSaleQty <= 0) continue;
+
+                item.IsFlashSale = true;
+                item.FlashSalePrice = fsItem.FlashSalePrice;
+                item.MaxPerUser = fsItem.MaxPerUser;
+                item.FlashSaleQty = eligibleSaleQty;
+                item.RegularQty = item.Quantity - eligibleSaleQty;
+            }
+
+            await ApplyBundleDiscountsAsync(cart);
+        }
+
+        private async Task ApplyBundleDiscountsAsync(List<CartItemVM> cart)
+        {
+            var productIds = cart.Where(x => x.ProductId > 0 && x.Quantity > 0).Select(x => x.ProductId).Distinct().ToList();
+            if (productIds.Count < 2) return;
+
+            var discountMap = await _crossSellAprioriService.GetCartAppliedDiscountsAsync(productIds);
+            if (!discountMap.Any()) return;
+
+            foreach (var item in cart.Where(x => x.ProductId > 0 && x.RegularQty > 0))
+            {
+                if (!discountMap.TryGetValue(item.ProductId, out var discount)) continue;
+                if (!discount.IsBundleDiscountApplied || discount.Price <= 0 || discount.Price >= item.RegularPrice) continue;
+
+                item.IsBundleDiscount = true;
+                item.BundleOriginalRegularPrice = item.RegularPrice;
+                item.BundleDiscountAmountPerUnit = item.RegularPrice - discount.Price;
+                item.BundleDiscountLabel = string.IsNullOrWhiteSpace(discount.BundleDiscountLabel) ? "Ưu đãi mua kèm" : discount.BundleDiscountLabel;
+                item.RegularPrice = discount.Price;
+            }
+        }
+
+        private async Task<int> GetCustomerFlashSaleBoughtQtyAsync(int customerId, int flashSaleItemId)
+        {
+            return await _context.OrderDetails
+                .Where(od => od.FlashSaleItemId == flashSaleItemId
+                    && od.Order != null
+                    && od.Order.CustomerId == customerId
+                    && od.Order.Status != "Đã hủy"
+                    && od.Order.Status != "Đã hoàn trả")
+                .SumAsync(od => (int?)od.Quantity) ?? 0;
+        }
+
+        [HttpGet]
+        public IActionResult GetGhnProvinces()
+        {
+            // Endpoint an toàn cho view checkout. Nếu chưa tích hợp danh mục GHN, trả JSON hợp lệ để không làm vỡ trang.
+            return Json(new { code = 200, data = Array.Empty<object>(), message = "Danh mục tỉnh/thành GHN chưa được cấu hình." });
+        }
+
+        [HttpGet]
+        public IActionResult GetGhnDistricts(int provinceId)
+        {
+            return Json(new { code = 200, data = Array.Empty<object>(), message = "Danh mục quận/huyện GHN chưa được cấu hình." });
+        }
+
+        [HttpGet]
+        public IActionResult GetGhnWards(int districtId)
+        {
+            return Json(new { code = 200, data = Array.Empty<object>(), message = "Danh mục phường/xã GHN chưa được cấu hình." });
+        }
+
         [HttpPost]
-        public async Task<IActionResult> CalculateShippingFee(int districtId, string wardCode)
+        public async Task<IActionResult> ValidateVoucher(string code, decimal subtotal)
+        {
+            int? customerId = null;
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var rawCustomerId = User.FindFirstValue("CustomerId");
+                if (int.TryParse(rawCustomerId, out int parsedCustomerId) && parsedCustomerId > 0)
+                {
+                    customerId = parsedCustomerId;
+                }
+            }
+
+            var voucherStates = await _promotionEngine.EvaluateCartPromotionsAsync(subtotal, customerId);
+            var targetVoucher = voucherStates.FirstOrDefault(v => v.Code.Equals(code, StringComparison.OrdinalIgnoreCase));
+            if (targetVoucher == null) return Json(new { success = false, message = "Mã khuyến mãi không tồn tại." });
+            if (!targetVoucher.IsEligible) return Json(new { success = false, message = $"Chưa đủ điều kiện. Mua thêm {targetVoucher.GapAmount:N0}đ để áp dụng." });
+            return Json(new { success = true, discountAmount = targetVoucher.EstimatedDiscountAmount, code = targetVoucher.Code });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CalculateShippingFee(int districtId, string wardCode, string? selectedItems, int? buyNowVariantId, int? buyNowQty)
         {
             try
             {
-                var cart = GetCartFromSession();
-                int totalWeight = cart.Sum(c => c.Quantity) * 500;
-                int insuranceValue = (int)cart.Sum(c => c.TotalPrice);
-                if (insuranceValue > 5000000) insuranceValue = 5000000;
+                int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
+                var cartVM = new List<CartItemVM>();
 
-                decimal fee = await _ghnService.CalculateFeeAsync(districtId, wardCode, totalWeight, insuranceValue);
+                if (buyNowVariantId.HasValue && buyNowQty.HasValue)
+                {
+                    cartVM.Add(new CartItemVM { VariantId = buyNowVariantId.Value, Quantity = buyNowQty.Value });
+                }
+                else
+                {
+                    var selectedIds = new List<int>();
+                    if (!string.IsNullOrWhiteSpace(selectedItems)) selectedIds = selectedItems.Split(',').Where(x => int.TryParse(x, out _)).Select(int.Parse).ToList();
+                    var cartItems = await _context.CartItems.Where(c => c.CustomerId == customerId && selectedIds.Contains(c.VariantId ?? 0)).ToListAsync();
+                    cartVM = cartItems.Select(c => new CartItemVM { VariantId = c.VariantId ?? 0, Quantity = c.Quantity ?? 1 }).ToList();
+                }
 
-                return Json(new { success = true, fee = fee, feeFormatted = string.Format("{0:N0} đ", fee) });
+                await RefreshCartMetadataAsync(cartVM, customerId);
+                int totalWeightInGrams = cartVM.Sum(c => c.Quantity * 500);
+                if (totalWeightInGrams == 0) totalWeightInGrams = 500;
+                int totalInsuranceValue = (int)cartVM.Sum(c => c.TotalPrice);
+
+                var fee = await _ghnService.CalculateFeeAsync(districtId, wardCode, totalWeightInGrams, totalInsuranceValue);
+                return Json(new { success = true, fee = fee, feeFormatted = string.Format("{0:N0}", fee) + " đ" });
             }
             catch (Exception ex)
             {
-                // Trả ra success = false kèm thông điệp lỗi để Client biết chính xác API bị gì
-                return Json(new { success = false, message = ex.Message, fee = 30000, feeFormatted = "30.000 đ (Tạm tính)" });
+                return Json(new { success = false, message = ex.Message });
             }
         }
 
-        // =================================================================
-        // 4. BỘ PROXY API: TRUNG CHUYỂN DATA TỪ GHN VỀ FRONTEND (ẨN TOKEN)
-        // =================================================================
-        [HttpGet]
-        public async Task<IActionResult> GetGhnProvinces()
-        {
-            var data = await _ghnService.GetProvincesAsync();
-            return Content(data, "application/json");
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetGhnDistricts(int provinceId)
-        {
-            var data = await _ghnService.GetDistrictsAsync(provinceId);
-            return Content(data, "application/json");
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetGhnWards(int districtId)
-        {
-            var data = await _ghnService.GetWardsAsync(districtId);
-            return Content(data, "application/json");
-        }
-
-        [HttpGet]
-        public IActionResult Success(int orderId)
-        {
-            ViewBag.OrderId = orderId;
-            return View();
-        }
-
-        private List<CartItemVM> GetCartFromSession()
-        {
-            var json = HttpContext.Session.GetString(CART_SESSION_KEY);
-            return json == null ? new List<CartItemVM>() : JsonSerializer.Deserialize<List<CartItemVM>>(json) ?? new List<CartItemVM>();
-        }
-
-        // ----------------------------------------------------------------
-        // CÁC API AJAX CHO MODAL QUẢN LÝ ĐỊA CHỈ (CRUD)
-        // ----------------------------------------------------------------
         [HttpPost]
         public async Task<IActionResult> SaveAddressAjax(int addressId, string receiverName, string receiverPhone, string street, string ward, string district, string city, bool isDefault)
         {
             int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
-
-            if (isDefault)
-            {
-                var oldDefaults = await _context.Address.Where(a => a.CustomerId == customerId && a.IsDefault == true).ToListAsync();
-                foreach (var old in oldDefaults) old.IsDefault = false;
-            }
-
             Address address;
             if (addressId == 0)
             {
-                address = new Address
+                if (isDefault)
                 {
-                    CustomerId = customerId,
-                    ReceiverName = receiverName,
-                    ReceiverPhone = receiverPhone,
-                    Street = street,
-                    Ward = ward,       // Lưu luôn mã nối "20101|Phường Bến Nghé"
-                    District = district, // Lưu luôn "1442|Quận 1"
-                    City = city,         // Lưu luôn "202|Hồ Chí Minh"
-                    IsDefault = isDefault
-                };
+                    var oldDefaults = await _context.Address.Where(a => a.CustomerId == customerId && a.IsDefault == true).ToListAsync();
+                    foreach (var item in oldDefaults) item.IsDefault = false;
+                }
+                address = new Address { CustomerId = customerId, ReceiverName = receiverName, ReceiverPhone = receiverPhone, Street = street, Ward = ward, District = district, City = city, Country = "Việt Nam", IsDefault = isDefault };
                 _context.Address.Add(address);
             }
             else
             {
                 address = await _context.Address.FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
                 if (address == null) return Json(new { success = false, message = "Không tìm thấy địa chỉ." });
-
-                address.ReceiverName = receiverName;
-                address.ReceiverPhone = receiverPhone;
-                address.Street = street;
-                address.Ward = ward;
-                address.District = district;
-                address.City = city;
+                address.ReceiverName = receiverName; address.ReceiverPhone = receiverPhone; address.Street = street; address.Ward = ward; address.District = district; address.City = city;
                 if (isDefault) address.IsDefault = true;
             }
-
-            await _context.SaveChangesAsync();
-            return Json(new { success = true, addressId = address.AddressId });
+            await _context.SaveChangesAsync(); return Json(new { success = true, addressId = address.AddressId });
         }
 
         [HttpPost]
@@ -374,13 +601,7 @@ namespace TMDT_LT.Controllers
         {
             int customerId = int.Parse(User.FindFirstValue("CustomerId") ?? "0");
             var address = await _context.Address.FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
-
-            if (address != null)
-            {
-                _context.Address.Remove(address);
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
+            if (address != null) { _context.Address.Remove(address); await _context.SaveChangesAsync(); return Json(new { success = true }); }
             return Json(new { success = false });
         }
     }

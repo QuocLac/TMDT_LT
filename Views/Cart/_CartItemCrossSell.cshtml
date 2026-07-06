@@ -1,0 +1,52 @@
+@model TMDT_LT.Models.ViewModels.Storefront.CartItemVM
+
+@if (Model.CrossSellRecommendations != null && Model.CrossSellRecommendations.Any())
+{
+    <div class="cart-apriori-block">
+        <div class="cart-apriori-title">
+            <span><i class="fas fa-cart-plus"></i> Mua kèm tiện hơn cho @Model.ProductName</span>
+            <small>Chọn nhanh vào đơn hàng</small>
+        </div>
+        <div class="cart-apriori-list">
+            @foreach (var rec in Model.CrossSellRecommendations)
+            {
+                <div class="cart-apriori-card">
+                    <a href="@rec.ProductUrl" class="cart-apriori-img"><img src="@rec.ImageUrl" alt="@rec.ProductName" /></a>
+                    <div class="cart-apriori-info">
+                        <a href="@rec.ProductUrl" class="cart-apriori-name">@rec.ProductName</a>
+                        <div class="cart-apriori-price">
+                            @string.Format("{0:N0}", rec.Price) đ
+                            @if (rec.OldPrice.HasValue)
+                            {
+                                <span style="color:#94A3B8; text-decoration:line-through; font-size:10px; margin-left:4px;">@string.Format("{0:N0}", rec.OldPrice.Value) đ</span>
+                            }
+                        </div>
+                        @if (rec.IsBundleDiscountApplied)
+                        {
+                            <div style="color:#DC2626; font-size:10px; font-weight:900; margin-top:3px;">@rec.BundleDiscountText</div>
+                        }
+                        <div class="cart-apriori-metric">@rec.ReasonText</div>
+                    </div>
+                    <div class="cart-apriori-action">
+                        @if (rec.PrimaryVariantId > 0)
+                        {
+                            <label class="cart-quick-check">
+                                <input type="checkbox"
+                                       class="bundle-quick-checkbox"
+                                       value="@rec.PrimaryVariantId"
+                                       data-variant-id="@rec.PrimaryVariantId"
+                                       data-product-name="@rec.ProductName"
+                                       data-added="false" />
+                                <span class="quick-label">Chọn mua kèm</span>
+                            </label>
+                        }
+                        <a href="@rec.ProductUrl" class="cart-apriori-detail">Xem chi tiết</a>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="cart-apriori-helper">
+            Tích chọn sản phẩm mua kèm để thêm vào đơn thanh toán ngay. Bạn không cần tìm lại sản phẩm trong giỏ.
+        </div>
+    </div>
+}

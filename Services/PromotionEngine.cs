@@ -18,12 +18,22 @@ namespace TMDT_LT.Services
         /// Thuật toán rà quét toàn bộ hệ thống Voucher để tính toán độ chênh lệch tiền ngoài Giỏ hàng
         /// </summary>
         // <param name="cartSubtotal">Tổng tiền tạm tính hiện tại của giỏ hàng khách hàng</param>
-        public async Task<List<CartVoucherStateVM>> EvaluateCartPromotionsAsync(decimal cartSubtotal)
+        public async Task<List<CartVoucherStateVM>> EvaluateCartPromotionsAsync(decimal cartSubtotal, int? customerId = null)
         {
             var now = DateTime.Now;
             var results = new List<CartVoucherStateVM>();
 
             // 1. Chỉ quét các chiến dịch đang chạy, còn lượt dùng và được bật IsActive
+            //    Voucher công khai được hiển thị cho mọi khách. Voucher phân phối riêng chỉ được áp dụng nếu có trong ví khách hàng.
+            var savedPromotionIds = new HashSet<int>();
+            if (customerId.HasValue && customerId.Value > 0)
+            {
+                savedPromotionIds = (await _context.CustomerWallet
+                    .Where(w => w.CustomerId == customerId.Value && w.Status == 0)
+                    .Select(w => w.PromotionId)
+                    .ToListAsync()).ToHashSet();
+            }
+
             var activePromotions = await _context.Promotions
                 .Include(p => p.PromotionRules)
                 .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now && p.UsedCount < p.UsageLimit)
@@ -31,6 +41,14 @@ namespace TMDT_LT.Services
 
             foreach (var promo in activePromotions)
             {
+                bool isPublicVoucher = promo.TargetAudience == 0;
+                bool isSavedInWallet = customerId.HasValue && savedPromotionIds.Contains(promo.PromotionId);
+
+                if (!isPublicVoucher && !isSavedInWallet)
+                {
+                    continue;
+                }
+
                 // Lấy quy luật tính tiền đi kèm chiến dịch
                 var rule = promo.PromotionRules.FirstOrDefault();
                 if (rule == null) continue;

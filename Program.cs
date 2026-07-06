@@ -60,6 +60,8 @@ builder.Services.AddScoped<VnPayService>();
 // Đăng ký HttpClient cho GhnService
 builder.Services.AddHttpClient<TMDT_LT.Services.GhnService>();
 
+builder.Services.AddScoped<TMDT_LT.Services.ICrossSellAprioriService, TMDT_LT.Services.CrossSellAprioriService>();
+
 var app = builder.Build();
 
 // ====================================================================

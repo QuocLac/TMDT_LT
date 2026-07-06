@@ -1,0 +1,128 @@
+@using System.Text.Json
+@model TMDT_LT.Models.Orders
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Đặt hàng thành công";
+    var payment = Model.Payments?.FirstOrDefault();
+    var paymentMethod = payment?.PaymentMethod ?? "COD";
+    var isVnPay = string.Equals(paymentMethod, "VNPAY", System.StringComparison.OrdinalIgnoreCase);
+    var isBankTransfer = string.Equals(paymentMethod, "BankTransfer", System.StringComparison.OrdinalIgnoreCase);
+    var purchaseAnalyticsJson = JsonSerializer.Serialize(new {
+        orderId = Model.OrderId,
+        transaction_id = Model.OrderId.ToString(),
+        value = Model.TotalAmount ?? 0,
+        currency = "VND",
+        items = Model.OrderDetails.Select(d => new {
+            item_id = (d.Variant?.ProductId ?? 0).ToString(),
+            item_name = d.Variant?.Product?.Name ?? $"Sản phẩm #{d.VariantId}",
+            item_variant = d.VariantId?.ToString() ?? "",
+            price = d.UnitPrice ?? 0,
+            quantity = d.Quantity ?? 0,
+            google_business_vertical = "retail"
+        }).ToList()
+    });
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/storefront/store-home.css" asp-append-version="true" />
+    <style>
+        .order-success-wrap { max-width: 980px; margin: 32px auto 70px; padding: 0 16px; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .success-card { background:#fff; border:1px solid #E5E7EB; border-radius:18px; padding:30px; box-shadow:0 16px 35px rgba(15,23,42,.08); }
+        .success-icon { width:64px; height:64px; border-radius:50%; background:#DCFCE7; color:#15803D; display:flex; align-items:center; justify-content:center; font-size:30px; margin-bottom:18px; }
+        .success-title { font-size:26px; font-weight:900; color:#0F172A; margin:0; }
+        .success-desc { color:#64748B; margin:8px 0 0; line-height:1.6; }
+        .order-code { display:inline-flex; align-items:center; gap:8px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:999px; padding:8px 14px; font-weight:800; color:#0F172A; margin-top:18px; }
+        .info-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:24px; }
+        .info-box { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:14px; }
+        .info-label { font-size:11px; text-transform:uppercase; color:#64748B; font-weight:800; margin-bottom:6px; }
+        .info-value { color:#0F172A; font-weight:800; line-height:1.4; }
+        .notice-box { margin-top:18px; border-radius:12px; padding:14px 16px; font-size:13px; line-height:1.6; }
+        .notice-cod { background:#EFF6FF; border:1px solid #BFDBFE; color:#1E3A8A; }
+        .notice-bank { background:#FFFBEB; border:1px solid #FDE68A; color:#92400E; }
+        .notice-error { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; }
+        .action-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:24px; }
+        .btn-primary-dark { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#0F172A; color:#fff; border-radius:10px; padding:12px 18px; font-weight:800; text-decoration:none; }
+        .btn-light-border { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#fff; color:#0F172A; border:1px solid #CBD5E1; border-radius:10px; padding:12px 18px; font-weight:800; text-decoration:none; }
+        @@media(max-width:768px){ .info-grid { grid-template-columns:1fr; } }
+    </style>
+}
+
+<div class="order-success-wrap">
+    <div class="success-card">
+        <div class="success-icon"><i class="fas fa-check"></i></div>
+        <h1 class="success-title">Đơn hàng đã được ghi nhận</h1>
+        <p class="success-desc">
+            Cảm ơn bạn đã mua hàng tại PHONE.ST. Shop đã tiếp nhận đơn và sẽ xử lý theo đúng trạng thái thanh toán của đơn hàng.
+        </p>
+
+        <div class="order-code"><i class="fas fa-receipt"></i> Mã đơn: #ORD-@Model.OrderId</div>
+
+        @if (TempData["Error"] != null)
+        {
+            <div class="notice-box notice-error">
+                <strong>Lưu ý:</strong> @TempData["Error"]
+            </div>
+        }
+
+        <div class="info-grid">
+            <div class="info-box">
+                <div class="info-label">Trạng thái đơn</div>
+                <div class="info-value">@(Model.Status ?? "Chờ xác nhận")</div>
+            </div>
+            <div class="info-box">
+                <div class="info-label">Thanh toán</div>
+                <div class="info-value">
+                    @(isVnPay ? "VNPAY" : isBankTransfer ? "Chuyển khoản ngân hàng" : "Thanh toán khi nhận hàng")
+                    <br /><span style="font-size:12px; color:#64748B; font-weight:700;">@(payment?.PaymentStatus ?? "Đang chờ xử lý")</span>
+                </div>
+            </div>
+            <div class="info-box">
+                <div class="info-label">Tổng thanh toán</div>
+                <div class="info-value">@string.Format("{0:N0}", Model.TotalAmount ?? 0) đ</div>
+            </div>
+        </div>
+
+        <div class="info-box" style="margin-top:14px;">
+            <div class="info-label">Giao đến</div>
+            <div class="info-value">@Model.ShippingFullName · @Model.ShippingPhone</div>
+            <div style="color:#64748B; font-size:13px; margin-top:4px;">@Model.ShippingStreet, @Model.ShippingDistrict, @Model.ShippingCity</div>
+        </div>
+
+        @if (!isVnPay && !isBankTransfer)
+        {
+            <div class="notice-box notice-cod">
+                <strong>Thanh toán khi nhận hàng:</strong> Shop sẽ xác nhận và chuẩn bị hàng. Bạn chỉ thanh toán cho đơn vị vận chuyển sau khi nhận đúng sản phẩm.
+            </div>
+        }
+        else if (isBankTransfer)
+        {
+            <div class="notice-box notice-bank">
+                <strong>Chờ xác nhận chuyển khoản:</strong> Đơn đã được giữ hàng. Shop sẽ cập nhật trạng thái sau khi đối soát giao dịch.
+            </div>
+        }
+
+        <div class="action-row">
+            <a asp-controller="Customer" asp-action="Orders" class="btn-primary-dark"><i class="fas fa-list-check"></i> Theo dõi đơn hàng</a>
+            <a asp-controller="Store" asp-action="Index" class="btn-light-border"><i class="fas fa-store"></i> Tiếp tục mua sắm</a>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        const purchasePayload = @Html.Raw(purchaseAnalyticsJson);
+        if (window.phoneCommerceAnalytics && purchasePayload) {
+            window.phoneCommerceAnalytics.track('purchase', {
+                orderId: purchasePayload.orderId,
+                value: Number(purchasePayload.value || 0),
+                currency: purchasePayload.currency || 'VND',
+                items: purchasePayload.items || [],
+                metadata: {
+                    paymentMethod: '@paymentMethod',
+                    source: 'order_placed_page'
+                }
+            });
+        }
+    </script>
+}

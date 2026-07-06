@@ -1,0 +1,152 @@
+@model TMDT_LT.Models.ViewModels.Admin.CrossSellAdminVM
+@{
+    Layout = "~/Areas/Admin/Views/Shared/_LayoutAdmin.cshtml";
+    ViewData["Title"] = "Gợi ý mua kèm";
+}
+
+<style>
+    .ap-admin-wrap { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    .ap-admin-head { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:20px; }
+    .ap-admin-title { margin:0; font-size:26px; font-weight:900; color:#0F172A; }
+    .ap-admin-sub { margin:6px 0 0; color:#64748B; line-height:1.6; font-size:14px; }
+    .ap-card { background:#fff; border:1px solid #E2E8F0; border-radius:16px; padding:22px; box-shadow:0 12px 28px rgba(15,23,42,.05); margin-bottom:18px; }
+    .ap-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:16px; }
+    .ap-field label { display:block; font-weight:800; color:#0F172A; font-size:13px; margin-bottom:8px; }
+    .ap-field input, .ap-field textarea { width:100%; border:1px solid #CBD5E1; border-radius:10px; padding:11px 12px; font-size:14px; outline:none; box-sizing:border-box; }
+    .ap-field input:focus, .ap-field textarea:focus { border-color:#0F172A; box-shadow:0 0 0 3px rgba(15,23,42,.06); }
+    .ap-switch-list { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px; margin-top:16px; }
+    .ap-check { display:flex; align-items:center; gap:10px; border:1px solid #E2E8F0; border-radius:12px; padding:12px; background:#F8FAFC; font-weight:800; color:#0F172A; }
+    .ap-check input { width:18px; height:18px; accent-color:#DC2626; }
+    .ap-save { background:#DC2626; color:#fff; border:none; border-radius:12px; padding:13px 22px; font-weight:900; cursor:pointer; }
+    .ap-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .ap-table th { text-align:left; padding:12px; background:#F8FAFC; color:#334155; border-bottom:1px solid #E2E8F0; }
+    .ap-table td { padding:12px; border-bottom:1px solid #F1F5F9; color:#0F172A; vertical-align:top; }
+    .ap-badge { display:inline-flex; border-radius:999px; background:#FEF2F2; color:#B91C1C; border:1px solid #FECACA; padding:4px 8px; font-weight:900; font-size:11px; }
+    @@media (max-width: 900px) { .ap-grid, .ap-switch-list { grid-template-columns:1fr; } }
+</style>
+
+<div class="ap-admin-wrap">
+    <div class="ap-admin-head">
+        <div>
+            <h1 class="ap-admin-title">Cấu hình gợi ý mua kèm</h1>
+            <p class="ap-admin-sub">Hệ thống tự phân tích lịch sử đơn hàng để chọn các sản phẩm thường được mua cùng. Admin chỉ điều chỉnh mức độ chọn lọc, không cần chọn sản phẩm thủ công.</p>
+        </div>
+        <span class="ap-badge">Tự động</span>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="ap-card" style="border-color:#BBF7D0; background:#F0FDF4; color:#166534; font-weight:800;">@TempData["Success"]</div>
+    }
+
+    <form asp-area="Admin" asp-controller="CrossSell" asp-action="Save" method="post" class="ap-card">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Settings.CrossSellSettingsId" />
+
+        <div class="ap-grid">
+            <div class="ap-field">
+                <label>Số đơn mua kèm tối thiểu</label>
+                <input asp-for="Settings.MinSupportCount" type="number" min="1" />
+            </div>
+            <div class="ap-field">
+                <label>Tỷ lệ xuất hiện tối thiểu, ví dụ 0.02 = 2%</label>
+                <input asp-for="Settings.MinSupportPercent" type="number" step="0.0001" min="0" max="1" />
+            </div>
+            <div class="ap-field">
+                <label>Tỷ lệ chọn mua kèm tối thiểu, ví dụ 0.2 = 20%</label>
+                <input asp-for="Settings.MinConfidence" type="number" step="0.01" min="0" max="1" />
+            </div>
+            <div class="ap-field">
+                <label>Độ liên quan tối thiểu</label>
+                <input asp-for="Settings.MinLift" type="number" step="0.01" min="0" />
+            </div>
+            <div class="ap-field">
+                <label>Số sản phẩm tối đa trong một nhóm phân tích</label>
+                <input asp-for="Settings.MaxItemsetSize" type="number" min="2" max="4" />
+            </div>
+            <div class="ap-field">
+                <label>Số gợi ý tối đa mỗi sản phẩm</label>
+                <input asp-for="Settings.MaxRecommendationsPerProduct" type="number" min="1" max="24" />
+            </div>
+            <div class="ap-field">
+                <label>Khoảng thời gian lấy dữ liệu</label>
+                <input asp-for="Settings.AnalysisWindowDays" type="number" min="0" max="3650" />
+            </div>
+            <div class="ap-field" style="grid-column: span 2;">
+                <label>Trạng thái đơn hàng được tính</label>
+                <input asp-for="Settings.AllowedOrderStatuses" placeholder="Đã hoàn thành,Hoàn thành,Đã giao,Completed" />
+            </div>
+        </div>
+
+        <div style="border-top:1px solid #E2E8F0; margin-top:20px; padding-top:20px;">
+            <h2 style="margin:0 0 6px; font-size:18px; font-weight:900; color:#0F172A;">Ưu đãi cho sản phẩm mua kèm</h2>
+            <p style="margin:0 0 14px; color:#64748B; font-size:13px; line-height:1.6;">Khi khách thêm sản phẩm được gợi ý cùng sản phẩm chính, hệ thống có thể áp dụng mức giá ưu đãi riêng cho sản phẩm mua kèm.</p>
+
+            <div class="ap-grid">
+                <div class="ap-field">
+                    <label>Kiểu giảm giá</label>
+                    <select asp-for="Settings.BundleDiscountType" style="width:100%; border:1px solid #CBD5E1; border-radius:10px; padding:11px 12px; font-size:14px; outline:none; box-sizing:border-box;">
+                        <option value="0">Giảm theo phần trăm (%)</option>
+                        <option value="1">Giảm số tiền cố định (VNĐ)</option>
+                    </select>
+                </div>
+                <div class="ap-field">
+                    <label>Mức giảm</label>
+                    <input asp-for="Settings.BundleDiscountValue" type="number" step="0.01" min="0" placeholder="Ví dụ: 5 hoặc 50000" />
+                </div>
+                <div class="ap-field">
+                    <label>Nhãn hiển thị</label>
+                    <input asp-for="Settings.BundleDiscountLabel" maxlength="120" placeholder="Ưu đãi mua kèm" />
+                </div>
+            </div>
+        </div>
+
+        <div class="ap-switch-list">
+            <label class="ap-check"><input asp-for="Settings.IsEnabled" /> Bật gợi ý mua kèm</label>
+            <label class="ap-check"><input asp-for="Settings.IsBundleDiscountEnabled" /> Bật ưu đãi cho sản phẩm mua kèm</label>
+            <label class="ap-check"><input asp-for="Settings.OnlyCompletedOrders" /> Chỉ dùng đơn đã hoàn tất</label>
+            <label class="ap-check"><input asp-for="Settings.ExcludeOutOfStock" /> Ẩn sản phẩm hết hàng</label>
+            <label class="ap-check"><input asp-for="Settings.AllowFallbackWhenNoRule" /> Dùng sản phẩm cùng danh mục khi chưa đủ dữ liệu</label>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+            <button class="ap-save" type="submit"><i class="fas fa-save"></i> Lưu cấu hình</button>
+        </div>
+    </form>
+
+    <div class="ap-card">
+        <h2 style="margin:0 0 14px; font-size:18px; font-weight:900; color:#0F172A;">Các gợi ý có độ phù hợp cao</h2>
+        @if (Model.PreviewRules != null && Model.PreviewRules.Any())
+        {
+            <table class="ap-table">
+                <thead>
+                    <tr>
+                        <th>Điều kiện mua</th>
+                        <th>Gợi ý mua kèm</th>
+                        <th>Số đơn mua kèm</th>
+                        <th>Tỷ lệ chọn mua kèm</th>
+                        <th>Độ liên quan</th>
+                        <th>Ưu đãi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var rule in Model.PreviewRules)
+                    {
+                        <tr>
+                            <td>@rule.AntecedentNames</td>
+                            <td><strong>@rule.ConsequentName</strong></td>
+                            <td>@rule.SupportCount đơn (@((rule.SupportPercent * 100).ToString("0.##"))%)</td>
+                            <td>@((rule.Confidence * 100).ToString("0.##"))%</td>
+                            <td>@rule.Lift.ToString("0.##")</td>
+                            <td>@rule.BundleDiscountPreview</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p style="color:#64748B; margin:0;">Chưa có gợi ý nào đủ điều kiện. Có thể nới mức lọc hoặc chờ thêm dữ liệu đơn hàng.</p>
+        }
+    </div>
+</div>

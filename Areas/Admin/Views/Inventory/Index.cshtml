@@ -147,7 +147,6 @@
                         <td style="padding: 14px; text-align: center;">
                             <div style="display: flex; gap: 6px; justify-content: center;">
                                 <button onclick="viewLotDetail('@(lot.LotId)', `@lot.Variant?.Product?.Name`, `@lot.Variant?.Color`, `@lot.Variant?.Storage`, '@remQty', '@lot.ReceivedQuantity', '@lot.UnitCost.ToString("N0")', '@basePrice.ToString("N0")', '@lot.ReceivedDate.ToString("dd/MM/yyyy")', '@lot.Poid', `@imgUrl`)" style="padding: 6px 14px; background: #FFF; color: #4F46E5; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Xem chi tiết</button>
-                                <button onclick="openEditLotModal('@(lot.LotId)', '@lot.VariantId', '@remQty', '@lot.UnitCost', '@basePrice', `@rowStoreName`, `@imgUrl`)" style="padding: 6px 14px; background: #D97706; color: #FFF; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Sửa lô hàng</button>
                             </div>
                         </td>
                     </tr>

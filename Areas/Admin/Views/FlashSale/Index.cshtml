@@ -1,0 +1,73 @@
+﻿@model IEnumerable<TMDT_LT.Models.FlashSales>
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Quản lý Flash Sale";
+    var now = DateTime.Now;
+}
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div>
+        <h2 style="margin-bottom: 5px; font-weight: 800; color: #111827;">Danh sách Flash Sale</h2>
+        <p style="color: #6B7280; font-size: 14px; margin: 0;">Quản lý các đợt giờ vàng giá sốc, chỉnh sửa có kiểm soát và xem báo cáo hiệu quả.</p>
+    </div>
+    <a asp-action="Create" class="btn-dark">Tạo đợt Sale mới</a>
+</div>
+
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Tên đợt Sale</th>
+                <th>Thời gian diễn ra</th>
+                <th>Trạng thái</th>
+                <th style="text-align: center;">Số mã SP</th>
+                <th style="text-align: center;">Đã bán</th>
+                <th style="text-align: right;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                string statusText = "";
+                string statusColor = "";
+                string statusBg = "";
+                int totalSold = item.FlashSaleItems.Sum(x => x.Sold);
+                bool isEnded = now > item.EndTime;
+
+                if (!item.IsActive && !isEnded) { statusText = "Đã tắt"; statusColor = "#6B7280"; statusBg = "#F3F4F6"; }
+                else if (now < item.StartTime) { statusText = "Sắp diễn ra"; statusColor = "#D97706"; statusBg = "#FEF3C7"; }
+                else if (now >= item.StartTime && now <= item.EndTime && item.IsActive) { statusText = totalSold > 0 ? "Đang chạy - đã bán" : "Đang chạy"; statusColor = "#059669"; statusBg = "#D1FAE5"; }
+                else { statusText = "Đã kết thúc"; statusColor = "#DC2626"; statusBg = "#FEE2E2"; }
+
+                <tr>
+                    <td style="font-weight: 700; color: #111827;">
+                        @item.Name
+                        @if (totalSold > 0)
+                        {
+                            <div style="font-size: 11px; color: #DC2626; margin-top: 4px; font-weight: 700;">Đã phát sinh giao dịch - chỉnh sửa bị giới hạn</div>
+                        }
+                    </td>
+                    <td style="font-size: 13px; color: #4B5563;">
+                        <div style="margin-bottom: 4px;">Từ: <strong>@item.StartTime.ToString("dd/MM/yyyy HH:mm")</strong></div>
+                        <div>Đến: <strong>@item.EndTime.ToString("dd/MM/yyyy HH:mm")</strong></div>
+                    </td>
+                    <td>
+                        <span style="background: @statusBg; color: @statusColor; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                            @statusText
+                        </span>
+                    </td>
+                    <td style="text-align: center; font-weight: 600;">@item.FlashSaleItems.Count</td>
+                    <td style="text-align: center; font-weight: 700; color: @(totalSold > 0 ? "#DC2626" : "#6B7280");">@totalSold</td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <a asp-action="Details" asp-route-id="@item.FlashSaleId" class="btn-outline" style="font-size: 12px; padding: 6px 12px;">Báo cáo</a>
+                        <a asp-action="Edit" asp-route-id="@item.FlashSaleId" class="btn-dark" style="font-size: 12px; padding: 6px 12px; margin-left: 6px;">Chỉnh sửa</a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr><td colspan="6" style="text-align: center; padding: 40px; color: #9CA3AF;">Chưa có đợt Flash Sale nào được tạo.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

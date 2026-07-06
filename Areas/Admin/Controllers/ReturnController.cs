@@ -196,16 +196,39 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 }
 
                 // XỬ LÝ KHO BÃI
+                // Nếu hàng còn nguyên: nhập lại kho vật lý đúng một lần.
+                // Nếu hàng hỏng: không nhập lại kho, nhưng vẫn đóng cờ kho để tránh hoàn lặp.
                 if (isProductIntact)
                 {
-                    foreach (var detail in order.OrderDetails)
+                    if (order.IsStockDeducted)
                     {
-                        if (detail.Variant != null) detail.Variant.Stock = (detail.Variant.Stock ?? 0) + (detail.Quantity ?? 0);
+                        foreach (var detail in order.OrderDetails)
+                        {
+                            int quantity = detail.Quantity ?? 0;
+                            if (quantity <= 0 || detail.Variant == null) continue;
+
+                            detail.Variant.Stock = (detail.Variant.Stock ?? 0) + quantity;
+                            _context.InventoryTransactions.Add(new InventoryTransactions
+                            {
+                                VariantId = detail.VariantId ?? 0,
+                                TransactionType = "ADJUST",
+                                Quantity = quantity,
+                                ReferenceId = order.OrderId,
+                                TransactionDate = DateTime.Now,
+                                Note = $"Nhập lại kho do hoàn trả đơn #{order.OrderId}"
+                            });
+                        }
+
+                        order.IsStockDeducted = false;
+                        order.StockDeductedAt = null;
                     }
+
                     adminNote = "[Nhập lại Kho] " + adminNote;
                 }
                 else
                 {
+                    order.IsStockDeducted = false;
+                    order.StockDeductedAt = null;
                     adminNote = "[Hàng Phế Phẩm/Hỏng] " + adminNote;
                 }
 

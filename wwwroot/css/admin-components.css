@@ -160,12 +160,12 @@
     color: #111827 !important;
 }
 
-/* Nút X đóng cửa sổ màu Navy Deep cao cấp */
+/* Nút X đóng cửa sổ được thiết kế lại */
 .btn-close {
-    background: #0F172A !important; /* Nền màu Navy Deep */
+    background: #F3F4F6;
     border: none;
     cursor: pointer;
-    color: #FFFFFF !important; /* Icon dấu X màu trắng tinh */
+    color: #6B7280;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -174,15 +174,12 @@
     border-radius: 8px;
     font-size: 14px;
     font-weight: bold;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 1 !important; /* Vô hiệu hóa độ mờ (opacity) mặc định của trình duyệt/Bootstrap */
+    transition: all 0.2s ease;
 }
 
     .btn-close:hover {
-        background: #1E293B !important; /* Sáng hơn một chút khi di chuột vào */
-        color: #FFFFFF !important;
-        transform: scale(1.05); /* Hiệu ứng nảy nhẹ tạo cảm giác tương tác mượt mà */
-        box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2); /* Đổ bóng nhẹ cùng tone Navy */
+        background: #FEE2E2;
+        color: #DC2626;
     }
 
 .modal-body {

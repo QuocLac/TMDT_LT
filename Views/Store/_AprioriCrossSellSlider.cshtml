@@ -1,0 +1,354 @@
+@model List<TMDT_LT.Models.ViewModels.Storefront.CrossSellRecommendationVM>
+
+@if (Model != null && Model.Any())
+{
+    <style>
+        .crossdeal-section {
+            margin-top: 42px;
+            padding: 0;
+            border: 1px solid #FFE1D6;
+            background: #FFFFFF;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, .06);
+        }
+
+        .crossdeal-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 360px;
+            gap: 18px;
+            padding: 22px 24px;
+            background: linear-gradient(135deg, #FFF7F2 0%, #FFFFFF 58%, #FFF1F1 100%);
+            border-bottom: 1px solid #FFE1D6;
+        }
+
+        .crossdeal-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: #EE4D2D;
+            color: #FFFFFF;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .2px;
+            box-shadow: 0 10px 20px rgba(238, 77, 45, .18);
+        }
+
+        .crossdeal-title {
+            margin: 12px 0 6px;
+            font-size: 22px;
+            line-height: 1.25;
+            font-weight: 900;
+            color: #0F172A;
+        }
+
+        .crossdeal-sub {
+            margin: 0;
+            color: #64748B;
+            font-size: 14px;
+            line-height: 1.65;
+            max-width: 680px;
+        }
+
+        .crossdeal-utilities {
+            display: grid;
+            gap: 10px;
+            align-self: center;
+        }
+
+        .crossdeal-utility {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 12px;
+            background: rgba(255,255,255,.78);
+            border: 1px solid #FED7AA;
+            border-radius: 14px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .crossdeal-utility i {
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #FFF1F1;
+            color: #EE4D2D;
+            flex: 0 0 auto;
+        }
+
+        .crossdeal-body { padding: 18px 22px 22px; }
+
+        .crossdeal-track {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(218px, 1fr));
+            gap: 14px;
+        }
+
+        .crossdeal-card {
+            position: relative;
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            min-height: 344px;
+            transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+
+        .crossdeal-card:hover {
+            transform: translateY(-3px);
+            border-color: #EE4D2D;
+            box-shadow: 0 18px 34px rgba(15, 23, 42, .09);
+        }
+
+        .crossdeal-image {
+            height: 140px;
+            border-radius: 14px;
+            background: #F8FAFC;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .crossdeal-image img {
+            max-width: 100%;
+            max-height: 122px;
+            object-fit: contain;
+            mix-blend-mode: multiply;
+            transition: transform .18s ease;
+        }
+
+        .crossdeal-card:hover .crossdeal-image img { transform: scale(1.04); }
+
+        .crossdeal-badge {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 8px;
+            border-radius: 999px;
+            background: #EE4D2D;
+            color: #FFFFFF;
+            font-size: 10px;
+            font-weight: 900;
+            box-shadow: 0 8px 16px rgba(238,77,45,.22);
+        }
+
+        .crossdeal-tag-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 7px;
+        }
+
+        .crossdeal-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 7px;
+            border-radius: 999px;
+            background: #FFF7ED;
+            color: #C2410C;
+            border: 1px solid #FED7AA;
+            font-size: 10px;
+            font-weight: 900;
+        }
+
+        .crossdeal-name {
+            min-height: 42px;
+            color: #0F172A;
+            font-size: 14px;
+            font-weight: 900;
+            line-height: 1.45;
+            text-decoration: none;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .crossdeal-brand {
+            color: #64748B;
+            font-size: 12px;
+            margin-top: 4px;
+            min-height: 18px;
+        }
+
+        .crossdeal-price {
+            margin-top: 9px;
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            flex-wrap: wrap;
+        }
+
+        .crossdeal-price strong { color: #EE4D2D; font-size: 17px; font-weight: 950; }
+        .crossdeal-price del { color: #94A3B8; font-size: 12px; }
+
+        .crossdeal-saving {
+            margin-top: 7px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #DC2626;
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            border-radius: 9px;
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .crossdeal-reason {
+            margin-top: 9px;
+            color: #64748B;
+            font-size: 11px;
+            line-height: 1.45;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .crossdeal-reason i { color: #F97316; }
+
+        .crossdeal-actions {
+            margin-top: auto;
+            padding-top: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .crossdeal-actions a,
+        .crossdeal-actions button {
+            height: 39px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 900;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .crossdeal-actions a { color: #0F172A; background: #FFFFFF; border: 1px solid #CBD5E1; }
+        .crossdeal-actions button { width: 100%; color: #FFFFFF; background: #EE4D2D; border: 1px solid #EE4D2D; }
+        .crossdeal-actions button:hover { filter: brightness(.96); }
+
+        .crossdeal-note {
+            margin: 14px 2px 0;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            color: #64748B;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .crossdeal-note i { color: #10B981; margin-top: 2px; }
+
+        media (max-width: 900px) {
+            .crossdeal-hero { grid-template-columns: 1fr; }
+            .crossdeal-utilities { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+        }
+
+        media (max-width: 540px) {
+            .crossdeal-section { border-radius: 14px; }
+            .crossdeal-hero { padding: 18px; }
+            .crossdeal-body { padding: 14px; }
+            .crossdeal-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; }
+            .crossdeal-card { flex: 0 0 230px; scroll-snap-align: start; }
+            .crossdeal-actions { grid-template-columns: 1fr; }
+        }
+    </style>
+
+    <section class="crossdeal-section">
+        <div class="crossdeal-hero">
+            <div>
+                <span class="crossdeal-kicker"><i class="fas fa-bolt"></i> Mua kèm tiện hơn</span>
+                <h3 class="crossdeal-title">Hoàn thiện bộ sản phẩm với lựa chọn thường được mua cùng</h3>
+                <p class="crossdeal-sub">
+                    Các sản phẩm dưới đây phù hợp để dùng chung với sản phẩm bạn đang xem. Bạn có thể xem chi tiết từng món hoặc thêm nhanh vào giỏ hàng.
+                </p>
+            </div>
+            <div class="crossdeal-utilities" aria-label="Tiện ích mua kèm">
+                <div class="crossdeal-utility"><i class="fas fa-hand-pointer"></i><span>Chọn từng món rõ ràng, không bắt buộc mua theo combo</span></div>
+                <div class="crossdeal-utility"><i class="fas fa-tags"></i><span>Ưu đãi mua kèm được tự động áp dụng khi đủ điều kiện</span></div>
+                <div class="crossdeal-utility"><i class="fas fa-shopping-cart"></i><span>Thêm vào giỏ trước, kiểm tra lại sau rồi mới thanh toán</span></div>
+            </div>
+        </div>
+
+        <div class="crossdeal-body">
+            <div class="crossdeal-track">
+                @foreach (var item in Model)
+                {
+                    <article class="crossdeal-card">
+                        <a class="crossdeal-image" href="@item.ProductUrl" aria-label="Xem @item.ProductName">
+                            @if (item.IsBundleDiscountApplied)
+                            {
+                                <span class="crossdeal-badge"><i class="fas fa-tag"></i> Ưu đãi mua kèm</span>
+                            }
+                            <img src="@item.ImageUrl" alt="@item.ProductName" />
+                        </a>
+
+                        <div class="crossdeal-tag-row">
+                            <span class="crossdeal-tag"><i class="fas fa-thumbs-up"></i> Khách hay mua cùng</span>
+                            @if (item.IsBundleDiscountApplied)
+                            {
+                                <span class="crossdeal-tag"><i class="fas fa-coins"></i> Có tiết kiệm</span>
+                            }
+                        </div>
+
+                        <a class="crossdeal-name" href="@item.ProductUrl">@item.ProductName</a>
+                        <div class="crossdeal-brand">@(!string.IsNullOrWhiteSpace(item.BrandName) ? item.BrandName : "Phụ kiện / sản phẩm phù hợp")</div>
+
+                        <div class="crossdeal-price">
+                            <strong>@string.Format("{0:N0}", item.Price) đ</strong>
+                            @if (item.OldPrice.HasValue && item.OldPrice.Value > item.Price)
+                            {
+                                <del>@string.Format("{0:N0}", item.OldPrice.Value) đ</del>
+                            }
+                        </div>
+
+                        @if (item.IsBundleDiscountApplied && item.BundleDiscountAmount > 0)
+                        {
+                            <div class="crossdeal-saving"><i class="fas fa-ticket-alt"></i> @item.BundleDiscountText</div>
+                        }
+
+                        <div class="crossdeal-reason"><i class="fas fa-users"></i><span>@item.ReasonText</span></div>
+
+                        <div class="crossdeal-actions">
+                            <a href="@item.ProductUrl"><i class="fas fa-eye"></i> Chi tiết</a>
+                            @if (item.PrimaryVariantId > 0)
+                            {
+                                <form action="/Cart/AddToCart" method="post" style="margin:0;">
+                                    <input type="hidden" name="variantId" value="@item.PrimaryVariantId" />
+                                    <input type="hidden" name="quantity" value="1" />
+                                    <input type="hidden" name="actionType" value="add" />
+                                    <button type="submit"><i class="fas fa-cart-plus"></i> Thêm</button>
+                                </form>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+            <div class="crossdeal-note"><i class="fas fa-shield-alt"></i><span>Giá và ưu đãi sẽ được kiểm tra lại trong giỏ hàng trước khi bạn đặt mua, đảm bảo thao tác minh bạch và dễ kiểm soát.</span></div>
+        </div>
+    </section>
+}

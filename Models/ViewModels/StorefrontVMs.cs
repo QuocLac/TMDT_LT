@@ -11,8 +11,11 @@ namespace TMDT_LT.Models.ViewModels.Storefront
         // Danh sách Banner tiếp thị
         public List<CampaignBanners> ActiveBanners { get; set; } = new List<CampaignBanners>();
 
-        // BỔ SUNG: Danh sách Voucher công khai đẩy ra trang chủ
+        // Danh sách Voucher công khai đẩy ra trang chủ
         public List<Promotions> TopVouchers { get; set; } = new List<Promotions>();
+
+        // BỔ SUNG: Đẩy chiến dịch Flash Sale đang chạy ra Storefront
+        public TMDT_LT.Models.FlashSales? ActiveFlashSale { get; set; }
     }
 
     public class SearchResultItemVM

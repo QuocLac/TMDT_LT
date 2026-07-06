@@ -1073,7 +1073,6 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
                 foreach (var v in variantsData)
                 {
-                    // SỬA LỖI: Sử dụng LINQ Join thủ công tương tự hàm SearchVariants để tính giá nhập gần nhất
                     var actualLastImportPrice = await _context.PurchaseOrderDetails
                         .Where(pod => pod.VariantId == v.VariantId)
                         .Join(_context.PurchaseOrders,
@@ -1084,6 +1083,20 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         .Select(x => x.ImportPrice)
                         .FirstOrDefaultAsync();
 
+                    // Logic hạch toán đường dẫn ảnh thông minh
+                    string finalImgUrl = "/images/products/default-product.png";
+
+                    // Ưu tiên 1: Ảnh chi tiết cấu hình biến thể Variant
+                    if (!string.IsNullOrEmpty(v.ImageUrl))
+                    {
+                        finalImgUrl = v.ImageUrl;
+                    }
+                    // Ưu tiên 2: Ảnh đại diện sản phẩm gốc Product (ví dụ: /images/tuf-k3.jpg)
+                    else if (v.Product != null && !string.IsNullOrEmpty(v.Product.MainImage))
+                    {
+                        finalImgUrl = v.Product.MainImage;
+                    }
+
                     productsList.Add(new
                     {
                         variantId = v.VariantId,
@@ -1092,7 +1105,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         storage = v.Storage,
                         price = v.Price,
                         stock = v.Stock ?? 0,
-                        imageUrl = v.ImageUrl,
+                        imageUrl = finalImgUrl, // Trả về đường dẫn chuẩn xác (/images/tuf-k3.jpg)
                         brandId = v.Product.BrandId,
                         brandName = v.Product.Brand != null ? v.Product.Brand.BrandName : "N/A",
                         categoryId = v.Product.CategoryId,

@@ -1,8 +1,9 @@
-﻿@using Microsoft.AspNetCore.Http
+@using Microsoft.AspNetCore.Http
 @using System.Text.Json
 @using TMDT_LT.Models.ViewModels.Storefront
 @using System.Security.Claims
 @inject IHttpContextAccessor HttpContextAccessor
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 <!DOCTYPE html>
 <html lang="vi">
@@ -10,6 +11,28 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - PHONE.ST</title>
+    @{
+        var gaMeasurementId = Configuration["GoogleAnalytics:MeasurementId"];
+        var gaEnabled = string.Equals(Configuration["GoogleAnalytics:Enabled"], "true", System.StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(gaMeasurementId)
+            && !gaMeasurementId.Contains("YOUR", System.StringComparison.OrdinalIgnoreCase);
+        var commerceCustomerId = User.Identity?.IsAuthenticated == true
+            ? (User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "")
+            : "";
+    }
+    @if (gaEnabled)
+    {
+        <script async src="https://www.googletagmanager.com/gtag/js?id=@gaMeasurementId"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){ dataLayer.push(arguments); }
+            gtag('js', new Date());
+            gtag('config', '@gaMeasurementId', {
+                user_id: '@(User.Identity?.IsAuthenticated == true ? (User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "") : "")',
+                currency: 'VND'
+            });
+        </script>
+    }
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -193,6 +216,158 @@
                 transform: scale(1);
             }
         }
+
+
+        /* Commerce Search Autocomplete */
+        .search-input-group {
+            position: relative;
+        }
+
+        .shopee-search-dropdown-box {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #E5E7EB;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+            border-radius: 10px;
+            z-index: 2000;
+            display: none;
+            overflow: hidden;
+            max-height: min(520px, calc(100vh - 130px));
+        }
+
+        .commerce-search-panel {
+            padding: 8px 0;
+            max-height: min(520px, calc(100vh - 130px));
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+
+            .commerce-search-panel::-webkit-scrollbar {
+                width: 8px;
+            }
+
+            .commerce-search-panel::-webkit-scrollbar-thumb {
+                background: #CBD5E1;
+                border-radius: 999px;
+            }
+
+            .commerce-search-panel::-webkit-scrollbar-track {
+                background: #F8FAFC;
+            }
+
+        .commerce-search-section {
+            padding: 6px 0;
+        }
+
+        .commerce-search-title {
+            padding: 8px 14px 6px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #64748B;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .commerce-suggestion-row,
+        .commerce-taxonomy-row,
+        .commerce-product-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--navy-deep);
+            border-top: 1px solid transparent;
+            border-bottom: 1px solid transparent;
+        }
+
+        .commerce-suggestion-row:hover,
+        .commerce-taxonomy-row:hover,
+        .commerce-product-row:hover,
+        .commerce-suggestion-row.active,
+        .commerce-taxonomy-row.active,
+        .commerce-product-row.active {
+            background: #F8FAFC;
+            border-color: #EEF2F7;
+        }
+
+        .commerce-suggestion-row i,
+        .commerce-taxonomy-row i {
+            color: #64748B;
+            width: 18px;
+            text-align: center;
+        }
+
+        .commerce-product-thumb {
+            width: 46px;
+            height: 46px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: #F8FAFC;
+            border: 1px solid #E5E7EB;
+            padding: 4px;
+            flex-shrink: 0;
+        }
+
+        .commerce-product-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .commerce-product-name {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--navy-deep);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 3px;
+        }
+
+        .commerce-product-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: #64748B;
+            flex-wrap: wrap;
+        }
+
+        .commerce-product-price {
+            color: #DC2626;
+            font-weight: 900;
+            font-size: 13px;
+        }
+
+        .commerce-product-old-price {
+            color: #94A3B8;
+            text-decoration: line-through;
+            font-size: 11px;
+        }
+
+        .commerce-sale-badge {
+            background: #DC2626;
+            color: #fff;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 900;
+            padding: 2px 6px;
+            white-space: nowrap;
+        }
+
+        .commerce-empty-search {
+            padding: 18px 14px;
+            text-align: center;
+            color: #64748B;
+            font-size: 13px;
+            font-weight: 600;
+        }
     </style>
 
     @await RenderSectionAsync("Styles", required: false)
@@ -200,6 +375,7 @@
 <body>
     @{
         // Đếm số lượng vật phẩm trong giỏ hàng
+        string currentHeaderKeyword = Context.Request.Query["keyword"].ToString();
         int totalCartItems = 0;
         if (User.Identity != null && User.Identity.IsAuthenticated)
         {
@@ -232,7 +408,9 @@
             <form action="/Store" method="get" class="search-bar-form" id="global-search-form">
                 <div class="search-input-group">
                     <input type="text" name="keyword" id="global-search-input"
-                           placeholder="Tìm tên máy, thương hiệu, danh mục..." autocomplete="off">
+                           placeholder="Tìm iPhone 15 Pro Max, Samsung S24, máy chơi game..."
+                           value="@currentHeaderKeyword"
+                           autocomplete="off" aria-autocomplete="list" aria-expanded="false">
                     <button type="submit" class="search-submit-btn">
                         <i class="fas fa-search"></i>
                     </button>
@@ -332,107 +510,279 @@
             }, 3000);
         };
 
+
         // ================================================================
-        // TÌM KIẾM GỢI Ý DROPDOWN (KIỂU SHOPEE) - TOÀN CỤC
+        // COMMERCE ANALYTICS - SESSION + GA4 EVENT BRIDGE
         // ================================================================
-        document.addEventListener('DOMContentLoaded', function() {
+        (function () {
+            const customerId = '@(User.Identity?.IsAuthenticated == true ? (User.FindFirst("CustomerId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "") : "")';
+            const visitorKey = 'phone_st_visitor_id';
+            const sessionKey = 'phone_st_session_id';
+
+            function uuid(prefix) {
+                if (window.crypto && crypto.randomUUID) return prefix + '_' + crypto.randomUUID();
+                return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 12);
+            }
+
+            function getVisitorId() {
+                let id = localStorage.getItem(visitorKey);
+                if (!id) { id = uuid('vis'); localStorage.setItem(visitorKey, id); }
+                return id;
+            }
+
+            function getSessionId() {
+                let id = sessionStorage.getItem(sessionKey);
+                if (!id) { id = uuid('sess'); sessionStorage.setItem(sessionKey, id); }
+                return id;
+            }
+
+            function normalizeEventName(eventName) {
+                return String(eventName || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+            }
+
+            function sendGaEvent(eventName, payload) {
+                if (typeof window.gtag !== 'function') return;
+                const gaPayload = Object.assign({}, payload || {});
+                delete gaPayload.sessionId;
+                delete gaPayload.visitorId;
+                delete gaPayload.productId;
+                delete gaPayload.variantId;
+                delete gaPayload.targetProductId;
+                delete gaPayload.orderId;
+                delete gaPayload.metadata;
+                window.gtag('event', eventName, gaPayload);
+            }
+
+            window.phoneCommerceAnalytics = {
+                visitorId: getVisitorId(),
+                sessionId: getSessionId(),
+                track: function (eventName, data) {
+                    const normalized = normalizeEventName(eventName);
+                    if (!normalized) return;
+
+                    const payload = Object.assign({
+                        eventName: normalized,
+                        visitorId: this.visitorId,
+                        sessionId: this.sessionId,
+                        pagePath: window.location.pathname + window.location.search,
+                        referrer: document.referrer || ''
+                    }, data || {});
+
+                    try {
+                        fetch('/Analytics/Track', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                            keepalive: true
+                        }).catch(() => {});
+                    } catch { }
+
+                    const gaEvents = ['view_item', 'view_item_list', 'select_item', 'add_to_cart', 'begin_checkout', 'purchase', 'search', 'add_to_wishlist'];
+                    if (gaEvents.includes(normalized)) sendGaEvent(normalized, payload);
+                }
+            };
+
+            document.addEventListener('DOMContentLoaded', function () {
+                window.phoneCommerceAnalytics.track('page_view_internal', {
+                    metadata: { title: document.title, customerId: customerId || null }
+                });
+            });
+        })();
+
+        // ================================================================
+        // TÌM KIẾM GỢI Ý THƯƠNG MẠI - TOÀN CỤC
+        // ================================================================
+        document.addEventListener('DOMContentLoaded', function () {
             const searchInput = document.getElementById('global-search-input');
             const suggestionsBox = document.getElementById('global-suggestions-box');
             const searchForm = document.getElementById('global-search-form');
             let debounceTimer;
+            let activeIndex = -1;
 
-            if (!searchInput || !suggestionsBox) {
-                console.warn('Không tìm thấy input hoặc dropdown gợi ý');
-                return;
+            if (!searchInput || !suggestionsBox) return;
+
+            function escapeHtml(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
             }
 
-            // Hàm fetch gợi ý từ API
+            function formatCurrency(value) {
+                const number = Number(value || 0);
+                return number.toLocaleString('vi-VN') + ' đ';
+            }
+
+            function closeSuggestions() {
+                suggestionsBox.style.display = 'none';
+                suggestionsBox.innerHTML = '';
+                activeIndex = -1;
+                searchInput.setAttribute('aria-expanded', 'false');
+            }
+
+            function openSuggestions() {
+                suggestionsBox.style.display = 'block';
+                searchInput.setAttribute('aria-expanded', 'true');
+            }
+
+            function renderKeywordSection(items, title) {
+                if (!items || items.length === 0) return '';
+                const rows = items.map(item => `
+                    <a class="commerce-suggestion-row commerce-search-option" href="${escapeHtml(item.url)}" data-label="${escapeHtml(item.label)}">
+                        <i class="fas fa-search"></i>
+                        <span>${escapeHtml(item.label)}</span>
+                    </a>`).join('');
+                return `<div class="commerce-search-section"><div class="commerce-search-title">${escapeHtml(title)}</div>${rows}</div>`;
+            }
+
+            function renderProductSection(items) {
+                if (!items || items.length === 0) return '';
+                const rows = items.map(item => {
+                    const oldPrice = item.oldPrice ? `<span class="commerce-product-old-price">${formatCurrency(item.oldPrice)}</span>` : '';
+                    const badge = item.isFlashSale ? '<span class="commerce-sale-badge">FLASH SALE</span>' : (item.hasSale ? '<span class="commerce-sale-badge">ƯU ĐÃI</span>' : '');
+                    return `
+                        <a class="commerce-product-row commerce-search-option" href="${escapeHtml(item.url)}" data-label="${escapeHtml(item.name)}">
+                            <img class="commerce-product-thumb" src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" />
+                            <div class="commerce-product-info">
+                                <div class="commerce-product-name">${escapeHtml(item.name)}</div>
+                                <div class="commerce-product-meta">
+                                    <span class="commerce-product-price">${formatCurrency(item.price)}</span>
+                                    ${oldPrice}
+                                    ${badge}
+                                    <span>${escapeHtml(item.stockText)}</span>
+                                </div>
+                            </div>
+                        </a>`;
+                }).join('');
+                return `<div class="commerce-search-section"><div class="commerce-search-title">Sản phẩm phù hợp</div>${rows}</div>`;
+            }
+
+            function renderTaxonomySection(items) {
+                if (!items || items.length === 0) return '';
+                const rows = items.map(item => `
+                    <a class="commerce-taxonomy-row commerce-search-option" href="${escapeHtml(item.url)}" data-label="${escapeHtml(item.label)}">
+                        <i class="fas ${escapeHtml(item.icon || 'fa-tag')}"></i>
+                        <div>
+                            <div style="font-size:13px;font-weight:800;">${escapeHtml(item.label)}</div>
+                            <div style="font-size:11px;color:#64748B;font-weight:700;">${escapeHtml(item.subLabel)}</div>
+                        </div>
+                    </a>`).join('');
+                return `<div class="commerce-search-section"><div class="commerce-search-title">Thương hiệu & danh mục</div>${rows}</div>`;
+            }
+
+            function renderSuggestions(data) {
+                const sections = data.sections || {};
+                let html = '<div class="commerce-search-panel">';
+                html += renderKeywordSection(sections.keywords, data.isBlank ? 'Từ khóa thịnh hành' : 'Gợi ý tìm kiếm');
+                html += renderProductSection(sections.products);
+                html += renderTaxonomySection(sections.taxonomy);
+                html += '</div>';
+
+                if (!sections.keywords?.length && !sections.products?.length && !sections.taxonomy?.length) {
+                    html = '<div class="commerce-empty-search">Không có gợi ý phù hợp. Nhấn Enter để xem toàn bộ kết quả.</div>';
+                }
+
+                suggestionsBox.innerHTML = html;
+                openSuggestions();
+            }
+
             function fetchSuggestions(query) {
-                const url = `/Store/GetSearchSuggestions?q=${encodeURIComponent(query)}`;
+                const url = `/Store/GetSearchSuggestions?q=${encodeURIComponent(query || '')}`;
                 fetch(url)
                     .then(res => {
                         if (!res.ok) throw new Error('HTTP ' + res.status);
                         return res.json();
                     })
-                    .then(data => {
-                        let html = '';
-                        if (data.phrases && data.phrases.length > 0) {
-                            data.phrases.forEach(phrase => {
-                                const safePhrase = phrase.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                html += `
-                                    <div class="shopee-suggestion-row" onclick="window.applySuggestion('${safePhrase}')">
-                                        <i class="fas fa-search"></i>
-                                        <span>${phrase}</span>
-                                    </div>`;
-                            });
-                            suggestionsBox.innerHTML = html;
-                            suggestionsBox.style.display = 'block';
-                        } else {
-                            suggestionsBox.style.display = 'none';
-                        }
-                    })
+                    .then(renderSuggestions)
                     .catch(err => {
-                        console.error('Lỗi fetch gợi ý:', err);
-                        suggestionsBox.style.display = 'none';
+                        console.error('Lỗi gợi ý tìm kiếm:', err);
+                        closeSuggestions();
                     });
             }
 
-            // Hàm áp dụng gợi ý (global)
-            window.applySuggestion = function(phrase) {
-                if (!searchInput) return;
+            window.applySuggestion = function (phrase) {
                 searchInput.value = phrase;
-                suggestionsBox.style.display = 'none';
-                if (searchForm) {
-                    searchForm.submit();
-                } else {
-                    const submitBtn = document.querySelector('.search-submit-btn');
-                    if (submitBtn) submitBtn.click();
-                }
+                closeSuggestions();
+                if (searchForm) searchForm.submit();
             };
 
-            // Sự kiện focus: hiển thị gợi ý
-            searchInput.addEventListener('focus', function() {
-                const val = this.value.trim();
-                if (val !== '') {
-                    fetchSuggestions(val);
-                } else {
-                    fetchSuggestions(''); // gợi ý hot
-                }
+            searchInput.addEventListener('focus', function () {
+                fetchSuggestions(this.value.trim());
             });
 
-            // Sự kiện input: debounce 300ms
-            searchInput.addEventListener('input', function() {
+            searchInput.addEventListener('input', function () {
                 clearTimeout(debounceTimer);
-                const val = this.value.trim();
-                debounceTimer = setTimeout(() => {
-                    fetchSuggestions(val);
-                }, 300);
+                const value = this.value.trim();
+                debounceTimer = setTimeout(() => fetchSuggestions(value), 220);
             });
 
-            // Ẩn dropdown khi click ra ngoài
-            document.addEventListener('click', function(e) {
-                if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-                    suggestionsBox.style.display = 'none';
-                }
-            });
-
-            // Phím ESC để đóng dropdown
-            searchInput.addEventListener('keydown', function(e) {
+            searchInput.addEventListener('keydown', function (e) {
+                const options = Array.from(suggestionsBox.querySelectorAll('.commerce-search-option'));
                 if (e.key === 'Escape') {
-                    suggestionsBox.style.display = 'none';
+                    closeSuggestions();
+                    return;
+                }
+                if (!options.length) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    activeIndex = (activeIndex + 1) % options.length;
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    activeIndex = (activeIndex - 1 + options.length) % options.length;
+                } else if (e.key === 'Enter' && activeIndex >= 0) {
+                    e.preventDefault();
+                    options[activeIndex].click();
+                    return;
+                } else {
+                    return;
+                }
+
+                options.forEach(item => item.classList.remove('active'));
+                options[activeIndex].classList.add('active');
+                options[activeIndex].scrollIntoView({ block: 'nearest' });
+            });
+
+            suggestionsBox.addEventListener('wheel', function (e) {
+                const panel = suggestionsBox.querySelector('.commerce-search-panel');
+                if (!panel) return;
+
+                const atTop = panel.scrollTop <= 0;
+                const atBottom = Math.ceil(panel.scrollTop + panel.clientHeight) >= panel.scrollHeight;
+
+                // Giữ thao tác cuộn nằm trong khung gợi ý, tránh kéo cả trang khi danh sách còn nội dung.
+                if ((e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom)) {
+                    e.stopPropagation();
+                }
+            }, { passive: true });
+
+            suggestionsBox.addEventListener('click', function (e) {
+                const option = e.target.closest('.commerce-search-option');
+                if (!option) return;
+                const label = option.getAttribute('data-label');
+                if (label) searchInput.value = label;
+                closeSuggestions();
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                    closeSuggestions();
                 }
             });
 
-            // Khi submit form (Enter), đóng dropdown
             if (searchForm) {
-                searchForm.addEventListener('submit', function() {
-                    suggestionsBox.style.display = 'none';
+                searchForm.addEventListener('submit', function () {
+                    const keyword = searchInput.value.trim();
+                    if (keyword && window.phoneCommerceAnalytics) {
+                        window.phoneCommerceAnalytics.track('search', {
+                            searchKeyword: keyword,
+                            metadata: { source: 'header_search' }
+                        });
+                    }
+                    closeSuggestions();
                 });
-            }
-
-            // Tự động mở dropdown khi trang load với từ khóa có sẵn (trên trang kết quả)
-            if (searchInput.value.trim() !== '') {
-                fetchSuggestions(searchInput.value.trim());
             }
         });
     </script>
