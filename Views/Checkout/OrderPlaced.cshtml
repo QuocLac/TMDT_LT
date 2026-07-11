@@ -1,12 +1,21 @@
 @using System.Text.Json
+@using TMDT_LT.Models
 @model TMDT_LT.Models.Orders
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Đặt hàng thành công";
-    var payment = Model.Payments?.FirstOrDefault();
-    var paymentMethod = payment?.PaymentMethod ?? "COD";
-    var isVnPay = string.Equals(paymentMethod, "VNPAY", System.StringComparison.OrdinalIgnoreCase);
-    var isBankTransfer = string.Equals(paymentMethod, "BankTransfer", System.StringComparison.OrdinalIgnoreCase);
+    var payment = Model.Payments?.OrderByDescending(p => p.PaymentId).FirstOrDefault();
+    var paymentMethod = payment?.PaymentMethod ?? PaymentMethods.Cod;
+    var isVnPay = string.Equals(paymentMethod, PaymentMethods.VnPay, System.StringComparison.OrdinalIgnoreCase);
+    var isBankTransfer = string.Equals(paymentMethod, PaymentMethods.BankTransfer, System.StringComparison.OrdinalIgnoreCase);
+    DateTime? paymentExpiresAt = ViewBag.PaymentExpiresAt is DateTime expiresAtValue
+        ? expiresAtValue
+        : null;
+    var waitingVnPay = isVnPay
+        && Model.Status == OrderStatuses.Pending
+        && payment?.PaymentStatus == PaymentStatuses.AwaitingGateway;
+    var canRetryVnPay = waitingVnPay
+        && (!paymentExpiresAt.HasValue || DateTime.Now < paymentExpiresAt.Value);
     var purchaseAnalyticsJson = JsonSerializer.Serialize(new {
         orderId = Model.OrderId,
         transaction_id = Model.OrderId.ToString(),
@@ -14,8 +23,12 @@
         currency = "VND",
         items = Model.OrderDetails.Select(d => new {
             item_id = (d.Variant?.ProductId ?? 0).ToString(),
-            item_name = d.Variant?.Product?.Name ?? $"Sản phẩm #{d.VariantId}",
-            item_variant = d.VariantId?.ToString() ?? "",
+            item_name = !string.IsNullOrWhiteSpace(d.ProductNameSnapshot)
+                ? d.ProductNameSnapshot
+                : d.Variant?.Product?.Name ?? $"Sản phẩm #{d.VariantId}",
+            item_variant = !string.IsNullOrWhiteSpace(d.VariantCodeSnapshot)
+                ? d.VariantCodeSnapshot
+                : d.VariantId?.ToString() ?? "",
             price = d.UnitPrice ?? 0,
             quantity = d.Quantity ?? 0,
             google_business_vertical = "retail"
@@ -40,9 +53,10 @@
         .notice-cod { background:#EFF6FF; border:1px solid #BFDBFE; color:#1E3A8A; }
         .notice-bank { background:#FFFBEB; border:1px solid #FDE68A; color:#92400E; }
         .notice-error { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; }
-        .action-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:24px; }
-        .btn-primary-dark { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#0F172A; color:#fff; border-radius:10px; padding:12px 18px; font-weight:800; text-decoration:none; }
-        .btn-light-border { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#fff; color:#0F172A; border:1px solid #CBD5E1; border-radius:10px; padding:12px 18px; font-weight:800; text-decoration:none; }
+        .action-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:24px; align-items:center; }
+        .action-row form { margin:0; }
+        .btn-primary-dark { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#0F172A; color:#fff; border:0; border-radius:10px; padding:12px 18px; font-weight:800; text-decoration:none; cursor:pointer; }
+        .btn-light-border { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#fff; color:#0F172A; border:1px solid #CBD5E1; border-radius:10px; padding:12px 18px; font-weight:800; text-decoration:none; cursor:pointer; }
         @@media(max-width:768px){ .info-grid { grid-template-columns:1fr; } }
     </style>
 }
@@ -67,7 +81,7 @@
         <div class="info-grid">
             <div class="info-box">
                 <div class="info-label">Trạng thái đơn</div>
-                <div class="info-value">@(Model.Status ?? "Chờ xác nhận")</div>
+                <div class="info-value">@(Model.Status ?? OrderStatuses.Pending)</div>
             </div>
             <div class="info-box">
                 <div class="info-label">Thanh toán</div>
@@ -98,16 +112,39 @@
         {
             <div class="notice-box notice-bank">
                 <strong>Chờ xác nhận chuyển khoản:</strong> Đơn đã được giữ hàng. Shop sẽ cập nhật trạng thái sau khi đối soát giao dịch.
+                @if (paymentExpiresAt.HasValue)
+                {
+                    <div>Thời hạn giữ hàng: <strong>@paymentExpiresAt.Value.ToString("dd/MM/yyyy HH:mm")</strong>.</div>
+                }
+            </div>
+        }
+        else if (waitingVnPay)
+        {
+            <div class="notice-box notice-bank">
+                <strong>VNPAY đang chờ xác nhận:</strong> Bạn có thể mở lại cổng thanh toán trong thời gian giữ hàng.
+                @if (paymentExpiresAt.HasValue)
+                {
+                    <div>Thời hạn thanh toán: <strong>@paymentExpiresAt.Value.ToString("dd/MM/yyyy HH:mm")</strong>.</div>
+                }
             </div>
         }
 
         <div class="action-row">
+            @if (canRetryVnPay)
+            {
+                <form asp-controller="Payment" asp-action="RetryVnPay" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="orderId" value="@Model.OrderId" />
+                    <button type="submit" class="btn-primary-dark">
+                        <i class="fas fa-credit-card"></i> Thanh toán lại VNPAY
+                    </button>
+                </form>
+            }
             <a asp-controller="Customer" asp-action="Orders" class="btn-primary-dark"><i class="fas fa-list-check"></i> Theo dõi đơn hàng</a>
             <a asp-controller="Store" asp-action="Index" class="btn-light-border"><i class="fas fa-store"></i> Tiếp tục mua sắm</a>
         </div>
     </div>
 </div>
-
 
 @section Scripts {
     <script>
@@ -123,6 +160,35 @@
                     source: 'order_placed_page'
                 }
             });
+        }
+
+        const shouldPollPayment = @waitingVnPay.ToString().ToLowerInvariant();
+        if (shouldPollPayment) {
+            let pollCount = 0;
+            const pollTimer = window.setInterval(async () => {
+                pollCount++;
+                try {
+                    const response = await fetch('@Url.Action("Status", "Payment", new { orderId = Model.OrderId })', {
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (!response.ok) return;
+
+                    const data = await response.json();
+                    if (data.paymentStatus === '@PaymentStatuses.Paid'
+                        || data.paymentStatus === '@PaymentStatuses.Refunded'
+                        || data.orderStatus === '@OrderStatuses.Cancelled') {
+                        window.clearInterval(pollTimer);
+                        window.location.reload();
+                    }
+                } catch {
+                    // Trang vẫn hoạt động bình thường nếu polling tạm thời thất bại.
+                }
+
+                if (pollCount >= 20) {
+                    window.clearInterval(pollTimer);
+                }
+            }, 3000);
         }
     </script>
 }

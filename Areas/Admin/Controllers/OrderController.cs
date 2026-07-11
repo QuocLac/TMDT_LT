@@ -510,6 +510,16 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 payment.Amount = gatewayData.AmountTransferred;
                 payment.FailureReason = null;
 
+                await _context.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                      UPDATE OrderReservations
+                      SET ExpiresAt = NULL,
+                          Reason = {"Chuyển khoản ngân hàng đã được xác nhận."}
+                      WHERE OrderId = {order.OrderId}
+                        AND Status = {OrderReservationStatuses.Consumed}
+                      """,
+                    HttpContext.RequestAborted);
+
                 await _context.SaveChangesAsync(HttpContext.RequestAborted);
                 await _paymentTransactionService.CompleteAsync(
                     idempotencyKey,

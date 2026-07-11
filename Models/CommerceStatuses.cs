@@ -106,6 +106,8 @@ public static class PaymentEventTypes
     public const string Return = "RETURN";
     public const string BankWebhook = "BANK_WEBHOOK";
     public const string Refund = "REFUND";
+    public const string Retry = "RETRY";
+    public const string Expired = "EXPIRED";
 }
 
 public static class OrderReservationStatuses

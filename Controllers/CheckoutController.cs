@@ -23,6 +23,7 @@ namespace TMDT_LT.Controllers
         private readonly GhnService _ghnService;
         private readonly ICrossSellAprioriService _crossSellAprioriService;
         private readonly IOrderInventoryService _orderInventoryService;
+        private readonly PaymentExpirationPolicy _paymentExpirationPolicy;
 
         public CheckoutController(
             ApplicationDbContext context,
@@ -30,7 +31,8 @@ namespace TMDT_LT.Controllers
             VnPayService vnPayService,
             GhnService ghnService,
             ICrossSellAprioriService crossSellAprioriService,
-            IOrderInventoryService orderInventoryService)
+            IOrderInventoryService orderInventoryService,
+            PaymentExpirationPolicy paymentExpirationPolicy)
         {
             _context = context;
             _promotionEngine = promotionEngine;
@@ -38,6 +40,7 @@ namespace TMDT_LT.Controllers
             _ghnService = ghnService;
             _crossSellAprioriService = crossSellAprioriService;
             _orderInventoryService = orderInventoryService;
+            _paymentExpirationPolicy = paymentExpirationPolicy;
         }
 
         [HttpGet]
@@ -327,7 +330,7 @@ namespace TMDT_LT.Controllers
                     Amount = finalTotal,
                     Currency = "VND",
                     CreatedAt = now,
-                    PaymentDate = now
+                    PaymentDate = null
                 };
 
                 _context.Payments.Add(payment);
@@ -344,6 +347,17 @@ namespace TMDT_LT.Controllers
                     ReceivedAt = now,
                     ProcessedAt = now
                 });
+
+                var paymentExpiresAt = _paymentExpirationPolicy.GetDeadline(PaymentMethod, now);
+                if (paymentExpiresAt.HasValue)
+                {
+                    foreach (var entry in _context.ChangeTracker
+                                 .Entries<OrderReservations>()
+                                 .Where(entry => entry.Entity.OrderId == newOrder.OrderId))
+                    {
+                        entry.Entity.ExpiresAt = paymentExpiresAt;
+                    }
+                }
 
                 _context.Shipping.Add(new Shipping { OrderId = newOrder.OrderId, Carrier = "Giao hàng tiêu chuẩn", Status = "Chờ lấy hàng" });
                 _context.OrderHistories.Add(new OrderHistory { OrderId = newOrder.OrderId, Status = OrderStatuses.Pending, UpdatedAt = now, Note = orderCreatedNote });
@@ -407,6 +421,11 @@ namespace TMDT_LT.Controllers
                 .FirstOrDefaultAsync(o => o.OrderId == orderId && o.CustomerId == customerId);
 
             if (order == null) return RedirectToAction("Orders", "Customer");
+
+            var payment = order.Payments.FirstOrDefault();
+            ViewBag.PaymentExpiresAt = payment == null
+                ? null
+                : _paymentExpirationPolicy.GetDeadline(payment);
 
             return View(order);
         }

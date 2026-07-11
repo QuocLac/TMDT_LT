@@ -58,6 +58,11 @@ builder.Services.AddScoped<PromotionEngine>();
 builder.Services.AddScoped<IOrderInventoryService, OrderInventoryService>();
 builder.Services.AddScoped<IOrderStateService, OrderStateService>();
 builder.Services.AddScoped<IPaymentTransactionService, PaymentTransactionService>();
+builder.Services.Configure<UnpaidOrderExpirationOptions>(
+    builder.Configuration.GetSection(UnpaidOrderExpirationOptions.SectionName));
+builder.Services.AddSingleton<PaymentExpirationPolicy>();
+builder.Services.AddScoped<IUnpaidOrderExpirationService, UnpaidOrderExpirationService>();
+builder.Services.AddHostedService<UnpaidOrderExpirationWorker>();
 builder.Services.AddHttpClient();
 
 // BỔ SUNG 2 DÒNG NÀY ĐỂ KÍCH HOẠT VNPAY SERVICE
