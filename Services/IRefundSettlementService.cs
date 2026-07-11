@@ -18,6 +18,14 @@ public sealed record OrderCancellationCommand(
     int? CustomerId = null,
     bool AllowProcessing = false);
 
+public sealed record RefundReconciliationCommand(
+    long PaymentTransactionId,
+    bool ProviderConfirmedSuccess,
+    bool? IsProductIntact,
+    string? AdminNote,
+    string? TransactionReference,
+    string Actor);
+
 public sealed record RefundSettlementResult(
     bool Success,
     bool AlreadyProcessed,
@@ -37,5 +45,9 @@ public interface IRefundSettlementService
 
     Task<RefundSettlementResult> SettleCancellationAsync(
         OrderCancellationCommand command,
+        CancellationToken cancellationToken = default);
+
+    Task<RefundSettlementResult> ReconcileRefundAsync(
+        RefundReconciliationCommand command,
         CancellationToken cancellationToken = default);
 }

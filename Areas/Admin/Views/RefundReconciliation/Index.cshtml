@@ -1,0 +1,226 @@
+@model TMDT_LT.Areas.Admin.ViewModels.RefundReconciliationIndexViewModel
+@using TMDT_LT.Models
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Đối soát hoàn tiền";
+
+    string BadgeClass(string status) => status switch
+    {
+        PaymentEventStatuses.RequiresReview => "refund-badge-review",
+        PaymentEventStatuses.Processing => "refund-badge-processing",
+        PaymentEventStatuses.Failed => "refund-badge-failed",
+        PaymentEventStatuses.Processed => "refund-badge-processed",
+        _ => "refund-badge-default"
+    };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin/pages/refund-reconciliation.css" asp-append-version="true" />
+}
+
+<div class="refund-page">
+    <header class="refund-page-header">
+        <div>
+            <h1 class="refund-page-title">Đối soát hoàn tiền</h1>
+            <p class="refund-page-subtitle">
+                Kiểm tra các refund bị gián đoạn, hoàn thủ công và chốt nghiệp vụ mà không gửi lặp lệnh provider.
+            </p>
+        </div>
+        <a asp-area="Admin" asp-controller="Order" asp-action="Index" class="refund-btn refund-btn-primary" style="text-decoration:none; display:inline-flex; align-items:center;">
+            Quay lại đơn hàng
+        </a>
+    </header>
+
+    @if (TempData["RefundSuccess"] is string successMessage)
+    {
+        <div class="refund-alert refund-alert-success">@successMessage</div>
+    }
+    @if (TempData["RefundError"] is string errorMessage)
+    {
+        <div class="refund-alert refund-alert-error">@errorMessage</div>
+    }
+
+    <section class="refund-summary-grid">
+        <a asp-action="Index" asp-route-status="@PaymentEventStatuses.RequiresReview" class="refund-summary-card">
+            <span class="refund-summary-label">Cần đối soát</span>
+            <span class="refund-summary-value">@Model.RequiresReviewCount</span>
+        </a>
+        <a asp-action="Index" asp-route-status="@PaymentEventStatuses.Processing" class="refund-summary-card">
+            <span class="refund-summary-label">Đang xử lý</span>
+            <span class="refund-summary-value">@Model.ProcessingCount</span>
+        </a>
+        <a asp-action="Index" asp-route-status="@PaymentEventStatuses.Failed" class="refund-summary-card">
+            <span class="refund-summary-label">Provider thất bại</span>
+            <span class="refund-summary-value">@Model.FailedCount</span>
+        </a>
+        <a asp-action="Index" asp-route-status="@PaymentEventStatuses.Processed" class="refund-summary-card">
+            <span class="refund-summary-label">Đã chốt</span>
+            <span class="refund-summary-value">@Model.ProcessedCount</span>
+        </a>
+    </section>
+
+    <section class="refund-filter-panel">
+        <form method="get" asp-action="Index" class="refund-filter-form">
+            <div class="refund-field">
+                <label for="search">Tìm theo đơn, idempotency key hoặc mã giao dịch</label>
+                <input id="search" name="search" value="@Model.Search" placeholder="#ORD-125, VNPAY..., REFUND:CANCEL:125" />
+            </div>
+            <div class="refund-field">
+                <label for="status">Trạng thái event</label>
+                <select id="status" name="status">
+                    <option value="all" selected="@(Model.StatusFilter == "all")">Tất cả</option>
+                    <option value="@PaymentEventStatuses.RequiresReview" selected="@(Model.StatusFilter == PaymentEventStatuses.RequiresReview)">Cần đối soát</option>
+                    <option value="@PaymentEventStatuses.Processing" selected="@(Model.StatusFilter == PaymentEventStatuses.Processing)">Đang xử lý</option>
+                    <option value="@PaymentEventStatuses.Failed" selected="@(Model.StatusFilter == PaymentEventStatuses.Failed)">Thất bại</option>
+                    <option value="@PaymentEventStatuses.Processed" selected="@(Model.StatusFilter == PaymentEventStatuses.Processed)">Đã chốt</option>
+                </select>
+            </div>
+            <div class="refund-field">
+                <label for="scope">Nghiệp vụ</label>
+                <select id="scope" name="scope">
+                    <option value="" selected="@(string.IsNullOrWhiteSpace(Model.ScopeFilter))">Tất cả</option>
+                    <option value="return" selected="@(Model.ScopeFilter == "return")">Trả hàng</option>
+                    <option value="cancellation" selected="@(Model.ScopeFilter == "cancellation")">Hủy đơn</option>
+                </select>
+            </div>
+            <button type="submit" class="refund-btn refund-btn-primary">Lọc dữ liệu</button>
+        </form>
+    </section>
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="refund-empty">
+            Không có refund event phù hợp với bộ lọc hiện tại.
+        </div>
+    }
+    else
+    {
+        <section class="refund-event-list">
+            @foreach (var item in Model.Items)
+            {
+                <article class="refund-event-card">
+                    <div class="refund-event-head">
+                        <div>
+                            <h2 class="refund-event-title">
+                                #ORD-@item.OrderId · @item.Scope · @item.Amount.ToString("N0")đ
+                            </h2>
+                            <div class="refund-event-subtitle">@item.IdempotencyKey</div>
+                        </div>
+                        <span class="refund-badge @BadgeClass(item.EventStatus)">@item.EventStatus</span>
+                    </div>
+
+                    <div class="refund-event-body">
+                        <div class="refund-info-grid">
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Provider</span>
+                                <span class="refund-info-value">@(string.IsNullOrWhiteSpace(item.Provider) ? "Chưa xác định" : item.Provider)</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Payment</span>
+                                <span class="refund-info-value">@item.PaymentMethod · @item.PaymentStatus</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Đơn hàng</span>
+                                <span class="refund-info-value">@item.OrderStatus</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Hồ sơ trả hàng</span>
+                                <span class="refund-info-value">@(item.ReturnStatus ?? "Không áp dụng")</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Response code</span>
+                                <span class="refund-info-value">@(item.ResponseCode ?? "—")</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Transaction status</span>
+                                <span class="refund-info-value">@(item.TransactionStatus ?? "—")</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Mã giao dịch provider</span>
+                                <span class="refund-info-value">@(item.ProviderTransactionId ?? "—")</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Thời điểm nhận</span>
+                                <span class="refund-info-value">@item.ReceivedAt.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Khách hàng</span>
+                                <span class="refund-info-value">@(item.CustomerName ?? "—")</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Email</span>
+                                <span class="refund-info-value">@(item.CustomerEmail ?? "—")</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Người yêu cầu hủy</span>
+                                <span class="refund-info-value">@(item.CancellationRequestedBy ?? "—")</span>
+                            </div>
+                            <div class="refund-info-item">
+                                <span class="refund-info-label">Lý do hủy</span>
+                                <span class="refund-info-value">@(item.CancellationReason ?? "—")</span>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(item.ErrorMessage))
+                        {
+                            <div class="refund-error-box">@item.ErrorMessage</div>
+                        }
+
+                        @if (item.CanResolve)
+                        {
+                            <details class="refund-resolution" open="@(item.EventStatus == PaymentEventStatuses.RequiresReview)">
+                                <summary>Chốt kết quả đối soát</summary>
+                                <form method="post" asp-action="Resolve" class="refund-resolution-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="paymentTransactionId" value="@item.PaymentTransactionId" />
+
+                                    @if (item.RequiresProductCondition)
+                                    {
+                                        <div class="refund-field">
+                                            <label>Tình trạng hàng hoàn</label>
+                                            <select name="isProductIntact" required>
+                                                <option value="">Chọn kết quả kiểm định</option>
+                                                <option value="true">Còn nguyên — nhập lại kho</option>
+                                                <option value="false">Hư hỏng — không nhập lại tồn bán</option>
+                                            </select>
+                                        </div>
+                                    }
+
+                                    <div class="refund-field">
+                                        <label>Mã giao dịch hoàn tiền</label>
+                                        <input name="transactionReference"
+                                               value="@item.ProviderTransactionId"
+                                               placeholder="@(item.RequiresManualReference ? "Bắt buộc với hoàn thủ công" : "Giữ mã provider hoặc nhập mã đối soát")" />
+                                    </div>
+
+                                    <div class="refund-field full-width">
+                                        <label>Ghi chú đối soát</label>
+                                        <textarea name="adminNote" placeholder="Nguồn kiểm tra, thời điểm xác nhận, ghi chú nghiệp vụ..."></textarea>
+                                    </div>
+
+                                    <div class="refund-resolution-actions">
+                                        <button type="submit"
+                                                name="decision"
+                                                value="success"
+                                                class="refund-btn refund-btn-success"
+                                                onclick="return confirm('Xác nhận provider đã hoàn tiền? Hệ thống sẽ chốt đơn, kho và payment mà không gọi provider lần nữa.');">
+                                            Provider đã hoàn tiền
+                                        </button>
+                                        <button type="submit"
+                                                name="decision"
+                                                value="failed"
+                                                class="refund-btn refund-btn-danger"
+                                                formnovalidate
+                                                onclick="return confirm('Xác nhận provider chưa hoàn tiền? Event sẽ chuyển Failed để cho phép thử refund lại.');">
+                                            Provider chưa hoàn tiền
+                                        </button>
+                                    </div>
+                                </form>
+                            </details>
+                        }
+                    </div>
+                </article>
+            }
+        </section>
+    }
+</div>
