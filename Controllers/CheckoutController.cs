@@ -22,14 +22,22 @@ namespace TMDT_LT.Controllers
         private readonly VnPayService _vnPayService;
         private readonly GhnService _ghnService;
         private readonly ICrossSellAprioriService _crossSellAprioriService;
+        private readonly IOrderInventoryService _orderInventoryService;
 
-        public CheckoutController(ApplicationDbContext context, PromotionEngine promotionEngine, VnPayService vnPayService, GhnService ghnService, ICrossSellAprioriService crossSellAprioriService)
+        public CheckoutController(
+            ApplicationDbContext context,
+            PromotionEngine promotionEngine,
+            VnPayService vnPayService,
+            GhnService ghnService,
+            ICrossSellAprioriService crossSellAprioriService,
+            IOrderInventoryService orderInventoryService)
         {
             _context = context;
             _promotionEngine = promotionEngine;
             _vnPayService = vnPayService;
             _ghnService = ghnService;
             _crossSellAprioriService = crossSellAprioriService;
+            _orderInventoryService = orderInventoryService;
         }
 
         [HttpGet]
@@ -238,8 +246,6 @@ namespace TMDT_LT.Controllers
                             IsReviewed = false
                         });
                     }
-
-                    variant.Stock = currentStock - item.Quantity;
                 }
 
                 decimal discountAmount = 0;
@@ -288,8 +294,8 @@ namespace TMDT_LT.Controllers
                     ShippingDistrict = address.District,
                     ShippingCity = address.City,
                     ShippingCountry = address.Country ?? "Việt Nam",
-                    IsStockDeducted = true,
-                    StockDeductedAt = now,
+                    IsStockDeducted = false,
+                    StockDeductedAt = null,
                     OrderDetails = orderDetailsList
                 };
 
@@ -297,20 +303,16 @@ namespace TMDT_LT.Controllers
                 await _context.SaveChangesAsync();
                 createdOrderId = newOrder.OrderId;
 
-                foreach (var detail in orderDetailsList)
+                bool stockDeducted = await _orderInventoryService.DeductOrderStockAsync(
+                    newOrder.OrderId,
+                    "Trừ kho khi tạo đơn tại checkout",
+                    occurredAt: now,
+                    cancellationToken: HttpContext.RequestAborted);
+
+                if (!stockDeducted)
                 {
-                    if (detail.VariantId.HasValue && detail.Quantity.HasValue && detail.Quantity.Value > 0)
-                    {
-                        _context.InventoryTransactions.Add(new InventoryTransactions
-                        {
-                            VariantId = detail.VariantId.Value,
-                            TransactionType = "ADJUST",
-                            Quantity = -detail.Quantity.Value,
-                            ReferenceId = newOrder.OrderId,
-                            TransactionDate = now,
-                            Note = detail.IsFlashSaleItem ? $"Trừ kho đơn #{newOrder.OrderId} - Flash Sale" : $"Trừ kho đơn #{newOrder.OrderId}"
-                        });
-                    }
+                    throw new InvalidOperationException(
+                        $"Không thể claim tồn kho cho đơn #{newOrder.OrderId}.");
                 }
 
                 string paymentStatus = isCod

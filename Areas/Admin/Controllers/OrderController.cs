@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Linq;
@@ -17,12 +15,17 @@ namespace TMDT_LT.Areas.Admin.Controllers
     public class OrderController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly IConfiguration _config;
+        private readonly VnPayService _vnPayService;
+        private readonly IOrderInventoryService _orderInventoryService;
 
-        public OrderController(ApplicationDbContext context, IConfiguration config)
+        public OrderController(
+            ApplicationDbContext context,
+            VnPayService vnPayService,
+            IOrderInventoryService orderInventoryService)
         {
             _context = context;
-            _config = config;
+            _vnPayService = vnPayService;
+            _orderInventoryService = orderInventoryService;
         }
 
         // ====================================================================
@@ -163,7 +166,11 @@ namespace TMDT_LT.Areas.Admin.Controllers
             {
                 if (newStatus == "Đang xử lý" && order.Status == "Chờ xác nhận")
                 {
-                    await DeductStockForLegacyOrderAsync(order);
+                    bool stockDeductedNow = await _orderInventoryService.DeductOrderStockAsync(
+                        order.OrderId,
+                        "Trừ kho khi admin xác nhận đơn cũ",
+                        occurredAt: DateTime.Now,
+                        cancellationToken: HttpContext.RequestAborted);
 
                     var defaultCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
                     var shipInfo = order.Shipping?.FirstOrDefault();
@@ -174,7 +181,9 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         shipInfo.Carrier = defaultCarrier.CarrierName;
                     }
 
-                    note = note ?? "Admin xác nhận đơn hàng. Kho đã được giữ/trừ trước đó hoặc vừa được trừ cho đơn cũ.";
+                    note ??= stockDeductedNow
+                        ? "Admin xác nhận đơn hàng. Tồn kho của đơn cũ vừa được trừ qua dịch vụ tồn kho tập trung."
+                        : "Admin xác nhận đơn hàng. Tồn kho đã được giữ/trừ trước đó.";
                 }
                 else if (newStatus == "Đang giao" && order.Status == "Đang xử lý")
                 {
@@ -209,9 +218,8 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
                     if (payment != null && payment.PaymentStatus == "Đã thanh toán" && payment.PaymentMethod == "VNPAY")
                     {
-                        var vnPayService = HttpContext.RequestServices.GetRequiredService<VnPayService>();
                         string transactionDateStr = payment.PaymentDate?.ToString("yyyyMMddHHmmss") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
-                        bool isRefundSuccess = await vnPayService.RequestBankRefundAsync(order.OrderId, order.TotalAmount ?? 0, transactionDateStr, User.Identity?.Name ?? "admin");
+                        bool isRefundSuccess = await _vnPayService.RequestBankRefundAsync(order.OrderId, order.TotalAmount ?? 0, transactionDateStr, User.Identity?.Name ?? "admin");
 
                         if (!isRefundSuccess)
                         {
@@ -222,8 +230,16 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         note = (note ?? "") + " [Đã kích hoạt lệnh Refund VNPAY thành công].";
                     }
 
-                    await RestoreStockAndFlashSaleSlotAsync(order, "Hủy đơn");
-                    note = (note ?? "") + " [Đã hoàn kho và hoàn suất Flash Sale nếu có].";
+                    bool stockRestored = await _orderInventoryService.RestoreOrderStockAsync(
+                        order.OrderId,
+                        "Hoàn kho do admin hủy đơn",
+                        restoreFlashSaleSlots: true,
+                        occurredAt: DateTime.Now,
+                        cancellationToken: HttpContext.RequestAborted);
+
+                    note = (note ?? "") + (stockRestored
+                        ? " [Đã hoàn kho và hoàn suất Flash Sale nếu có]."
+                        : " [Đơn chưa từng trừ kho hoặc tồn kho đã được hoàn trước đó].");
                 }
                 else
                 {
@@ -336,7 +352,12 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
                 if (order.Status == "Chờ xác nhận")
                 {
-                    await DeductStockForLegacyOrderAsync(order);
+                    await _orderInventoryService.DeductOrderStockAsync(
+                        order.OrderId,
+                        "Trừ kho khi webhook chuyển khoản xác nhận đơn cũ",
+                        occurredAt: DateTime.Now,
+                        cancellationToken: HttpContext.RequestAborted);
+
                     order.Status = "Đang xử lý";
 
                     var defaultCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
@@ -376,75 +397,6 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 return Json(new { success = false, error = ex.Message });
             }
         }
-
-        private async Task DeductStockForLegacyOrderAsync(Orders order)
-        {
-            if (order.IsStockDeducted) return;
-
-            foreach (var detail in order.OrderDetails)
-            {
-                int quantity = detail.Quantity ?? 0;
-                if (quantity <= 0 || detail.Variant == null) continue;
-
-                int currentStock = detail.Variant.Stock ?? 0;
-                if (currentStock < quantity)
-                {
-                    throw new Exception($"Hết tồn kho mã #{detail.VariantId}.");
-                }
-
-                detail.Variant.Stock = currentStock - quantity;
-                _context.InventoryTransactions.Add(new InventoryTransactions
-                {
-                    VariantId = detail.VariantId ?? 0,
-                    TransactionType = "ADJUST",
-                    Quantity = -quantity,
-                    ReferenceId = order.OrderId,
-                    TransactionDate = DateTime.Now,
-                    Note = detail.IsFlashSaleItem ? $"Trừ kho đơn #{order.OrderId} - Flash Sale" : $"Trừ kho đơn #{order.OrderId}"
-                });
-            }
-
-            order.IsStockDeducted = true;
-            order.StockDeductedAt = DateTime.Now;
-        }
-
-        private async Task RestoreStockAndFlashSaleSlotAsync(Orders order, string reason)
-        {
-            if (!order.IsStockDeducted) return;
-
-            foreach (var detail in order.OrderDetails)
-            {
-                int quantity = detail.Quantity ?? 0;
-                if (quantity <= 0) continue;
-
-                if (detail.Variant != null)
-                {
-                    detail.Variant.Stock = (detail.Variant.Stock ?? 0) + quantity;
-                    _context.InventoryTransactions.Add(new InventoryTransactions
-                    {
-                        VariantId = detail.VariantId ?? 0,
-                        TransactionType = "ADJUST",
-                        Quantity = quantity,
-                        ReferenceId = order.OrderId,
-                        TransactionDate = DateTime.Now,
-                        Note = $"{reason} #{order.OrderId}"
-                    });
-                }
-
-                if (detail.IsFlashSaleItem && detail.FlashSaleItemId.HasValue)
-                {
-                    var flashSaleItem = await _context.FlashSaleItems.FindAsync(detail.FlashSaleItemId.Value);
-                    if (flashSaleItem != null)
-                    {
-                        flashSaleItem.Sold = Math.Max(0, flashSaleItem.Sold - quantity);
-                    }
-                }
-            }
-
-            order.IsStockDeducted = false;
-            order.StockDeductedAt = null;
-        }
-
     }
 
     public class BankTransferModel
