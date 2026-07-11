@@ -1,0 +1,252 @@
+﻿/* ==========================================================================
+   KINGPHONE - CUSTOMER ORDERS
+   Styles riêng cho danh sách đơn hàng của khách hàng.
+   Dùng chung biến màu và component cơ bản từ store-root.css,
+   store-layout.css và store-checkout.css.
+   ========================================================================== */
+
+.orders-page-container {
+    width: min(1180px, calc(100% - 40px));
+    margin: 36px auto 72px;
+}
+
+.orders-page-title {
+    margin: 0 0 22px;
+    color: var(--navy-deep, #0F172A);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.order-tabs-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 8px;
+    overflow-x: auto;
+    background: var(--white, #FFFFFF);
+    border: 1px solid var(--border-color, #E2E8F0);
+    border-radius: 10px;
+    scrollbar-width: thin;
+}
+
+.order-tab-link {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    color: #64748B;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.order-tab-link:hover {
+    color: var(--navy-deep, #0F172A);
+    background: #F8FAFC;
+}
+
+.order-tab-link.active {
+    color: var(--white, #FFFFFF);
+    background: var(--navy-deep, #0F172A);
+    border-color: var(--navy-deep, #0F172A);
+}
+
+.order-empty-state {
+    padding: 64px 24px;
+    color: #64748B;
+    text-align: center;
+    background: var(--white, #FFFFFF);
+    border: 1px dashed #CBD5E1;
+    border-radius: 12px;
+}
+
+.order-empty-icon {
+    display: block;
+    margin-bottom: 16px;
+    color: #94A3B8;
+    font-size: 42px;
+}
+
+.order-empty-text {
+    margin: 0 0 22px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.order-card {
+    margin-bottom: 18px;
+    overflow: hidden;
+    background: var(--white, #FFFFFF);
+    border: 1px solid var(--border-color, #E2E8F0);
+    border-radius: 10px;
+    box-shadow: 0 5px 16px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.order-card:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+    transform: translateY(-1px);
+}
+
+.order-card-header,
+.order-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 16px 24px;
+}
+
+.order-card-header {
+    background: #F8FAFC;
+    border-bottom: 1px solid var(--border-color, #E2E8F0);
+}
+
+.order-card-footer {
+    background: #FFFFFF;
+    border-top: 1px solid var(--border-color, #E2E8F0);
+}
+
+.order-card-body {
+    background: #FFFFFF;
+}
+
+.order-id-txt {
+    color: var(--navy-deep, #0F172A);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.order-divider {
+    margin: 0 8px;
+    color: #CBD5E1;
+}
+
+.order-date-txt {
+    color: #64748B;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge-premium {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 28px;
+    padding: 5px 10px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.badge-green {
+    color: #047857;
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+}
+
+.badge-navy {
+    color: var(--navy-deep, #0F172A);
+    background: #EFF6FF;
+    border-color: #BFDBFE;
+}
+
+.badge-gray {
+    color: #475569;
+    background: #F1F5F9;
+    border-color: #E2E8F0;
+}
+
+.order-total-label {
+    color: #64748B;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.order-total-price {
+    color: #DC2626;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.star-rating i {
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.star-rating i:hover {
+    transform: scale(1.12);
+}
+
+.star-rating .star-active {
+    color: #F59E0B;
+}
+
+@media (max-width: 768px) {
+    .orders-page-container {
+        width: min(100% - 24px, 1180px);
+        margin-top: 24px;
+    }
+
+    .orders-page-title {
+        font-size: 22px;
+    }
+
+    .order-card-header,
+    .order-card-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 14px 16px;
+    }
+
+    .order-card-footer > div:last-child {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .order-card-footer > div:last-child > * {
+        margin-right: 0 !important;
+    }
+
+    .order-divider {
+        display: none;
+    }
+
+    .order-date-txt {
+        display: block;
+        margin-top: 5px;
+    }
+}
+
+@media (max-width: 520px) {
+    .order-tabs-wrapper {
+        margin-right: -12px;
+        margin-left: -12px;
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+    }
+
+    .status-badge-premium {
+        white-space: normal;
+        text-align: center;
+    }
+
+    .order-total-price {
+        display: block;
+        margin-top: 4px;
+    }
+}
