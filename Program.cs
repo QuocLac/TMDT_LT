@@ -91,10 +91,10 @@ app.UseAuthorization();  // 3. Phân quyền (User có được vào đây khôn
 
 app.MapControllerRoute(
     name: "areas",
-    pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}"); // Sửa từ Product sang Dashboard để vào trang Admin chuẩn hơn
+    pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}"); // Mặt tiền hướng khách hàng
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
