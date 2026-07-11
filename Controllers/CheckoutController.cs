@@ -222,29 +222,23 @@ namespace TMDT_LT.Controllers
                         {
                             fsItem.Sold += item.FlashSaleQty;
                             subtotal += item.FlashSalePrice * item.FlashSaleQty;
-                            orderDetailsList.Add(new OrderDetails
-                            {
-                                VariantId = item.VariantId,
-                                Quantity = item.FlashSaleQty,
-                                UnitPrice = item.FlashSalePrice,
-                                IsFlashSaleItem = true,
-                                FlashSaleItemId = fsItem.ItemId,
-                                IsReviewed = false
-                            });
+                            orderDetailsList.Add(CreateOrderDetailSnapshot(
+                                variant,
+                                item.FlashSaleQty,
+                                item.FlashSalePrice,
+                                isFlashSaleItem: true,
+                                flashSaleItemId: fsItem.ItemId));
                         }
                     }
 
                     if (item.RegularQty > 0)
                     {
                         subtotal += item.RegularPrice * item.RegularQty;
-                        orderDetailsList.Add(new OrderDetails
-                        {
-                            VariantId = item.VariantId,
-                            Quantity = item.RegularQty,
-                            UnitPrice = item.RegularPrice,
-                            IsFlashSaleItem = false,
-                            IsReviewed = false
-                        });
+                        orderDetailsList.Add(CreateOrderDetailSnapshot(
+                            variant,
+                            item.RegularQty,
+                            item.RegularPrice,
+                            isFlashSaleItem: false));
                     }
                 }
 
@@ -325,7 +319,32 @@ namespace TMDT_LT.Controllers
                     ? "Đơn hàng mới được hệ thống ghi nhận, đang chờ xác nhận chuyển khoản. Tồn kho đã được giữ cho đơn này."
                     : "Đơn hàng mới được hệ thống ghi nhận, tồn kho đã được giữ cho đơn này.";
 
-                _context.Payments.Add(new Payments { OrderId = newOrder.OrderId, PaymentMethod = PaymentMethod, PaymentDate = now, PaymentStatus = paymentStatus });
+                var payment = new Payments
+                {
+                    OrderId = newOrder.OrderId,
+                    PaymentMethod = PaymentMethod,
+                    PaymentStatus = paymentStatus,
+                    Amount = finalTotal,
+                    Currency = "VND",
+                    CreatedAt = now,
+                    PaymentDate = now
+                };
+
+                _context.Payments.Add(payment);
+                _context.PaymentTransactions.Add(new PaymentTransactions
+                {
+                    Payment = payment,
+                    OrderId = newOrder.OrderId,
+                    Provider = PaymentMethod,
+                    EventType = PaymentEventTypes.Created,
+                    IdempotencyKey = $"ORDER:{newOrder.OrderId}:PAYMENT_CREATED",
+                    Amount = finalTotal,
+                    Status = PaymentEventStatuses.Processed,
+                    ResponseCode = "CREATED",
+                    ReceivedAt = now,
+                    ProcessedAt = now
+                });
+
                 _context.Shipping.Add(new Shipping { OrderId = newOrder.OrderId, Carrier = "Giao hàng tiêu chuẩn", Status = "Chờ lấy hàng" });
                 _context.OrderHistories.Add(new OrderHistory { OrderId = newOrder.OrderId, Status = OrderStatuses.Pending, UpdatedAt = now, Note = orderCreatedNote });
 
@@ -401,6 +420,42 @@ namespace TMDT_LT.Controllers
 
             TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = orderId, Method = "ORDER" });
             return RedirectToAction("Orders", "Customer");
+        }
+
+
+        private static OrderDetails CreateOrderDetailSnapshot(
+            ProductVariants variant,
+            int quantity,
+            decimal unitPrice,
+            bool isFlashSaleItem,
+            int? flashSaleItemId = null)
+        {
+            decimal originalUnitPrice = variant.DiscountPrice > 0
+                ? variant.DiscountPrice.Value
+                : variant.Price ?? unitPrice;
+
+            string variantName = string.Join(
+                " / ",
+                new[] { variant.Color, variant.Ram, variant.Storage }
+                    .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+            return new OrderDetails
+            {
+                VariantId = variant.VariantId,
+                Quantity = quantity,
+                UnitPrice = unitPrice,
+                ProductIdSnapshot = variant.ProductId,
+                ProductNameSnapshot = variant.Product?.Name ?? $"Sản phẩm #{variant.ProductId}",
+                VariantCodeSnapshot = $"VAR-{variant.VariantId:D6}",
+                VariantNameSnapshot = variantName,
+                ImageUrlSnapshot = variant.ImageUrl ?? variant.Product?.MainImage ?? string.Empty,
+                OriginalUnitPrice = originalUnitPrice,
+                DiscountAmountPerUnit = Math.Max(0, originalUnitPrice - unitPrice),
+                LineTotal = unitPrice * quantity,
+                IsFlashSaleItem = isFlashSaleItem,
+                FlashSaleItemId = flashSaleItemId,
+                IsReviewed = false
+            };
         }
 
         private async Task RefreshCartMetadataAsync(List<CartItemVM> cart, int? customerId = null)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace TMDT_LT.Models;
 
@@ -19,8 +20,7 @@ public partial class ProductVariants
 
     public decimal? DiscountPrice { get; set; }
 
-    // Thêm vào bên trong class ProductVariants
-    public decimal? CostPrice { get; set; } // Giá vốn (Dùng để check chống bán lỗ khi chạy Flash Sale)
+    public decimal? CostPrice { get; set; }
 
     public int? Stock { get; set; }
 
@@ -32,6 +32,9 @@ public partial class ProductVariants
 
     public DateTime? UpdatedDate { get; set; }
 
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
     public virtual ICollection<CartItems> CartItems { get; set; } = new List<CartItems>();
 
     public virtual ICollection<FavoriteDetails> FavoriteDetails { get; set; } = new List<FavoriteDetails>();
@@ -39,6 +42,8 @@ public partial class ProductVariants
     public virtual ICollection<InventoryTransactions> InventoryTransactions { get; set; } = new List<InventoryTransactions>();
 
     public virtual ICollection<OrderDetails> OrderDetails { get; set; } = new List<OrderDetails>();
+
+    public virtual ICollection<OrderReservations> OrderReservations { get; set; } = new List<OrderReservations>();
 
     public virtual Products Product { get; set; } = null!;
 

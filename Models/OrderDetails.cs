@@ -15,6 +15,23 @@ public partial class OrderDetails
 
     public decimal? UnitPrice { get; set; }
 
+    // Snapshot bất biến tại thời điểm đặt hàng. Không phụ thuộc dữ liệu sản phẩm sau này.
+    public int? ProductIdSnapshot { get; set; }
+
+    public string ProductNameSnapshot { get; set; } = string.Empty;
+
+    public string VariantCodeSnapshot { get; set; } = string.Empty;
+
+    public string VariantNameSnapshot { get; set; } = string.Empty;
+
+    public string ImageUrlSnapshot { get; set; } = string.Empty;
+
+    public decimal? OriginalUnitPrice { get; set; }
+
+    public decimal? DiscountAmountPerUnit { get; set; }
+
+    public decimal? LineTotal { get; set; }
+
     // Ghi nhận dòng chi tiết nào được hưởng Flash Sale để hoàn suất khi hủy đơn trước khi giao.
     public bool IsFlashSaleItem { get; set; } = false;
 

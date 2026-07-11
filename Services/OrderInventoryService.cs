@@ -67,6 +67,10 @@ public sealed class OrderInventoryService : IOrderInventoryService
                 $"Đơn hàng #{orderId} không có dòng sản phẩm hợp lệ để trừ kho.");
         }
 
+        var reservationsByVariant = await _context.OrderReservations
+            .Where(reservation => reservation.OrderId == orderId)
+            .ToDictionaryAsync(reservation => reservation.VariantId, cancellationToken);
+
         foreach (var item in quantitiesByVariant)
         {
             if (item.Variant == null)
@@ -100,6 +104,26 @@ public sealed class OrderInventoryService : IOrderInventoryService
                 TransactionDate = timestamp,
                 Note = $"{reason}. Đơn #{order.OrderId}; tồn {quantityBefore} -> {quantityAfter}."
             });
+
+            if (!reservationsByVariant.TryGetValue(item.VariantId, out var reservation))
+            {
+                reservation = new OrderReservations
+                {
+                    OrderId = order.OrderId,
+                    VariantId = item.VariantId,
+                    Quantity = item.Quantity,
+                    ReservedAt = timestamp
+                };
+                _context.OrderReservations.Add(reservation);
+                reservationsByVariant[item.VariantId] = reservation;
+            }
+
+            reservation.Quantity = item.Quantity;
+            reservation.Status = OrderReservationStatuses.Consumed;
+            reservation.ConsumedAt = timestamp;
+            reservation.ReleasedAt = null;
+            reservation.ExpiresAt = null;
+            reservation.Reason = reason;
         }
 
         // Đồng bộ entity đang được tracking với UPDATE nguyên tử phía trên.
@@ -149,6 +173,10 @@ public sealed class OrderInventoryService : IOrderInventoryService
             })
             .ToList();
 
+        var reservationsByVariant = await _context.OrderReservations
+            .Where(reservation => reservation.OrderId == orderId)
+            .ToDictionaryAsync(reservation => reservation.VariantId, cancellationToken);
+
         foreach (var item in quantitiesByVariant)
         {
             if (item.Variant == null)
@@ -171,6 +199,24 @@ public sealed class OrderInventoryService : IOrderInventoryService
                 TransactionDate = timestamp,
                 Note = $"{reason}. Đơn #{order.OrderId}; tồn {quantityBefore} -> {quantityAfter}."
             });
+
+            if (!reservationsByVariant.TryGetValue(item.VariantId, out var reservation))
+            {
+                reservation = new OrderReservations
+                {
+                    OrderId = order.OrderId,
+                    VariantId = item.VariantId,
+                    Quantity = item.Quantity,
+                    ReservedAt = order.StockDeductedAt ?? timestamp
+                };
+                _context.OrderReservations.Add(reservation);
+                reservationsByVariant[item.VariantId] = reservation;
+            }
+
+            reservation.Quantity = item.Quantity;
+            reservation.Status = OrderReservationStatuses.Released;
+            reservation.ReleasedAt = timestamp;
+            reservation.Reason = reason;
         }
 
         if (restoreFlashSaleSlots)
@@ -235,6 +281,10 @@ public sealed class OrderInventoryService : IOrderInventoryService
             })
             .ToList();
 
+        var reservationsByVariant = await _context.OrderReservations
+            .Where(reservation => reservation.OrderId == orderId)
+            .ToDictionaryAsync(reservation => reservation.VariantId, cancellationToken);
+
         foreach (var item in quantitiesByVariant)
         {
             _context.InventoryTransactions.Add(new InventoryTransactions
@@ -246,6 +296,24 @@ public sealed class OrderInventoryService : IOrderInventoryService
                 TransactionDate = timestamp,
                 Note = $"{reason}. Đơn #{order.OrderId}; {item.Quantity} sản phẩm không nhập lại tồn bán."
             });
+
+            if (!reservationsByVariant.TryGetValue(item.VariantId, out var reservation))
+            {
+                reservation = new OrderReservations
+                {
+                    OrderId = order.OrderId,
+                    VariantId = item.VariantId,
+                    Quantity = item.Quantity,
+                    ReservedAt = order.StockDeductedAt ?? timestamp
+                };
+                _context.OrderReservations.Add(reservation);
+                reservationsByVariant[item.VariantId] = reservation;
+            }
+
+            reservation.Quantity = item.Quantity;
+            reservation.Status = OrderReservationStatuses.Damaged;
+            reservation.ReleasedAt = timestamp;
+            reservation.Reason = reason;
         }
 
         order.IsStockDeducted = false;

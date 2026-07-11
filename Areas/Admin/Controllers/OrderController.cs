@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
@@ -19,6 +20,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
         private readonly VnPayService _vnPayService;
         private readonly IOrderInventoryService _orderInventoryService;
         private readonly IOrderStateService _orderStateService;
+        private readonly IPaymentTransactionService _paymentTransactionService;
         private readonly IConfiguration _configuration;
 
         public OrderController(
@@ -26,12 +28,14 @@ namespace TMDT_LT.Areas.Admin.Controllers
             VnPayService vnPayService,
             IOrderInventoryService orderInventoryService,
             IOrderStateService orderStateService,
+            IPaymentTransactionService paymentTransactionService,
             IConfiguration configuration)
         {
             _context = context;
             _vnPayService = vnPayService;
             _orderInventoryService = orderInventoryService;
             _orderStateService = orderStateService;
+            _paymentTransactionService = paymentTransactionService;
             _configuration = configuration;
         }
 
@@ -415,16 +419,59 @@ namespace TMDT_LT.Areas.Admin.Controllers
                     return Json(new { success = false, message = "Phương thức thanh toán không khớp." });
                 }
 
+                string idempotencyKey = $"BANK:WEBHOOK:{gatewayData.TransactionId}";
+                var now = DateTime.Now;
+                bool claimed = await _paymentTransactionService.TryClaimAsync(
+                    new PaymentEventClaim(
+                        payment.PaymentId,
+                        order.OrderId,
+                        PaymentMethods.BankTransfer,
+                        PaymentEventTypes.BankWebhook,
+                        idempotencyKey,
+                        gatewayData.TransactionId,
+                        gatewayData.AmountTransferred,
+                        "RECEIVED",
+                        "00",
+                        JsonSerializer.Serialize(gatewayData),
+                        now),
+                    HttpContext.RequestAborted);
+
+                if (!claimed)
+                {
+                    await transaction.CommitAsync(HttpContext.RequestAborted);
+                    return Json(new { success = true, message = "Giao dịch đã được xử lý trước đó." });
+                }
+
+                payment.ProviderTransactionId = gatewayData.TransactionId;
+                payment.LastResponseCode = "RECEIVED";
+                payment.LastTransactionStatus = "00";
+                payment.LastProcessedAt = now;
+
                 if (payment.PaymentStatus == PaymentStatuses.Paid)
                 {
-                    await transaction.CommitAsync();
-                    return Json(new { success = true, message = "Giao dịch đã được xử lý trước đó." });
+                    await _context.SaveChangesAsync(HttpContext.RequestAborted);
+                    await _paymentTransactionService.CompleteAsync(
+                        idempotencyKey,
+                        PaymentEventStatuses.Ignored,
+                        processedAt: now,
+                        cancellationToken: HttpContext.RequestAborted);
+                    await transaction.CommitAsync(HttpContext.RequestAborted);
+                    return Json(new { success = true, message = "Đơn đã được thanh toán trước đó." });
                 }
 
                 if (gatewayData.AmountTransferred < (order.TotalAmount ?? 0))
                 {
-                    await transaction.RollbackAsync();
-                    return Json(new { success = false, message = "Số tiền chuyển khoản chưa đủ." });
+                    string error = "Số tiền chuyển khoản chưa đủ.";
+                    payment.FailureReason = error;
+                    await _context.SaveChangesAsync(HttpContext.RequestAborted);
+                    await _paymentTransactionService.CompleteAsync(
+                        idempotencyKey,
+                        PaymentEventStatuses.Rejected,
+                        error,
+                        now,
+                        HttpContext.RequestAborted);
+                    await transaction.CommitAsync(HttpContext.RequestAborted);
+                    return Json(new { success = false, message = error });
                 }
 
                 if (order.Status == OrderStatuses.Pending)
@@ -432,14 +479,14 @@ namespace TMDT_LT.Areas.Admin.Controllers
                     await _orderInventoryService.DeductOrderStockAsync(
                         order.OrderId,
                         "Trừ kho khi webhook chuyển khoản xác nhận đơn cũ",
-                        occurredAt: DateTime.Now,
+                        occurredAt: now,
                         cancellationToken: HttpContext.RequestAborted);
 
                     _orderStateService.Transition(
                         order,
                         OrderStatuses.Processing,
                         $"Ngân hàng xác nhận chuyển khoản. Mã GD: {gatewayData.TransactionId}.",
-                        DateTime.Now);
+                        now);
 
                     var defaultCarrier = await _context.ShippingCarriers
                         .FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
@@ -459,10 +506,17 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 }
 
                 payment.PaymentStatus = PaymentStatuses.Paid;
-                payment.PaymentDate = DateTime.Now;
+                payment.PaymentDate = now;
+                payment.Amount = gatewayData.AmountTransferred;
+                payment.FailureReason = null;
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _context.SaveChangesAsync(HttpContext.RequestAborted);
+                await _paymentTransactionService.CompleteAsync(
+                    idempotencyKey,
+                    PaymentEventStatuses.Processed,
+                    processedAt: now,
+                    cancellationToken: HttpContext.RequestAborted);
+                await transaction.CommitAsync(HttpContext.RequestAborted);
                 return Json(new { success = true });
             }
             catch (Exception)

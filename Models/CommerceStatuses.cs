@@ -90,3 +90,28 @@ public static class ReturnStatuses
             && targets.Contains(targetStatus.Trim());
     }
 }
+
+public static class PaymentEventStatuses
+{
+    public const string Received = "Received";
+    public const string Processed = "Processed";
+    public const string Ignored = "Ignored";
+    public const string Rejected = "Rejected";
+}
+
+public static class PaymentEventTypes
+{
+    public const string Created = "CREATED";
+    public const string Ipn = "IPN";
+    public const string Return = "RETURN";
+    public const string BankWebhook = "BANK_WEBHOOK";
+    public const string Refund = "REFUND";
+}
+
+public static class OrderReservationStatuses
+{
+    public const string Reserved = "Reserved";
+    public const string Consumed = "Consumed";
+    public const string Released = "Released";
+    public const string Damaged = "Damaged";
+}
