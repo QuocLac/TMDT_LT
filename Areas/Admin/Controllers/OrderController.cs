@@ -21,6 +21,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
         private readonly IOrderInventoryService _orderInventoryService;
         private readonly IOrderStateService _orderStateService;
         private readonly IPaymentTransactionService _paymentTransactionService;
+        private readonly IShippingLifecycleService _shippingLifecycleService;
         private readonly IConfiguration _configuration;
 
         public OrderController(
@@ -29,6 +30,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
             IOrderInventoryService orderInventoryService,
             IOrderStateService orderStateService,
             IPaymentTransactionService paymentTransactionService,
+            IShippingLifecycleService shippingLifecycleService,
             IConfiguration configuration)
         {
             _context = context;
@@ -36,6 +38,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
             _orderInventoryService = orderInventoryService;
             _orderStateService = orderStateService;
             _paymentTransactionService = paymentTransactionService;
+            _shippingLifecycleService = shippingLifecycleService;
             _configuration = configuration;
         }
 
@@ -123,7 +126,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 .Include(o => o.OrderDetails).ThenInclude(d => d.Variant).ThenInclude(v => v.Product)
                 .Include(o => o.OrderHistories)
                 .Include(o => o.Payments)
-                .Include(o => o.Shipping)
+                .Include(o => o.Shipping).ThenInclude(s => s.ShippingEvents)
                 .Include(o => o.OrderReturns)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
@@ -170,37 +173,57 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
                 if (newStatus == OrderStatuses.Processing)
                 {
+                    bool requiresPrepayment = payment != null
+                        && !string.Equals(
+                            payment.PaymentMethod,
+                            PaymentMethods.Cod,
+                            StringComparison.OrdinalIgnoreCase);
+
+                    if (requiresPrepayment
+                        && payment!.PaymentStatus != PaymentStatuses.Paid)
+                    {
+                        throw new InvalidOperationException(
+                            "Đơn thanh toán online/chuyển khoản phải được xác nhận đã thanh toán trước khi xử lý.");
+                    }
+
                     bool deductedNow = await _orderInventoryService.DeductOrderStockAsync(
                         order.OrderId,
                         "Trừ kho khi admin xác nhận đơn cũ",
                         occurredAt: now,
                         cancellationToken: HttpContext.RequestAborted);
 
-                    var defaultCarrier = await _context.ShippingCarriers
-                        .FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
-                    var shipping = order.Shipping.FirstOrDefault();
-
-                    if (shipping != null && defaultCarrier != null)
-                    {
-                        shipping.TrackingNumber = "3PL" + defaultCarrier.CarrierCode
-                            + DateTime.Now.Ticks.ToString()[^7..];
-                        shipping.Carrier = defaultCarrier.CarrierName;
-                    }
+                    ShippingCreationResult shipment =
+                        await _shippingLifecycleService.EnsureShipmentCreatedAsync(
+                            order.OrderId,
+                            HttpContext.RequestAborted);
 
                     transitionNote = string.IsNullOrWhiteSpace(transitionNote)
-                        ? deductedNow
-                            ? "Admin xác nhận đơn. Tồn kho của đơn cũ vừa được trừ."
-                            : "Admin xác nhận đơn. Tồn kho đã được giữ/trừ trước đó."
-                        : transitionNote;
+                        ? (deductedNow
+                            ? "Admin xác nhận đơn. Tồn kho của đơn cũ vừa được trừ. "
+                            : "Admin xác nhận đơn. Tồn kho đã được giữ/trừ trước đó. ")
+                            + shipment.Message
+                        : transitionNote + " " + shipment.Message;
                 }
                 else if (newStatus == OrderStatuses.Shipping)
                 {
+                    await _shippingLifecycleService.SyncManualOrderStatusAsync(
+                        order.OrderId,
+                        OrderStatuses.Shipping,
+                        now,
+                        HttpContext.RequestAborted);
+
                     transitionNote = string.IsNullOrWhiteSpace(transitionNote)
                         ? "Đã xuất kho và bàn giao kiện hàng cho đơn vị vận chuyển."
                         : transitionNote;
                 }
                 else if (newStatus == OrderStatuses.Delivered)
                 {
+                    await _shippingLifecycleService.SyncManualOrderStatusAsync(
+                        order.OrderId,
+                        OrderStatuses.Delivered,
+                        now,
+                        HttpContext.RequestAborted);
+
                     transitionNote = string.IsNullOrWhiteSpace(transitionNote)
                         ? "Đơn vị vận chuyển xác nhận phát hàng thành công."
                         : transitionNote;
@@ -242,6 +265,12 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 }
                 else if (newStatus == OrderStatuses.Cancelled)
                 {
+                    await _shippingLifecycleService.SyncManualOrderStatusAsync(
+                        order.OrderId,
+                        OrderStatuses.Cancelled,
+                        now,
+                        HttpContext.RequestAborted);
+
                     if (payment != null && payment.PaymentStatus == PaymentStatuses.Paid)
                     {
                         if (string.Equals(payment.PaymentMethod, PaymentMethods.VnPay, StringComparison.OrdinalIgnoreCase))
@@ -488,16 +517,9 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         $"Ngân hàng xác nhận chuyển khoản. Mã GD: {gatewayData.TransactionId}.",
                         now);
 
-                    var defaultCarrier = await _context.ShippingCarriers
-                        .FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
-                    var shipping = order.Shipping.FirstOrDefault();
-
-                    if (shipping != null)
-                    {
-                        shipping.TrackingNumber = "VNDON" + DateTime.Now.Ticks.ToString()[^8..];
-                        shipping.Carrier = defaultCarrier?.CarrierName
-                            ?? "Hệ thống vận chuyển nội bộ";
-                    }
+                    await _shippingLifecycleService.EnsureShipmentCreatedAsync(
+                        order.OrderId,
+                        HttpContext.RequestAborted);
                 }
                 else if (order.Status != OrderStatuses.Processing)
                 {

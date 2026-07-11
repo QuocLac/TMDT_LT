@@ -262,18 +262,33 @@ namespace TMDT_LT.Controllers
                     }
                 }
 
+                var provinceSnapshot = ParseNumericLocation(address.City);
+                var districtSnapshot = ParseNumericLocation(address.District);
+                var wardSnapshot = ParseCodeLocation(address.Ward);
+
                 decimal shippingFee = 30000;
-                if (!string.IsNullOrEmpty(address.District) && !string.IsNullOrEmpty(address.Ward))
+                if (districtSnapshot.Id.HasValue
+                    && !string.IsNullOrWhiteSpace(wardSnapshot.Code))
                 {
                     try
                     {
-                        int districtId = int.Parse(address.District.Split('|')[0]);
-                        string wardCode = address.Ward.Split('|')[0];
-                        int totalWeight = cartVM.Sum(c => c.Quantity * 500);
-                        int insuranceValue = (int)subtotal;
-                        shippingFee = await _ghnService.CalculateFeeAsync(districtId, wardCode, totalWeight, insuranceValue);
+                        int totalWeight = Math.Max(
+                            500,
+                            cartVM.Sum(c => c.Quantity * 500));
+                        int insuranceValue = decimal.ToInt32(
+                            Math.Clamp(decimal.Truncate(subtotal), 0, int.MaxValue));
+
+                        shippingFee = await _ghnService.CalculateFeeAsync(
+                            districtSnapshot.Id.Value,
+                            wardSnapshot.Code,
+                            totalWeight,
+                            insuranceValue,
+                            HttpContext.RequestAborted);
                     }
-                    catch { }
+                    catch
+                    {
+                        // Giữ phí dự phòng để checkout không vỡ khi sandbox GHN tạm lỗi.
+                    }
                 }
 
                 decimal finalTotal = subtotal - discountAmount + shippingFee;
@@ -288,9 +303,14 @@ namespace TMDT_LT.Controllers
                     ShippingFullName = address.ReceiverName ?? address.Customer?.FullName,
                     ShippingPhone = address.ReceiverPhone ?? address.Customer?.Phone,
                     ShippingStreet = address.Street,
-                    ShippingDistrict = address.District,
-                    ShippingCity = address.City,
+                    ShippingDistrict = districtSnapshot.Name ?? address.District,
+                    ShippingWard = wardSnapshot.Name ?? address.Ward,
+                    ShippingCity = provinceSnapshot.Name ?? address.City,
                     ShippingCountry = address.Country ?? "Việt Nam",
+                    ShippingProvinceId = provinceSnapshot.Id,
+                    ShippingDistrictId = districtSnapshot.Id,
+                    ShippingWardCode = wardSnapshot.Code,
+                    ShippingFee = shippingFee,
                     IsStockDeducted = false,
                     StockDeductedAt = null,
                     OrderDetails = orderDetailsList
@@ -359,7 +379,25 @@ namespace TMDT_LT.Controllers
                     }
                 }
 
-                _context.Shipping.Add(new Shipping { OrderId = newOrder.OrderId, Carrier = "Giao hàng tiêu chuẩn", Status = "Chờ lấy hàng" });
+                var defaultCarrier = await _context.ShippingCarriers
+                    .Where(carrier => carrier.IsActive)
+                    .OrderByDescending(carrier => carrier.IsDefault)
+                    .ThenByDescending(carrier => carrier.CarrierCode == "GHN")
+                    .FirstOrDefaultAsync(HttpContext.RequestAborted);
+
+                _context.Shipping.Add(new Shipping
+                {
+                    OrderId = newOrder.OrderId,
+                    Carrier = defaultCarrier?.CarrierName ?? "Chưa phân công",
+                    ProviderCode = defaultCarrier?.CarrierCode,
+                    Status = ShippingStatuses.Pending,
+                    ShippingFee = shippingFee,
+                    CodAmount = isCod ? finalTotal : 0,
+                    InsuranceValue = subtotal,
+                    ServiceTypeId = _ghnService.ServiceTypeId,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
                 _context.OrderHistories.Add(new OrderHistory { OrderId = newOrder.OrderId, Status = OrderStatuses.Pending, UpdatedAt = now, Note = orderCreatedNote });
 
                 if (dbCartItemsToRemove.Any()) _context.CartItems.RemoveRange(dbCartItemsToRemove);
@@ -415,6 +453,7 @@ namespace TMDT_LT.Controllers
 
             var order = await _context.Orders
                 .Include(o => o.Payments)
+                .Include(o => o.Shipping)
                 .Include(o => o.OrderDetails)
                     .ThenInclude(d => d.Variant)
                         .ThenInclude(v => v!.Product)
@@ -575,22 +614,50 @@ namespace TMDT_LT.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetGhnProvinces()
+        public async Task<IActionResult> GetGhnProvinces()
         {
-            // Endpoint an toàn cho view checkout. Nếu chưa tích hợp danh mục GHN, trả JSON hợp lệ để không làm vỡ trang.
-            return Json(new { code = 200, data = Array.Empty<object>(), message = "Danh mục tỉnh/thành GHN chưa được cấu hình." });
+            try
+            {
+                string json = await _ghnService.GetProvincesAsync(
+                    HttpContext.RequestAborted);
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Json(new { code = 500, data = Array.Empty<object>(), message = ex.Message });
+            }
         }
 
         [HttpGet]
-        public IActionResult GetGhnDistricts(int provinceId)
+        public async Task<IActionResult> GetGhnDistricts(int provinceId)
         {
-            return Json(new { code = 200, data = Array.Empty<object>(), message = "Danh mục quận/huyện GHN chưa được cấu hình." });
+            try
+            {
+                string json = await _ghnService.GetDistrictsAsync(
+                    provinceId,
+                    HttpContext.RequestAborted);
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Json(new { code = 500, data = Array.Empty<object>(), message = ex.Message });
+            }
         }
 
         [HttpGet]
-        public IActionResult GetGhnWards(int districtId)
+        public async Task<IActionResult> GetGhnWards(int districtId)
         {
-            return Json(new { code = 200, data = Array.Empty<object>(), message = "Danh mục phường/xã GHN chưa được cấu hình." });
+            try
+            {
+                string json = await _ghnService.GetWardsAsync(
+                    districtId,
+                    HttpContext.RequestAborted);
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Json(new { code = 500, data = Array.Empty<object>(), message = ex.Message });
+            }
         }
 
         [HttpPost]
@@ -670,6 +737,41 @@ namespace TMDT_LT.Controllers
                 if (isDefault) address.IsDefault = true;
             }
             await _context.SaveChangesAsync(); return Json(new { success = true, addressId = address.AddressId });
+        }
+
+
+        private static (int? Id, string? Name) ParseNumericLocation(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return (null, null);
+            }
+
+            string[] parts = raw.Split('|', 2, StringSplitOptions.TrimEntries);
+            int? id = int.TryParse(parts[0], out int parsed) ? parsed : null;
+            string? name = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1])
+                ? parts[1]
+                : id.HasValue
+                    ? null
+                    : parts[0];
+
+            return (id, name);
+        }
+
+        private static (string? Code, string? Name) ParseCodeLocation(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return (null, null);
+            }
+
+            string[] parts = raw.Split('|', 2, StringSplitOptions.TrimEntries);
+            string? code = string.IsNullOrWhiteSpace(parts[0]) ? null : parts[0];
+            string? name = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1])
+                ? parts[1]
+                : null;
+
+            return (code, name);
         }
 
         [HttpPost]

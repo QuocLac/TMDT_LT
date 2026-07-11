@@ -1,10 +1,11 @@
-@using System.Text.Json
+﻿@using System.Text.Json
 @using TMDT_LT.Models
 @model TMDT_LT.Models.Orders
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Đặt hàng thành công";
     var payment = Model.Payments?.OrderByDescending(p => p.PaymentId).FirstOrDefault();
+    var shipment = Model.Shipping?.OrderByDescending(s => s.ShippingId).FirstOrDefault();
     var paymentMethod = payment?.PaymentMethod ?? PaymentMethods.Cod;
     var isVnPay = string.Equals(paymentMethod, PaymentMethods.VnPay, System.StringComparison.OrdinalIgnoreCase);
     var isBankTransfer = string.Equals(paymentMethod, PaymentMethods.BankTransfer, System.StringComparison.OrdinalIgnoreCase);
@@ -94,12 +95,36 @@
                 <div class="info-label">Tổng thanh toán</div>
                 <div class="info-value">@string.Format("{0:N0}", Model.TotalAmount ?? 0) đ</div>
             </div>
+            <div class="info-box">
+                <div class="info-label">Vận chuyển</div>
+                <div class="info-value">
+                    @(shipment?.Carrier ?? "Chưa phân công")
+                    <br />
+                    <span style="font-size:12px; color:#64748B; font-weight:700;">
+                        @(shipment?.Status ?? ShippingStatuses.Pending)
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(shipment?.TrackingNumber))
+                    {
+                        <br />
+                        <span style="font-size:12px; color:#0F172A; font-weight:800;">
+                            Mã: @shipment.TrackingNumber
+                        </span>
+                    }
+                </div>
+            </div>
         </div>
 
         <div class="info-box" style="margin-top:14px;">
             <div class="info-label">Giao đến</div>
             <div class="info-value">@Model.ShippingFullName · @Model.ShippingPhone</div>
-            <div style="color:#64748B; font-size:13px; margin-top:4px;">@Model.ShippingStreet, @Model.ShippingDistrict, @Model.ShippingCity</div>
+            <div style="color:#64748B; font-size:13px; margin-top:4px;">
+                @Model.ShippingStreet,
+                @if (!string.IsNullOrWhiteSpace(Model.ShippingWard))
+                {
+                    <text>@Model.ShippingWard, </text>
+                }
+                @Model.ShippingDistrict, @Model.ShippingCity
+            </div>
         </div>
 
         @if (!isVnPay && !isBankTransfer)

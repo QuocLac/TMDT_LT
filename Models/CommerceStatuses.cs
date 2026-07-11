@@ -108,6 +108,7 @@ public static class PaymentEventTypes
     public const string Refund = "REFUND";
     public const string Retry = "RETRY";
     public const string Expired = "EXPIRED";
+    public const string CodCollected = "COD_COLLECTED";
 }
 
 public static class OrderReservationStatuses
@@ -116,4 +117,37 @@ public static class OrderReservationStatuses
     public const string Consumed = "Consumed";
     public const string Released = "Released";
     public const string Damaged = "Damaged";
+}
+
+
+public static class ShippingStatuses
+{
+    public const string Pending = "Chờ tạo vận đơn";
+    public const string AwaitingManual = "Chờ tạo vận đơn thủ công";
+    public const string Created = "Đã tạo vận đơn";
+    public const string Picking = "Đang lấy hàng";
+    public const string InTransit = "Đang vận chuyển";
+    public const string Delivered = "Đã giao";
+    public const string DeliveryFailed = "Giao thất bại";
+    public const string Returning = "Đang hoàn hàng";
+    public const string Returned = "Đã hoàn hàng";
+    public const string Cancelled = "Đã hủy vận đơn";
+    public const string Exception = "Sự cố vận chuyển";
+    public const string Unknown = "Chưa xác định";
+}
+
+public static class ShippingEventStatuses
+{
+    public const string Received = "Received";
+    public const string Processed = "Processed";
+    public const string Ignored = "Ignored";
+    public const string Rejected = "Rejected";
+}
+
+public static class ShippingEventTypes
+{
+    public const string Created = "CREATED";
+    public const string Webhook = "WEBHOOK";
+    public const string ManualSync = "MANUAL_SYNC";
+    public const string Cancelled = "CANCELLED";
 }

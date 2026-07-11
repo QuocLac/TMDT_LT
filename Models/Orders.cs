@@ -23,9 +23,19 @@ public partial class Orders
 
     public string? ShippingDistrict { get; set; }
 
+    public string? ShippingWard { get; set; }
+
     public string? ShippingCity { get; set; }
 
     public string? ShippingCountry { get; set; }
+
+    public int? ShippingProvinceId { get; set; }
+
+    public int? ShippingDistrictId { get; set; }
+
+    public string? ShippingWardCode { get; set; }
+
+    public decimal? ShippingFee { get; set; }
 
     public bool IsStockDeducted { get; set; } = false;
 
@@ -42,6 +52,8 @@ public partial class Orders
     public virtual ICollection<OrderReservations> OrderReservations { get; set; } = new List<OrderReservations>();
 
     public virtual ICollection<Shipping> Shipping { get; set; } = new List<Shipping>();
+
+    public virtual ICollection<ShippingEvents> ShippingEvents { get; set; } = new List<ShippingEvents>();
 
     public virtual ICollection<OrderHistory> OrderHistories { get; set; } = new List<OrderHistory>();
 

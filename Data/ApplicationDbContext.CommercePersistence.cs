@@ -9,6 +9,8 @@ public partial class ApplicationDbContext
 
     public virtual DbSet<OrderReservations> OrderReservations { get; set; }
 
+    public virtual DbSet<ShippingEvents> ShippingEvents { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrderDetails>(entity =>
@@ -39,6 +41,65 @@ public partial class ApplicationDbContext
             entity.Property(e => e.RowVersion)
                 .IsRowVersion()
                 .IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<Orders>(entity =>
+        {
+            entity.Property(e => e.ShippingWard).HasMaxLength(100);
+            entity.Property(e => e.ShippingWardCode).HasMaxLength(30);
+            entity.Property(e => e.ShippingFee).HasColumnType("decimal(18, 2)");
+        });
+
+        modelBuilder.Entity<Shipping>(entity =>
+        {
+            entity.HasIndex(e => e.TrackingNumber)
+                .IsUnique()
+                .HasFilter("[TrackingNumber] IS NOT NULL");
+
+            entity.Property(e => e.ProviderCode).HasMaxLength(50);
+            entity.Property(e => e.ProviderStatus).HasMaxLength(80);
+            entity.Property(e => e.ShippingFee).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CodAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.InsuranceValue).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CancelledAt).HasColumnType("datetime");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+            entity.Property(e => e.LastWebhookAt).HasColumnType("datetime");
+            entity.Property(e => e.LastError).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<ShippingEvents>(entity =>
+        {
+            entity.HasKey(e => e.ShippingEventId);
+            entity.ToTable("ShippingEvents");
+
+            entity.HasIndex(e => e.IdempotencyKey).IsUnique();
+            entity.HasIndex(e => new { e.OrderId, e.ReceivedAt });
+            entity.HasIndex(e => new { e.ShippingId, e.ReceivedAt });
+
+            entity.Property(e => e.Provider).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.EventType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(220).IsRequired();
+            entity.Property(e => e.TrackingNumber).HasMaxLength(100);
+            entity.Property(e => e.ProviderStatus).HasMaxLength(80);
+            entity.Property(e => e.MappedStatus).HasMaxLength(80);
+            entity.Property(e => e.PayloadHash).HasMaxLength(64);
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.ReceivedAt).HasColumnType("datetime");
+            entity.Property(e => e.ProcessedAt).HasColumnType("datetime");
+            entity.Property(e => e.ErrorMessage).HasMaxLength(500);
+
+            entity.HasOne(e => e.Shipping)
+                .WithMany(e => e.ShippingEvents)
+                .HasForeignKey(e => e.ShippingId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Order)
+                .WithMany(e => e.ShippingEvents)
+                .HasForeignKey(e => e.OrderId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<PaymentTransactions>(entity =>

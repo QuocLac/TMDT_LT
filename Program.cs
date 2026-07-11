@@ -68,8 +68,11 @@ builder.Services.AddHttpClient();
 // BỔ SUNG 2 DÒNG NÀY ĐỂ KÍCH HOẠT VNPAY SERVICE
 builder.Services.Configure<VnPayConfig>(builder.Configuration.GetSection("VNPay"));
 builder.Services.AddScoped<VnPayService>();
-// Đăng ký HttpClient cho GhnService
-builder.Services.AddHttpClient<TMDT_LT.Services.GhnService>();
+
+builder.Services.Configure<GhnOptions>(
+    builder.Configuration.GetSection(GhnOptions.SectionName));
+builder.Services.AddHttpClient<GhnService>();
+builder.Services.AddScoped<IShippingLifecycleService, ShippingLifecycleService>();
 
 builder.Services.AddScoped<TMDT_LT.Services.ICrossSellAprioriService, TMDT_LT.Services.CrossSellAprioriService>();
 
