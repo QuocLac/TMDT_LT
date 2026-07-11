@@ -94,9 +94,12 @@ public static class ReturnStatuses
 public static class PaymentEventStatuses
 {
     public const string Received = "Received";
+    public const string Processing = "Processing";
     public const string Processed = "Processed";
     public const string Ignored = "Ignored";
     public const string Rejected = "Rejected";
+    public const string Failed = "Failed";
+    public const string RequiresReview = "RequiresReview";
 }
 
 public static class PaymentEventTypes
@@ -118,7 +121,6 @@ public static class OrderReservationStatuses
     public const string Released = "Released";
     public const string Damaged = "Damaged";
 }
-
 
 public static class ShippingStatuses
 {

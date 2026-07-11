@@ -1,13 +1,14 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Net.Http;
 
 namespace TMDT_LT.Services
 {
@@ -37,27 +38,42 @@ namespace TMDT_LT.Services
         public string TransactionId { get; set; } = string.Empty;
     }
 
+    public sealed record VnPayRefundResult(
+        bool Success,
+        string RequestId,
+        string ResponseCode,
+        string TransactionStatus,
+        string? ProviderTransactionId,
+        string Message,
+        string RawResponse);
+
     public class VnPayService
     {
         private readonly VnPayConfig _config;
         private readonly IHttpClientFactory _httpClientFactory;
 
-        public VnPayService(IOptions<VnPayConfig> config, IHttpClientFactory httpClientFactory)
+        public VnPayService(
+            IOptions<VnPayConfig> config,
+            IHttpClientFactory httpClientFactory)
         {
             _config = config.Value;
             _httpClientFactory = httpClientFactory;
         }
 
-        // HÀM 1: TẠO URL THANH TOÁN
-        public string CreatePaymentUrl(HttpContext context, int orderId, double amount)
+        public string CreatePaymentUrl(
+            HttpContext context,
+            int orderId,
+            double amount)
         {
             var vnpayData = new SortedList<string, string>(new VnPayCompare());
 
-            // FIX 1: Ép IP về chuẩn IPv4 (Tránh lỗi ::1 của localhost)
-            string ipAddr = context.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
-            if (string.IsNullOrEmpty(ipAddr) || ipAddr == "::1") ipAddr = "127.0.0.1";
+            string ipAddr = context.Connection.RemoteIpAddress?.ToString()
+                ?? "127.0.0.1";
+            if (string.IsNullOrEmpty(ipAddr) || ipAddr == "::1")
+            {
+                ipAddr = "127.0.0.1";
+            }
 
-            // FIX 2: Tự động Trim() để xóa sạch các khoảng trắng bị dư do Copy-Paste
             string secretKey = _config.HashSecret.Trim();
             string tmnCode = _config.TmnId.Trim();
             string returnUrl = _config.ReturnUrl.Trim();
@@ -65,27 +81,30 @@ namespace TMDT_LT.Services
             vnpayData.Add("vnp_Version", "2.1.0");
             vnpayData.Add("vnp_Command", "pay");
             vnpayData.Add("vnp_TmnCode", tmnCode);
-            vnpayData.Add("vnp_Amount", ((long)(amount * 100)).ToString());
-            vnpayData.Add("vnp_CreateDate", DateTime.Now.ToString("yyyyMMddHHmmss"));
+            vnpayData.Add(
+                "vnp_Amount",
+                ((long)(amount * 100)).ToString());
+            vnpayData.Add(
+                "vnp_CreateDate",
+                DateTime.Now.ToString("yyyyMMddHHmmss"));
             vnpayData.Add("vnp_CurrCode", "VND");
             vnpayData.Add("vnp_IpAddr", ipAddr);
             vnpayData.Add("vnp_Locale", "vn");
-
-            // FIX 3: Xóa khoảng trắng trong OrderInfo để tránh lệch chuẩn mã hóa URL (URL Encoding)
-            vnpayData.Add("vnp_OrderInfo", $"ThanhToanDonHang_{orderId}");
-
+            vnpayData.Add(
+                "vnp_OrderInfo",
+                $"ThanhToanDonHang_{orderId}");
             vnpayData.Add("vnp_OrderType", "other");
             vnpayData.Add("vnp_ReturnUrl", returnUrl);
             vnpayData.Add("vnp_TxnRef", orderId.ToString());
 
             string queryString = BuildQueryString(vnpayData);
-            string vnp_SecureHash = HmacSHA512(secretKey, queryString);
+            string secureHash = HmacSHA512(secretKey, queryString);
 
-            return $"{_config.PaymentUrl}?{queryString}&vnp_SecureHash={vnp_SecureHash}";
+            return $"{_config.PaymentUrl}?{queryString}&vnp_SecureHash={secureHash}";
         }
 
-        // HÀM 2: NHẬN PHẢN HỒI
-        public VnPayResponseModel PaymentExecute(IQueryCollection collections)
+        public VnPayResponseModel PaymentExecute(
+            IQueryCollection collections)
         {
             var vnpayData = new SortedList<string, string>(new VnPayCompare());
             foreach (var (key, value) in collections)
@@ -96,135 +115,305 @@ namespace TMDT_LT.Services
                 }
             }
 
-            string vnp_SecureHash = collections.FirstOrDefault(k => k.Key == "vnp_SecureHash").Value.ToString();
+            string secureHash = collections
+                .FirstOrDefault(item => item.Key == "vnp_SecureHash")
+                .Value
+                .ToString();
+
             vnpayData.Remove("vnp_SecureHash");
             vnpayData.Remove("vnp_SecureHashType");
 
             string signData = BuildQueryString(vnpayData);
-            string checkSum = HmacSHA512(_config.HashSecret.Trim(), signData);
+            string checksum = HmacSHA512(
+                _config.HashSecret.Trim(),
+                signData);
 
             return new VnPayResponseModel
             {
-                Success = checkSum.Equals(vnp_SecureHash, StringComparison.InvariantCultureIgnoreCase) && collections.FirstOrDefault(k => k.Key == "vnp_ResponseCode").Value == "00",
-                OrderId = collections.FirstOrDefault(k => k.Key == "vnp_TxnRef").Value.ToString(),
-                TransactionId = collections.FirstOrDefault(k => k.Key == "vnp_TransactionNo").Value.ToString(),
-                VnPayResponseCode = collections.FirstOrDefault(k => k.Key == "vnp_ResponseCode").Value.ToString()
+                Success = checksum.Equals(
+                        secureHash,
+                        StringComparison.InvariantCultureIgnoreCase)
+                    && collections
+                        .FirstOrDefault(item => item.Key == "vnp_ResponseCode")
+                        .Value == "00",
+                OrderId = collections
+                    .FirstOrDefault(item => item.Key == "vnp_TxnRef")
+                    .Value
+                    .ToString(),
+                TransactionId = collections
+                    .FirstOrDefault(item => item.Key == "vnp_TransactionNo")
+                    .Value
+                    .ToString(),
+                VnPayResponseCode = collections
+                    .FirstOrDefault(item => item.Key == "vnp_ResponseCode")
+                    .Value
+                    .ToString()
             };
         }
 
-        // HÀM 3: IPN WEBHOOK
-        public VnPayIpnResponse ProcessIPN(Dictionary<string, string> parameters)
+        public VnPayIpnResponse ProcessIPN(
+            Dictionary<string, string> parameters)
         {
             var vnpayData = new SortedList<string, string>(new VnPayCompare());
-            foreach (var kv in parameters)
+            foreach (var pair in parameters)
             {
-                if (!string.IsNullOrEmpty(kv.Key) && kv.Key.StartsWith("vnp_"))
+                if (!string.IsNullOrEmpty(pair.Key)
+                    && pair.Key.StartsWith("vnp_"))
                 {
-                    vnpayData.Add(kv.Key, kv.Value);
+                    vnpayData.Add(pair.Key, pair.Value);
                 }
             }
 
-            string vnp_SecureHash = parameters.GetValueOrDefault("vnp_SecureHash") ?? "";
+            string secureHash =
+                parameters.GetValueOrDefault("vnp_SecureHash") ?? string.Empty;
             vnpayData.Remove("vnp_SecureHash");
             vnpayData.Remove("vnp_SecureHashType");
 
             string signData = BuildQueryString(vnpayData);
-            string checkSum = HmacSHA512(_config.HashSecret.Trim(), signData);
+            string checksum = HmacSHA512(
+                _config.HashSecret.Trim(),
+                signData);
 
-            bool isValid = checkSum.Equals(vnp_SecureHash, StringComparison.InvariantCultureIgnoreCase);
-            int.TryParse(parameters.GetValueOrDefault("vnp_TxnRef"), out int orderId);
-            decimal.TryParse(parameters.GetValueOrDefault("vnp_Amount"), out decimal amount);
+            bool valid = checksum.Equals(
+                secureHash,
+                StringComparison.InvariantCultureIgnoreCase);
+            int.TryParse(
+                parameters.GetValueOrDefault("vnp_TxnRef"),
+                out int orderId);
+            decimal.TryParse(
+                parameters.GetValueOrDefault("vnp_Amount"),
+                out decimal amount);
 
             return new VnPayIpnResponse
             {
-                IsValidChecksum = isValid,
+                IsValidChecksum = valid,
                 OrderId = orderId,
                 Amount = amount / 100,
-                TransactionStatus = parameters.GetValueOrDefault("vnp_TransactionStatus") ?? "",
-                TransactionId = parameters.GetValueOrDefault("vnp_TransactionNo") ?? ""
+                TransactionStatus =
+                    parameters.GetValueOrDefault("vnp_TransactionStatus")
+                    ?? string.Empty,
+                TransactionId =
+                    parameters.GetValueOrDefault("vnp_TransactionNo")
+                    ?? string.Empty
             };
         }
 
-        // HÀM 4: REFUND HOÀN TIỀN
-        public async Task<bool> RequestBankRefundAsync(int orderId, decimal amountToRefund, string transactionDateStr, string userExecuted)
+        public async Task<VnPayRefundResult> RequestRefundAsync(
+            int orderId,
+            decimal amountToRefund,
+            string transactionDate,
+            string executedBy,
+            string? requestId = null,
+            CancellationToken cancellationToken = default)
         {
+            string finalRequestId = string.IsNullOrWhiteSpace(requestId)
+                ? DateTime.UtcNow.Ticks.ToString()
+                : requestId.Trim();
+
+            if (string.IsNullOrWhiteSpace(_config.RefundUrl)
+                || string.IsNullOrWhiteSpace(_config.TmnId)
+                || string.IsNullOrWhiteSpace(_config.HashSecret))
+            {
+                return new VnPayRefundResult(
+                    false,
+                    finalRequestId,
+                    "CONFIG_MISSING",
+                    "FAILED",
+                    null,
+                    "Cấu hình hoàn tiền VNPAY chưa đầy đủ.",
+                    string.Empty);
+            }
+
             try
             {
-                var client = _httpClientFactory.CreateClient();
+                HttpClient client = _httpClientFactory.CreateClient();
 
-                string vnp_RequestId = DateTime.Now.Ticks.ToString();
-                string vnp_Version = "2.1.0";
-                string vnp_Command = "refund";
-                string vnp_TxnRef = orderId.ToString();
-                string vnp_Amount = ((long)(amountToRefund * 100)).ToString();
-                string vnp_TransactionType = "02";
-                string vnp_CreateBy = userExecuted;
-                string vnp_CreateDate = DateTime.Now.ToString("yyyyMMddHHmmss");
+                const string version = "2.1.0";
+                const string command = "refund";
+                const string transactionType = "02";
 
-                string rawData = $"{vnp_RequestId}|{vnp_Version}|{vnp_Command}|{_config.TmnId.Trim()}|{vnp_TransactionType}|{vnp_TxnRef}|{vnp_Amount}|{transactionDateStr}|{vnp_CreateBy}|{vnp_CreateDate}";
-                string vnp_SecureHash = HmacSHA512(_config.HashSecret.Trim(), rawData);
+                string txnRef = orderId.ToString();
+                string amount =
+                    ((long)(amountToRefund * 100)).ToString();
+                string createBy = string.IsNullOrWhiteSpace(executedBy)
+                    ? "system"
+                    : executedBy.Trim();
+                string createDate =
+                    DateTime.Now.ToString("yyyyMMddHHmmss");
+
+                string rawData =
+                    $"{finalRequestId}|{version}|{command}|"
+                    + $"{_config.TmnId.Trim()}|{transactionType}|"
+                    + $"{txnRef}|{amount}|{transactionDate}|"
+                    + $"{createBy}|{createDate}";
+
+                string secureHash = HmacSHA512(
+                    _config.HashSecret.Trim(),
+                    rawData);
 
                 var requestBody = new
                 {
-                    vnp_RequestId,
-                    vnp_Version,
-                    vnp_Command,
+                    vnp_RequestId = finalRequestId,
+                    vnp_Version = version,
+                    vnp_Command = command,
                     vnp_TmnId = _config.TmnId.Trim(),
-                    vnp_TransactionType,
-                    vnp_TxnRef,
-                    vnp_Amount,
-                    vnp_TransactionDate = transactionDateStr,
-                    vnp_CreateBy,
-                    vnp_CreateDate,
-                    vnp_SecureHash
+                    vnp_TransactionType = transactionType,
+                    vnp_TxnRef = txnRef,
+                    vnp_Amount = amount,
+                    vnp_TransactionDate = transactionDate,
+                    vnp_CreateBy = createBy,
+                    vnp_CreateDate = createDate,
+                    vnp_SecureHash = secureHash
                 };
 
-                var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-                var response = await client.PostAsync(_config.RefundUrl, content);
+                using var content = new StringContent(
+                    JsonSerializer.Serialize(requestBody),
+                    Encoding.UTF8,
+                    "application/json");
 
-                if (response.IsSuccessStatusCode)
+                using HttpResponseMessage response = await client.PostAsync(
+                    _config.RefundUrl,
+                    content,
+                    cancellationToken);
+
+                string rawResponse = await response.Content
+                    .ReadAsStringAsync(cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    var responseString = await response.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(responseString);
-                    string responseCode = doc.RootElement.GetProperty("vnp_ResponseCode").GetString() ?? "";
-                    if (responseCode == "00") return true;
+                    return new VnPayRefundResult(
+                        false,
+                        finalRequestId,
+                        $"HTTP_{(int)response.StatusCode}",
+                        "FAILED",
+                        null,
+                        "VNPAY trả về lỗi HTTP khi yêu cầu hoàn tiền.",
+                        rawResponse);
                 }
-                return false;
+
+                using JsonDocument document =
+                    JsonDocument.Parse(rawResponse);
+                JsonElement root = document.RootElement;
+
+                string responseCode =
+                    ReadJsonString(root, "vnp_ResponseCode")
+                    ?? string.Empty;
+                string transactionStatus =
+                    ReadJsonString(root, "vnp_TransactionStatus")
+                    ?? responseCode;
+                string? providerTransactionId =
+                    ReadJsonString(root, "vnp_TransactionNo")
+                    ?? ReadJsonString(root, "vnp_TransactionId");
+                string message =
+                    ReadJsonString(root, "vnp_Message")
+                    ?? ReadJsonString(root, "message")
+                    ?? (responseCode == "00"
+                        ? "VNPAY xác nhận lệnh hoàn tiền."
+                        : "VNPAY từ chối lệnh hoàn tiền.");
+
+                return new VnPayRefundResult(
+                    responseCode == "00",
+                    finalRequestId,
+                    responseCode,
+                    transactionStatus,
+                    providerTransactionId,
+                    message,
+                    rawResponse);
             }
-            catch
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
             {
-                return false;
+                throw;
+            }
+            catch (Exception ex)
+            {
+                return new VnPayRefundResult(
+                    false,
+                    finalRequestId,
+                    "EXCEPTION",
+                    "FAILED",
+                    null,
+                    ex.Message,
+                    string.Empty);
             }
         }
 
-        // HÀM HỖ TRỢ
-        private string HmacSHA512(string key, string inputData)
+        // Giữ wrapper cũ để các luồng hủy đơn hiện tại vẫn tương thích.
+        public async Task<bool> RequestBankRefundAsync(
+            int orderId,
+            decimal amountToRefund,
+            string transactionDateStr,
+            string userExecuted)
+        {
+            VnPayRefundResult result = await RequestRefundAsync(
+                orderId,
+                amountToRefund,
+                transactionDateStr,
+                userExecuted);
+
+            return result.Success;
+        }
+
+        private static string? ReadJsonString(
+            JsonElement element,
+            string propertyName)
+        {
+            if (!element.TryGetProperty(
+                    propertyName,
+                    out JsonElement value))
+            {
+                return null;
+            }
+
+            return value.ValueKind switch
+            {
+                JsonValueKind.String => value.GetString(),
+                JsonValueKind.Number
+                    or JsonValueKind.True
+                    or JsonValueKind.False => value.GetRawText(),
+                _ => null
+            };
+        }
+
+        private string HmacSHA512(
+            string key,
+            string inputData)
         {
             var hash = new StringBuilder();
             byte[] keyBytes = Encoding.UTF8.GetBytes(key);
             byte[] inputBytes = Encoding.UTF8.GetBytes(inputData);
-            using (var hmac = new HMACSHA512(keyBytes))
+
+            using var hmac = new HMACSHA512(keyBytes);
+            byte[] hashValue = hmac.ComputeHash(inputBytes);
+            foreach (byte currentByte in hashValue)
             {
-                byte[] hashValue = hmac.ComputeHash(inputBytes);
-                foreach (var theByte in hashValue)
-                {
-                    hash.Append(theByte.ToString("x2"));
-                }
+                hash.Append(currentByte.ToString("x2"));
             }
+
             return hash.ToString();
         }
 
-        private string BuildQueryString(SortedList<string, string> data)
+        private string BuildQueryString(
+            SortedList<string, string> data)
         {
             var builder = new StringBuilder();
-            foreach (var kv in data)
+            foreach (var pair in data)
             {
-                if (!string.IsNullOrEmpty(kv.Value))
+                if (!string.IsNullOrEmpty(pair.Value))
                 {
-                    builder.Append(Uri.EscapeDataString(kv.Key) + "=" + Uri.EscapeDataString(kv.Value) + "&");
+                    builder.Append(
+                        Uri.EscapeDataString(pair.Key)
+                        + "="
+                        + Uri.EscapeDataString(pair.Value)
+                        + "&");
                 }
             }
-            if (builder.Length > 0) builder.Remove(builder.Length - 1, 1);
+
+            if (builder.Length > 0)
+            {
+                builder.Remove(builder.Length - 1, 1);
+            }
+
             return builder.ToString();
         }
     }
@@ -236,9 +425,18 @@ namespace TMDT_LT.Services
             if (x == y) return 0;
             if (x == null) return -1;
             if (y == null) return 1;
-            var vnpCompare = string.Compare(x, y, StringComparison.Ordinal);
-            if (vnpCompare != 0) return vnpCompare;
-            return string.Compare(x, y, StringComparison.Ordinal);
+
+            int comparison =
+                string.Compare(x, y, StringComparison.Ordinal);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+
+            return string.Compare(
+                x,
+                y,
+                StringComparison.Ordinal);
         }
     }
 }

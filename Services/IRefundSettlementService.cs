@@ -1,0 +1,29 @@
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace TMDT_LT.Services;
+
+public sealed record ReturnRefundCommand(
+    int ReturnId,
+    bool IsProductIntact,
+    string? AdminNote,
+    string? ManualTransactionReference,
+    string Actor);
+
+public sealed record RefundSettlementResult(
+    bool Success,
+    bool AlreadyProcessed,
+    bool RequiresReview,
+    string Message,
+    int? OrderId = null,
+    decimal RefundedAmount = 0,
+    string? TransactionReference = null,
+    string? CustomerEmail = null,
+    string? CustomerName = null);
+
+public interface IRefundSettlementService
+{
+    Task<RefundSettlementResult> SettleReturnAsync(
+        ReturnRefundCommand command,
+        CancellationToken cancellationToken = default);
+}
