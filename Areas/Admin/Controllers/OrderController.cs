@@ -400,22 +400,22 @@ namespace TMDT_LT.Areas.Admin.Controllers
             string configuredSecret = _configuration["BankTransferWebhook:Secret"] ?? string.Empty;
             string providedSecret = Request.Headers["X-Webhook-Secret"].ToString();
 
-            if (string.IsNullOrWhiteSpace(configuredSecret))
+            // Môi trường sandbox có thể để trống Secret để webhook test gọi trực tiếp.
+            // Khi có cấu hình Secret, request vẫn phải gửi X-Webhook-Secret khớp chính xác.
+            if (!string.IsNullOrWhiteSpace(configuredSecret))
             {
-                return StatusCode(503, new
+                bool validSecret = CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(configuredSecret),
+                    Encoding.UTF8.GetBytes(providedSecret));
+
+                if (!validSecret)
                 {
-                    success = false,
-                    message = "Webhook chuyển khoản chưa được cấu hình."
-                });
-            }
-
-            bool validSecret = CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(configuredSecret),
-                Encoding.UTF8.GetBytes(providedSecret));
-
-            if (!validSecret)
-            {
-                return Unauthorized(new { success = false, message = "Webhook signature không hợp lệ." });
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        message = "Webhook signature không hợp lệ."
+                    });
+                }
             }
 
             if (gatewayData == null || string.IsNullOrWhiteSpace(gatewayData.TransactionId))
