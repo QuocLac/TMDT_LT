@@ -14,11 +14,16 @@ namespace TMDT_LT.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly VnPayService _vnPayService;
+        private readonly IOrderInventoryService _orderInventoryService;
 
-        public PaymentController(ApplicationDbContext context, VnPayService vnPayService)
+        public PaymentController(
+            ApplicationDbContext context,
+            VnPayService vnPayService,
+            IOrderInventoryService orderInventoryService)
         {
             _context = context;
             _vnPayService = vnPayService;
+            _orderInventoryService = orderInventoryService;
         }
 
         // =================================================================
@@ -27,7 +32,6 @@ namespace TMDT_LT.Controllers
         [HttpGet]
         public async Task<IActionResult> PaymentReturn()
         {
-            // Đọc kết quả trả về từ URL ngân hàng
             var response = _vnPayService.PaymentExecute(Request.Query);
 
             if (response == null || !response.Success)
@@ -38,7 +42,8 @@ namespace TMDT_LT.Controllers
 
             int orderId = Convert.ToInt32(response.OrderId);
 
-            // --- BỔ SUNG FIX LỖI LOCALHOST: CẬP NHẬT TRẠNG THÁI NGAY TẠI ĐÂY ---
+            // Giữ hành vi hiện tại để không trộn payment lifecycle vào batch tồn kho.
+            // Phase VNPay sau sẽ dùng IPN làm nguồn xác nhận thanh toán duy nhất.
             var order = await _context.Orders
                 .Include(o => o.Payments)
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
@@ -47,11 +52,12 @@ namespace TMDT_LT.Controllers
             {
                 var payment = order.Payments.FirstOrDefault();
 
-                // Chỉ cập nhật nếu nó chưa được IPN cập nhật trước đó
-                if (payment != null && payment.PaymentStatus != "Đã thanh toán" && payment.PaymentStatus != "Đã hoàn tiền")
+                if (payment != null &&
+                    payment.PaymentStatus != "Đã thanh toán" &&
+                    payment.PaymentStatus != "Đã hoàn tiền")
                 {
-                    order.Status = "Đang xử lý"; // Đẩy qua kho đóng gói
-                    payment.PaymentStatus = "Đã thanh toán"; // Chốt dòng tiền
+                    order.Status = "Đang xử lý";
+                    payment.PaymentStatus = "Đã thanh toán";
                     payment.PaymentDate = DateTime.Now;
 
                     _context.OrderHistories.Add(new OrderHistory
@@ -65,33 +71,32 @@ namespace TMDT_LT.Controllers
                     await _context.SaveChangesAsync();
                 }
             }
-            // -----------------------------------------------------------------
 
-            // Bật Modal chúc mừng bên trang quản lý đơn hàng
-            TempData["OrderSuccessModal"] = JsonSerializer.Serialize(new { OrderId = orderId, Method = "VNPAY" });
+            TempData["OrderSuccessModal"] = JsonSerializer.Serialize(
+                new { OrderId = orderId, Method = "VNPAY" });
+
             return RedirectToAction("Orders", "Customer");
         }
 
         // =================================================================
-        // 2. IPN/WEBHOOK BẢO MẬT (Server-to-Server) - XỬ LÝ CHÍNH KHÓA DÒNG TIỀN
-        // Ngân hàng sẽ gọi API này ngầm để đảm bảo dữ liệu không bị làm giả
+        // 2. IPN/WEBHOOK BẢO MẬT (Server-to-Server)
         // =================================================================
         [HttpGet]
         [HttpPost]
         public async Task<IActionResult> BankIPN()
         {
-            // Giả lập đọc dữ liệu bảo mật từ Ngân hàng / Cổng thanh toán ném về
-            var parameters = Request.Method == "POST" ? Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString()) : Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
+            var parameters = Request.Method == "POST"
+                ? Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString())
+                : Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
 
             var ipnResponse = _vnPayService.ProcessIPN(parameters);
 
             if (!ipnResponse.IsValidChecksum)
             {
-                return Json(new { RspCode = "97", Message = "Invalid Checksum" }); // Lỗi chữ ký bảo mật
+                return Json(new { RspCode = "97", Message = "Invalid Checksum" });
             }
 
             var order = await _context.Orders
-                .Include(o => o.OrderDetails).ThenInclude(d => d.Variant)
                 .Include(o => o.Payments)
                 .FirstOrDefaultAsync(o => o.OrderId == ipnResponse.OrderId);
 
@@ -106,20 +111,29 @@ namespace TMDT_LT.Controllers
             }
 
             var payment = order.Payments.FirstOrDefault();
-            if (payment == null) return Json(new { RspCode = "99", Message = "Payment Info Missing" });
+            if (payment == null)
+            {
+                return Json(new { RspCode = "99", Message = "Payment Info Missing" });
+            }
 
-            if (payment.PaymentStatus == "Đã thanh toán" || payment.PaymentStatus == "Đã hoàn tiền")
+            if (payment.PaymentStatus == "Đã thanh toán" ||
+                payment.PaymentStatus == "Đã hoàn tiền")
             {
                 return Json(new { RspCode = "02", Message = "Order already confirmed" });
             }
 
+            if (payment.PaymentStatus == "Thất bại" && order.Status == "Đã hủy")
+            {
+                return Json(new { RspCode = "00", Message = "Failure already processed" });
+            }
+
             using var transaction = await _context.Database.BeginTransactionAsync();
+
             try
             {
-                // TRƯỜNG HỢP 1: NGÂN HÀNG BÁO KHÁCH THANH TOÁN THÀNH CÔNG
-                if (ipnResponse.TransactionStatus == "00") // 00 là mã chuẩn giao dịch thành công
+                if (ipnResponse.TransactionStatus == "00")
                 {
-                    order.Status = "Đang xử lý"; // Chuyển từ Chờ xác nhận sang Đang xử lý
+                    order.Status = "Đang xử lý";
                     payment.PaymentStatus = "Đã thanh toán";
                     payment.PaymentDate = DateTime.Now;
 
@@ -128,42 +142,57 @@ namespace TMDT_LT.Controllers
                         OrderId = order.OrderId,
                         Status = "Đang xử lý",
                         UpdatedAt = DateTime.Now,
-                        Note = $"Ngân hàng xác nhận đã thu hộ {string.Format("{0:N0}", ipnResponse.Amount)}đ. Mã GD: {ipnResponse.TransactionId}."
+                        Note = $"Ngân hàng xác nhận đã thu hộ {ipnResponse.Amount:N0}đ. Mã GD: {ipnResponse.TransactionId}."
                     });
                 }
-                // TRƯỜNG HỢP 2: NGÂN HÀNG PHÁT TÍN HIỆU ĐẢO NGƯỢC/REVERSAL (HỦY/LỖI TỪ PHÍA NGÂN HÀNG)
-                else if (ipnResponse.TransactionStatus == "02" || ipnResponse.TransactionStatus == "99")
+                else if (ipnResponse.TransactionStatus == "02" ||
+                         ipnResponse.TransactionStatus == "99")
                 {
+                    var restored = await _orderInventoryService.RestoreOrderStockAsync(
+                        order.OrderId,
+                        "Hoàn kho do VNPAY báo giao dịch thất bại",
+                        restoreFlashSaleSlots: true,
+                        occurredAt: DateTime.Now,
+                        cancellationToken: HttpContext.RequestAborted);
+
+                    if (!restored)
+                    {
+                        // Một request đồng thời khác đã claim và hoàn kho trước.
+                        // Reload để không ghi timeline/trạng thái trùng từ dữ liệu tracking cũ.
+                        await _context.Entry(order).ReloadAsync(HttpContext.RequestAborted);
+                        await _context.Entry(payment).ReloadAsync(HttpContext.RequestAborted);
+                        await transaction.CommitAsync();
+
+                        return Json(new
+                        {
+                            RspCode = "00",
+                            Message = "Failure already processed"
+                        });
+                    }
+
                     order.Status = "Đã hủy";
                     payment.PaymentStatus = "Thất bại";
-
-                    // Đền bù hoàn trả lại kho ngay lập tức cho các biến thể sản phẩm
-                    foreach (var detail in order.OrderDetails)
-                    {
-                        if (detail.Variant != null)
-                        {
-                            detail.Variant.Stock += detail.Quantity ?? 0;
-                        }
-                    }
 
                     _context.OrderHistories.Add(new OrderHistory
                     {
                         OrderId = order.OrderId,
                         Status = "Đã hủy",
                         UpdatedAt = DateTime.Now,
-                        Note = $"[Tự động Webhook] Giao dịch thất bại từ phía ngân hàng. Hệ thống tự động hủy đơn và hoàn trả tồn kho."
+                        Note = "[Tự động Webhook] Giao dịch thất bại. Hệ thống đã hủy đơn, hoàn kho và hoàn suất Flash Sale đúng một lần."
                     });
                 }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return Json(new { RspCode = "00", Message = "Confirm Success" }); // Phản hồi chuẩn cho Ngân hàng dừng gửi tin
+                return Json(new { RspCode = "00", Message = "Confirm Success" });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await transaction.RollbackAsync();
-                return Json(new { RspCode = "99", Message = "System Error: " + ex.Message });
+
+                // Không trả nội dung exception hoặc dữ liệu nội bộ cho provider.
+                return Json(new { RspCode = "99", Message = "System Error" });
             }
         }
     }
