@@ -10,6 +10,14 @@ public sealed record ReturnRefundCommand(
     string? ManualTransactionReference,
     string Actor);
 
+public sealed record OrderCancellationCommand(
+    int OrderId,
+    string Reason,
+    string RequestedBy,
+    string Actor,
+    int? CustomerId = null,
+    bool AllowProcessing = false);
+
 public sealed record RefundSettlementResult(
     bool Success,
     bool AlreadyProcessed,
@@ -25,5 +33,9 @@ public interface IRefundSettlementService
 {
     Task<RefundSettlementResult> SettleReturnAsync(
         ReturnRefundCommand command,
+        CancellationToken cancellationToken = default);
+
+    Task<RefundSettlementResult> SettleCancellationAsync(
+        OrderCancellationCommand command,
         CancellationToken cancellationToken = default);
 }

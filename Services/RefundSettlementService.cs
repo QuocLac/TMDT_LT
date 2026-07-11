@@ -11,12 +11,13 @@ using TMDT_LT.Models;
 
 namespace TMDT_LT.Services;
 
-public sealed class RefundSettlementService : IRefundSettlementService
+public sealed partial class RefundSettlementService : IRefundSettlementService
 {
     private readonly ApplicationDbContext _context;
     private readonly VnPayService _vnPayService;
     private readonly IOrderInventoryService _orderInventoryService;
     private readonly IOrderStateService _orderStateService;
+    private readonly IShippingLifecycleService _shippingLifecycleService;
     private readonly ILogger<RefundSettlementService> _logger;
 
     public RefundSettlementService(
@@ -24,12 +25,14 @@ public sealed class RefundSettlementService : IRefundSettlementService
         VnPayService vnPayService,
         IOrderInventoryService orderInventoryService,
         IOrderStateService orderStateService,
+        IShippingLifecycleService shippingLifecycleService,
         ILogger<RefundSettlementService> logger)
     {
         _context = context;
         _vnPayService = vnPayService;
         _orderInventoryService = orderInventoryService;
         _orderStateService = orderStateService;
+        _shippingLifecycleService = shippingLifecycleService;
         _logger = logger;
     }
 

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -20,22 +20,19 @@ namespace TMDT_LT.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _webHostEnvironment;
-        private readonly IOrderInventoryService _orderInventoryService;
         private readonly IOrderStateService _orderStateService;
-        private readonly VnPayService _vnPayService;
+        private readonly IRefundSettlementService _refundSettlementService;
 
         public CustomerController(
             ApplicationDbContext context,
             IWebHostEnvironment webHostEnvironment,
-            IOrderInventoryService orderInventoryService,
             IOrderStateService orderStateService,
-            VnPayService vnPayService)
+            IRefundSettlementService refundSettlementService)
         {
             _context = context;
             _webHostEnvironment = webHostEnvironment;
-            _orderInventoryService = orderInventoryService;
             _orderStateService = orderStateService;
-            _vnPayService = vnPayService;
+            _refundSettlementService = refundSettlementService;
         }
 
         [HttpGet]
@@ -93,105 +90,33 @@ namespace TMDT_LT.Controllers
             int customerId = GetCurrentCustomerId();
             reason = reason?.Trim() ?? string.Empty;
 
-            if (string.IsNullOrWhiteSpace(reason))
+            if (customerId <= 0)
             {
-                return Json(new { success = false, message = "Vui lòng nhập lý do hủy đơn." });
+                return Json(new
+                {
+                    success = false,
+                    message = "Không xác định được tài khoản khách hàng."
+                });
             }
 
-            using var transaction = await _context.Database.BeginTransactionAsync(
-                System.Data.IsolationLevel.Serializable);
+            RefundSettlementResult cancellation =
+                await _refundSettlementService.SettleCancellationAsync(
+                    new OrderCancellationCommand(
+                        orderId,
+                        reason,
+                        "Customer",
+                        User.Identity?.Name ?? "customer",
+                        CustomerId: customerId,
+                        AllowProcessing: false),
+                    HttpContext.RequestAborted);
 
-            try
+            return Json(new
             {
-                var order = await _context.Orders
-                    .Include(o => o.OrderDetails).ThenInclude(d => d.Variant)
-                    .Include(o => o.Payments)
-                    .FirstOrDefaultAsync(o => o.OrderId == orderId && o.CustomerId == customerId);
-
-                if (order == null)
-                {
-                    await transaction.RollbackAsync();
-                    return Json(new { success = false, message = "Đơn hàng không tồn tại." });
-                }
-
-                if (order.Status == OrderStatuses.Cancelled)
-                {
-                    await transaction.CommitAsync();
-                    return Json(new { success = true, message = "Đơn hàng đã được hủy trước đó." });
-                }
-
-                if (order.Status != OrderStatuses.Pending)
-                {
-                    await transaction.RollbackAsync();
-                    return Json(new
-                    {
-                        success = false,
-                        message = "Đơn hàng đã được xử lý, không thể tự hủy lúc này."
-                    });
-                }
-
-                bool restored = await _orderInventoryService.RestoreOrderStockAsync(
-                    order.OrderId,
-                    "Hoàn kho do khách hàng hủy đơn",
-                    restoreFlashSaleSlots: true,
-                    occurredAt: DateTime.Now,
-                    cancellationToken: HttpContext.RequestAborted);
-
-                order.CancellationReason = reason;
-                order.CancellationRequestedBy = "Customer";
-
-                var payment = order.Payments.FirstOrDefault();
-                if (payment != null && payment.PaymentStatus == PaymentStatuses.Paid)
-                {
-                    if (string.Equals(payment.PaymentMethod, PaymentMethods.VnPay, StringComparison.OrdinalIgnoreCase))
-                    {
-                        string transactionDate = payment.PaymentDate?.ToString("yyyyMMddHHmmss")
-                            ?? DateTime.Now.ToString("yyyyMMddHHmmss");
-
-                        bool refunded = await _vnPayService.RequestBankRefundAsync(
-                            order.OrderId,
-                            order.TotalAmount ?? 0,
-                            transactionDate,
-                            User.Identity?.Name ?? "customer");
-
-                        if (!refunded)
-                        {
-                            throw new InvalidOperationException(
-                                "Không thể hoàn tiền VNPAY nên đơn chưa được hủy. Vui lòng liên hệ hỗ trợ.");
-                        }
-
-                        payment.PaymentStatus = PaymentStatuses.Refunded;
-                    }
-                    else
-                    {
-                        payment.PaymentStatus = PaymentStatuses.AwaitingRefund;
-                    }
-                }
-                else if (payment != null)
-                {
-                    payment.PaymentStatus = PaymentStatuses.Cancelled;
-                }
-
-                string note = $"[Khách hàng hủy] Lý do: {reason}."
-                    + (restored
-                        ? " Đã hoàn kho và hoàn suất Flash Sale nếu có."
-                        : " Tồn kho đã được hoàn trước đó hoặc đơn chưa từng trừ kho.");
-
-                _orderStateService.Transition(
-                    order,
-                    OrderStatuses.Cancelled,
-                    note,
-                    DateTime.Now);
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return Json(new { success = true, message = "Hủy đơn hàng thành công." });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return Json(new { success = false, message = "Không thể hủy đơn: " + ex.Message });
-            }
+                success = cancellation.Success,
+                message = cancellation.Message,
+                requiresReview = cancellation.RequiresReview,
+                transactionReference = cancellation.TransactionReference
+            });
         }
 
         [HttpPost]

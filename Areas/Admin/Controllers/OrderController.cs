@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -17,28 +17,28 @@ namespace TMDT_LT.Areas.Admin.Controllers
     public class OrderController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly VnPayService _vnPayService;
         private readonly IOrderInventoryService _orderInventoryService;
         private readonly IOrderStateService _orderStateService;
         private readonly IPaymentTransactionService _paymentTransactionService;
         private readonly IShippingLifecycleService _shippingLifecycleService;
+        private readonly IRefundSettlementService _refundSettlementService;
         private readonly IConfiguration _configuration;
 
         public OrderController(
             ApplicationDbContext context,
-            VnPayService vnPayService,
             IOrderInventoryService orderInventoryService,
             IOrderStateService orderStateService,
             IPaymentTransactionService paymentTransactionService,
             IShippingLifecycleService shippingLifecycleService,
+            IRefundSettlementService refundSettlementService,
             IConfiguration configuration)
         {
             _context = context;
-            _vnPayService = vnPayService;
             _orderInventoryService = orderInventoryService;
             _orderStateService = orderStateService;
             _paymentTransactionService = paymentTransactionService;
             _shippingLifecycleService = shippingLifecycleService;
+            _refundSettlementService = refundSettlementService;
             _configuration = configuration;
         }
 
@@ -137,6 +137,30 @@ namespace TMDT_LT.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(int orderId, string newStatus, string? note)
         {
+            if (newStatus == OrderStatuses.Cancelled)
+            {
+                RefundSettlementResult cancellation =
+                    await _refundSettlementService.SettleCancellationAsync(
+                        new OrderCancellationCommand(
+                            orderId,
+                            string.IsNullOrWhiteSpace(note)
+                                ? "Admin hủy đơn."
+                                : note.Trim(),
+                            "Admin",
+                            User.Identity?.Name ?? "admin",
+                            CustomerId: null,
+                            AllowProcessing: true),
+                        HttpContext.RequestAborted);
+
+                return Json(new
+                {
+                    success = cancellation.Success,
+                    message = cancellation.Message,
+                    requiresReview = cancellation.RequiresReview,
+                    transactionReference = cancellation.TransactionReference
+                });
+            }
+
             using var transaction = await _context.Database.BeginTransactionAsync(
                 System.Data.IsolationLevel.Serializable);
 
@@ -263,57 +287,7 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         payment.PaymentDate = now;
                     }
                 }
-                else if (newStatus == OrderStatuses.Cancelled)
-                {
-                    await _shippingLifecycleService.SyncManualOrderStatusAsync(
-                        order.OrderId,
-                        OrderStatuses.Cancelled,
-                        now,
-                        HttpContext.RequestAborted);
 
-                    if (payment != null && payment.PaymentStatus == PaymentStatuses.Paid)
-                    {
-                        if (string.Equals(payment.PaymentMethod, PaymentMethods.VnPay, StringComparison.OrdinalIgnoreCase))
-                        {
-                            string transactionDate = payment.PaymentDate?.ToString("yyyyMMddHHmmss")
-                                ?? now.ToString("yyyyMMddHHmmss");
-
-                            bool refunded = await _vnPayService.RequestBankRefundAsync(
-                                order.OrderId,
-                                order.TotalAmount ?? 0,
-                                transactionDate,
-                                User.Identity?.Name ?? "admin");
-
-                            if (!refunded)
-                            {
-                                throw new InvalidOperationException("Lệnh hoàn tiền VNPAY thất bại.");
-                            }
-
-                            payment.PaymentStatus = PaymentStatuses.Refunded;
-                            transitionNote += " [VNPAY đã xác nhận hoàn tiền].";
-                        }
-                        else
-                        {
-                            payment.PaymentStatus = PaymentStatuses.AwaitingRefund;
-                            transitionNote += " [Đơn đã thu tiền, cần hoàn tiền thủ công].";
-                        }
-                    }
-                    else if (payment != null)
-                    {
-                        payment.PaymentStatus = PaymentStatuses.Cancelled;
-                    }
-
-                    bool restored = await _orderInventoryService.RestoreOrderStockAsync(
-                        order.OrderId,
-                        "Hoàn kho do admin hủy đơn",
-                        restoreFlashSaleSlots: true,
-                        occurredAt: now,
-                        cancellationToken: HttpContext.RequestAborted);
-
-                    transitionNote += restored
-                        ? " [Đã hoàn kho và hoàn suất Flash Sale nếu có]."
-                        : " [Tồn kho đã được hoàn trước đó hoặc đơn chưa từng trừ kho].";
-                }
 
                 _orderStateService.Transition(
                     order,
