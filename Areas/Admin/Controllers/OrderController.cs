@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
-using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
@@ -17,26 +18,32 @@ namespace TMDT_LT.Areas.Admin.Controllers
         private readonly ApplicationDbContext _context;
         private readonly VnPayService _vnPayService;
         private readonly IOrderInventoryService _orderInventoryService;
+        private readonly IOrderStateService _orderStateService;
+        private readonly IConfiguration _configuration;
 
         public OrderController(
             ApplicationDbContext context,
             VnPayService vnPayService,
-            IOrderInventoryService orderInventoryService)
+            IOrderInventoryService orderInventoryService,
+            IOrderStateService orderStateService,
+            IConfiguration configuration)
         {
             _context = context;
             _vnPayService = vnPayService;
             _orderInventoryService = orderInventoryService;
+            _orderStateService = orderStateService;
+            _configuration = configuration;
         }
 
-        // ====================================================================
-        // 1. DANH SÁCH ĐƠN HÀNG & BỘ LỌC
-        // ====================================================================
-        public async Task<IActionResult> Index(string searchKeyword, string status, DateTime? fromDate, DateTime? toDate)
+        public async Task<IActionResult> Index(
+            string searchKeyword,
+            string status,
+            DateTime? fromDate,
+            DateTime? toDate)
         {
-            // TẢI THÔNG BÁO HOÀN TRẢ CHƯA ĐỌC ĐỂ HIỂN THỊ LÊN WIDGET
             ViewBag.ReturnAlerts = await _context.OrderReturns
                 .Include(r => r.Order)
-                .Where(r => r.Status == "Chờ duyệt" && r.IsAlertAdminRead == false)
+                .Where(r => r.Status == ReturnStatuses.Pending && r.IsAlertAdminRead == false)
                 .OrderBy(r => r.CreatedAt)
                 .ToListAsync();
 
@@ -47,22 +54,17 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
             var query = _context.Orders.AsQueryable();
             bool hasSearch = !string.IsNullOrWhiteSpace(searchKeyword);
-            string kw = "";
+            string kw = string.Empty;
             int exactOrderId = -1;
             bool isNumeric = false;
 
             if (hasSearch)
             {
-                kw = searchKeyword.Trim().ToLower();
-                if (kw.StartsWith("#"))
-                {
-                    kw = kw.Replace("#", "");
-                }
-
+                kw = searchKeyword.Trim().ToLowerInvariant().Replace("#", string.Empty);
                 isNumeric = int.TryParse(kw, out exactOrderId);
 
-                query = query.Where(o => o.OrderId.ToString().Contains(kw) ||
-                                        (o.ShippingPhone != null && o.ShippingPhone.Contains(kw)));
+                query = query.Where(o => o.OrderId.ToString().Contains(kw)
+                    || (o.ShippingPhone != null && o.ShippingPhone.Contains(kw)));
             }
 
             if (!string.IsNullOrEmpty(status))
@@ -77,49 +79,40 @@ namespace TMDT_LT.Areas.Admin.Controllers
 
             if (toDate.HasValue)
             {
-                query = query.Where(o => o.OrderDate <= toDate.Value.AddDays(1));
+                query = query.Where(o => o.OrderDate < toDate.Value.Date.AddDays(1));
             }
 
-            if (hasSearch)
+            if (hasSearch && isNumeric)
             {
-                if (isNumeric)
-                {
-                    query = query.OrderByDescending(o => o.OrderId == exactOrderId)
-                                 .ThenByDescending(o => o.OrderId.ToString().Contains(kw))
-                                 .ThenBy(o => o.OrderId);
-                }
-                else
-                {
-                    query = query.OrderBy(o => o.OrderId);
-                }
+                query = query.OrderByDescending(o => o.OrderId == exactOrderId)
+                    .ThenByDescending(o => o.OrderId.ToString().Contains(kw))
+                    .ThenBy(o => o.OrderId);
+            }
+            else if (hasSearch)
+            {
+                query = query.OrderBy(o => o.OrderId);
             }
             else
             {
                 query = query.OrderByDescending(o => o.OrderDate);
             }
 
-            var orders = await query.ToListAsync();
-            return View(orders);
+            return View(await query.ToListAsync());
         }
 
-        // ====================================================================
-        // API: TẮT THÔNG BÁO (KÍCH HOẠT KHI CLICK VÀO WIDGET)
-        // ====================================================================
         [HttpPost]
         public async Task<IActionResult> MarkReturnAlertAsRead(int returnId)
         {
-            var ret = await _context.OrderReturns.FindAsync(returnId);
-            if (ret != null)
+            var returnRequest = await _context.OrderReturns.FindAsync(returnId);
+            if (returnRequest != null)
             {
-                ret.IsAlertAdminRead = true;
+                returnRequest.IsAlertAdminRead = true;
                 await _context.SaveChangesAsync();
             }
+
             return Ok();
         }
 
-        // ====================================================================
-        // 2. XEM CHI TIẾT ĐƠN HÀNG (ĐÃ INCLUDE KHIẾU NẠI)
-        // ====================================================================
         public async Task<IActionResult> Details(int id)
         {
             var order = await _context.Orders
@@ -130,131 +123,170 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 .Include(o => o.OrderReturns)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
-            if (order == null) return NotFound();
-
-            return View(order);
+            return order == null ? NotFound() : View(order);
         }
 
-        // ====================================================================
-        // 3. ĐỘNG CƠ CẬP NHẬT TRẠNG THÁI GIAO HÀNG (TÁCH BIỆT HỦY VÀ HOÀN TRẢ)
-        // ====================================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(int orderId, string newStatus, string? note)
         {
-            var order = await _context.Orders
-                .Include(o => o.OrderDetails).ThenInclude(d => d.Variant).ThenInclude(v => v.Product)
-                .Include(o => o.Shipping)
-                .Include(o => o.Customer)
-                .Include(o => o.Payments)
-                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+            using var transaction = await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable);
 
-            if (order == null)
-            {
-                return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
-            }
-
-            if (order.Status == "Đã hủy" || order.Status == "Đã hoàn trả")
-            {
-                return Json(new { success = false, message = "Đơn hàng đã ở trạng thái kết thúc, không thể cập nhật tiếp." });
-            }
-
-            var payment = order.Payments.FirstOrDefault();
-
-            using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
             try
             {
-                if (newStatus == "Đang xử lý" && order.Status == "Chờ xác nhận")
+                var order = await _context.Orders
+                    .Include(o => o.OrderDetails).ThenInclude(d => d.Variant).ThenInclude(v => v.Product)
+                    .Include(o => o.Shipping)
+                    .Include(o => o.Customer)
+                    .Include(o => o.Payments)
+                    .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
+                if (order == null)
                 {
-                    bool stockDeductedNow = await _orderInventoryService.DeductOrderStockAsync(
+                    await transaction.RollbackAsync();
+                    return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
+                }
+
+                if (string.Equals(order.Status, newStatus, StringComparison.Ordinal))
+                {
+                    await transaction.CommitAsync();
+                    return Json(new { success = true, message = "Trạng thái đã được cập nhật trước đó." });
+                }
+
+                if (!OrderStatuses.CanTransition(order.Status, newStatus))
+                {
+                    throw new InvalidOperationException(
+                        $"Không thể chuyển trạng thái từ '{order.Status}' sang '{newStatus}'.");
+                }
+
+                var payment = order.Payments.FirstOrDefault();
+                string transitionNote = note ?? string.Empty;
+                DateTime now = DateTime.Now;
+
+                if (newStatus == OrderStatuses.Processing)
+                {
+                    bool deductedNow = await _orderInventoryService.DeductOrderStockAsync(
                         order.OrderId,
                         "Trừ kho khi admin xác nhận đơn cũ",
-                        occurredAt: DateTime.Now,
+                        occurredAt: now,
                         cancellationToken: HttpContext.RequestAborted);
 
-                    var defaultCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
-                    var shipInfo = order.Shipping?.FirstOrDefault();
+                    var defaultCarrier = await _context.ShippingCarriers
+                        .FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
+                    var shipping = order.Shipping.FirstOrDefault();
 
-                    if (shipInfo != null && defaultCarrier != null)
+                    if (shipping != null && defaultCarrier != null)
                     {
-                        shipInfo.TrackingNumber = "3PL" + defaultCarrier.CarrierCode + DateTime.Now.Ticks.ToString().Substring(11);
-                        shipInfo.Carrier = defaultCarrier.CarrierName;
+                        shipping.TrackingNumber = "3PL" + defaultCarrier.CarrierCode
+                            + DateTime.Now.Ticks.ToString()[^7..];
+                        shipping.Carrier = defaultCarrier.CarrierName;
                     }
 
-                    note ??= stockDeductedNow
-                        ? "Admin xác nhận đơn hàng. Tồn kho của đơn cũ vừa được trừ qua dịch vụ tồn kho tập trung."
-                        : "Admin xác nhận đơn hàng. Tồn kho đã được giữ/trừ trước đó.";
+                    transitionNote = string.IsNullOrWhiteSpace(transitionNote)
+                        ? deductedNow
+                            ? "Admin xác nhận đơn. Tồn kho của đơn cũ vừa được trừ."
+                            : "Admin xác nhận đơn. Tồn kho đã được giữ/trừ trước đó."
+                        : transitionNote;
                 }
-                else if (newStatus == "Đang giao" && order.Status == "Đang xử lý")
+                else if (newStatus == OrderStatuses.Shipping)
                 {
-                    note = note ?? "Đã xuất kho và bàn giao kiện hàng cho Shipper.";
+                    transitionNote = string.IsNullOrWhiteSpace(transitionNote)
+                        ? "Đã xuất kho và bàn giao kiện hàng cho đơn vị vận chuyển."
+                        : transitionNote;
                 }
-                else if (newStatus == "Đã giao" && order.Status == "Đang giao")
+                else if (newStatus == OrderStatuses.Delivered)
                 {
-                    note = note ?? "Đơn vị vận chuyển báo phát hàng thành công. Bắt đầu thời hạn 7 ngày kiểm tra đổi trả.";
-                }
-                else if (newStatus == "Hoàn thành" && order.Status == "Đã giao")
-                {
-                    if (order.Customer != null)
+                    transitionNote = string.IsNullOrWhiteSpace(transitionNote)
+                        ? "Đơn vị vận chuyển xác nhận phát hàng thành công."
+                        : transitionNote;
+
+                    if (payment != null
+                        && string.Equals(payment.PaymentMethod, PaymentMethods.Cod, StringComparison.OrdinalIgnoreCase)
+                        && payment.PaymentStatus != PaymentStatuses.Paid)
                     {
-                        int pointsEarned = (int)((order.TotalAmount ?? 0) / 100000);
-                        if (pointsEarned > 0)
+                        payment.PaymentStatus = PaymentStatuses.Paid;
+                        payment.PaymentDate = now;
+                    }
+                }
+                else if (newStatus == OrderStatuses.Completed)
+                {
+                    int pointsEarned = (int)((order.TotalAmount ?? 0) / 100000);
+                    if (pointsEarned > 0 && order.Customer != null)
+                    {
+                        order.Customer.RewardPoints += pointsEarned;
+                        int points = order.Customer.RewardPoints;
+                        order.Customer.CustomerType = points >= 600
+                            ? "Kim Cương"
+                            : points >= 300
+                                ? "Vàng"
+                                : points >= 100
+                                    ? "Bạc"
+                                    : "Newbie";
+
+                        transitionNote = (transitionNote ?? string.Empty)
+                            + $" [Hệ thống: +{pointsEarned} điểm].";
+                    }
+
+                    if (payment != null
+                        && string.Equals(payment.PaymentMethod, PaymentMethods.Cod, StringComparison.OrdinalIgnoreCase)
+                        && payment.PaymentStatus != PaymentStatuses.Paid)
+                    {
+                        payment.PaymentStatus = PaymentStatuses.Paid;
+                        payment.PaymentDate = now;
+                    }
+                }
+                else if (newStatus == OrderStatuses.Cancelled)
+                {
+                    if (payment != null && payment.PaymentStatus == PaymentStatuses.Paid)
+                    {
+                        if (string.Equals(payment.PaymentMethod, PaymentMethods.VnPay, StringComparison.OrdinalIgnoreCase))
                         {
-                            order.Customer.RewardPoints += pointsEarned;
-                            int cp = order.Customer.RewardPoints;
-                            order.Customer.CustomerType = cp >= 600 ? "Kim Cương" : cp >= 300 ? "Vàng" : cp >= 100 ? "Bạc" : "Newbie";
-                            note = (note ?? "") + $" [Hệ thống: +{pointsEarned} điểm].";
+                            string transactionDate = payment.PaymentDate?.ToString("yyyyMMddHHmmss")
+                                ?? now.ToString("yyyyMMddHHmmss");
+
+                            bool refunded = await _vnPayService.RequestBankRefundAsync(
+                                order.OrderId,
+                                order.TotalAmount ?? 0,
+                                transactionDate,
+                                User.Identity?.Name ?? "admin");
+
+                            if (!refunded)
+                            {
+                                throw new InvalidOperationException("Lệnh hoàn tiền VNPAY thất bại.");
+                            }
+
+                            payment.PaymentStatus = PaymentStatuses.Refunded;
+                            transitionNote += " [VNPAY đã xác nhận hoàn tiền].";
+                        }
+                        else
+                        {
+                            payment.PaymentStatus = PaymentStatuses.AwaitingRefund;
+                            transitionNote += " [Đơn đã thu tiền, cần hoàn tiền thủ công].";
                         }
                     }
-
-                    order.CompletedDate = DateTime.Now;
-                }
-                else if (newStatus == "Đã hủy")
-                {
-                    if (order.Status == "Đã giao" || order.Status == "Hoàn thành")
+                    else if (payment != null)
                     {
-                        throw new Exception("Đơn đã giao/hoàn thành phải đi qua quy trình hoàn trả, không hủy trực tiếp.");
+                        payment.PaymentStatus = PaymentStatuses.Cancelled;
                     }
 
-                    if (payment != null && payment.PaymentStatus == "Đã thanh toán" && payment.PaymentMethod == "VNPAY")
-                    {
-                        string transactionDateStr = payment.PaymentDate?.ToString("yyyyMMddHHmmss") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
-                        bool isRefundSuccess = await _vnPayService.RequestBankRefundAsync(order.OrderId, order.TotalAmount ?? 0, transactionDateStr, User.Identity?.Name ?? "admin");
-
-                        if (!isRefundSuccess)
-                        {
-                            throw new Exception("Lệnh hoàn tiền VNPay thất bại.");
-                        }
-
-                        payment.PaymentStatus = "Đã hoàn tiền";
-                        note = (note ?? "") + " [Đã kích hoạt lệnh Refund VNPAY thành công].";
-                    }
-
-                    bool stockRestored = await _orderInventoryService.RestoreOrderStockAsync(
+                    bool restored = await _orderInventoryService.RestoreOrderStockAsync(
                         order.OrderId,
                         "Hoàn kho do admin hủy đơn",
                         restoreFlashSaleSlots: true,
-                        occurredAt: DateTime.Now,
+                        occurredAt: now,
                         cancellationToken: HttpContext.RequestAborted);
 
-                    note = (note ?? "") + (stockRestored
+                    transitionNote += restored
                         ? " [Đã hoàn kho và hoàn suất Flash Sale nếu có]."
-                        : " [Đơn chưa từng trừ kho hoặc tồn kho đã được hoàn trước đó].");
-                }
-                else
-                {
-                    throw new Exception($"Không thể chuyển trạng thái từ '{order.Status}' sang '{newStatus}'.");
+                        : " [Tồn kho đã được hoàn trước đó hoặc đơn chưa từng trừ kho].";
                 }
 
-                order.Status = newStatus;
-
-                _context.OrderHistories.Add(new OrderHistory
-                {
-                    OrderId = order.OrderId,
-                    Status = newStatus,
-                    UpdatedAt = DateTime.Now,
-                    Note = note ?? $"Hành động điều phối trạng thái: {newStatus}"
-                });
+                _orderStateService.Transition(
+                    order,
+                    newStatus,
+                    transitionNote,
+                    now);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -268,50 +300,56 @@ namespace TMDT_LT.Areas.Admin.Controllers
             }
         }
 
-        // ====================================================================
-        // 4. XUẤT EXCEL BÁO CÁO TÀI CHÍNH
-        // ====================================================================
-        public async Task<IActionResult> ExportToExcel(string searchKeyword, string status, DateTime? fromDate, DateTime? toDate)
+        public async Task<IActionResult> ExportToExcel(
+            string searchKeyword,
+            string status,
+            DateTime? fromDate,
+            DateTime? toDate)
         {
             var query = _context.Orders.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(searchKeyword))
             {
-                string kw = searchKeyword.Trim().ToLower().Replace("#", "");
-                query = query.Where(o => o.OrderId.ToString().Contains(kw) || o.ShippingPhone.Contains(kw));
+                string kw = searchKeyword.Trim().ToLowerInvariant().Replace("#", string.Empty);
+                query = query.Where(o => o.OrderId.ToString().Contains(kw)
+                    || (o.ShippingPhone != null && o.ShippingPhone.Contains(kw)));
             }
+
             if (!string.IsNullOrEmpty(status))
             {
                 query = query.Where(o => o.Status == status);
             }
+
             if (fromDate.HasValue)
             {
                 query = query.Where(o => o.OrderDate >= fromDate.Value);
             }
+
             if (toDate.HasValue)
             {
-                query = query.Where(o => o.OrderDate <= toDate.Value.AddDays(1));
+                query = query.Where(o => o.OrderDate < toDate.Value.Date.AddDays(1));
             }
 
             var orders = await query.OrderByDescending(o => o.OrderDate).ToListAsync();
-
             var csvBuilder = new StringBuilder();
             csvBuilder.AppendLine("Mã Đơn Hàng,Khách Hàng,Số Điện Thoại,Ngày Khởi Tạo,Tổng Giá Trị,Trạng Thái");
 
-            foreach (var o in orders)
+            foreach (var order in orders)
             {
-                csvBuilder.AppendLine($"#ORD-{o.OrderId},{o.ShippingFullName},{o.ShippingPhone},{o.OrderDate?.ToString("dd/MM/yyyy HH:mm")},{o.TotalAmount},{o.Status}");
+                csvBuilder.AppendLine(
+                    $"#ORD-{order.OrderId},{order.ShippingFullName},{order.ShippingPhone},"
+                    + $"{order.OrderDate?.ToString("dd/MM/yyyy HH:mm")},{order.TotalAmount},{order.Status}");
             }
 
             var bom = new byte[] { 0xEF, 0xBB, 0xBF };
             var csvBytes = Encoding.UTF8.GetBytes(csvBuilder.ToString());
 
-            return File(bom.Concat(csvBytes).ToArray(), "text/csv", $"BaoCao_DonHang_{DateTime.Now:yyyyMMdd}.csv");
+            return File(
+                bom.Concat(csvBytes).ToArray(),
+                "text/csv",
+                $"BaoCao_DonHang_{DateTime.Now:yyyyMMdd}.csv");
         }
 
-        // ====================================================================
-        // 5. MÀN HÌNH IN HÓA ĐƠN
-        // ====================================================================
         public async Task<IActionResult> PrintInvoice(int id)
         {
             var order = await _context.Orders
@@ -319,38 +357,77 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 .Include(o => o.Shipping)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
-            if (order == null) return NotFound();
-
-            return View(order);
+            return order == null ? NotFound() : View(order);
         }
 
-        // ====================================================================
-        // 6. WEBHOOK DỰ PHÒNG CHUYỂN KHOẢN NGÂN HÀNG TRỰC TIẾP
-        // ====================================================================
         [HttpPost]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> BankPaymentWebhook([FromBody] BankTransferModel gatewayData)
         {
-            var order = await _context.Orders
-                .Include(o => o.OrderDetails).ThenInclude(d => d.Variant)
-                .Include(o => o.Payments)
-                .Include(o => o.Shipping)
-                .FirstOrDefaultAsync(o => o.OrderId == gatewayData.OrderIdReference);
+            string configuredSecret = _configuration["BankTransferWebhook:Secret"] ?? string.Empty;
+            string providedSecret = Request.Headers["X-Webhook-Secret"].ToString();
 
-            if (order == null || order.Status == "Hoàn thành" || order.Status == "Đã hủy" || order.Status == "Đã hoàn trả")
+            if (string.IsNullOrWhiteSpace(configuredSecret))
             {
-                return Json(new { success = false });
+                return StatusCode(503, new
+                {
+                    success = false,
+                    message = "Webhook chuyển khoản chưa được cấu hình."
+                });
             }
 
-            using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            bool validSecret = CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(configuredSecret),
+                Encoding.UTF8.GetBytes(providedSecret));
+
+            if (!validSecret)
+            {
+                return Unauthorized(new { success = false, message = "Webhook signature không hợp lệ." });
+            }
+
+            if (gatewayData == null || string.IsNullOrWhiteSpace(gatewayData.TransactionId))
+            {
+                return Json(new { success = false, message = "Thiếu mã giao dịch." });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable);
+
             try
             {
-                if (gatewayData.AmountTransferred < order.TotalAmount)
+                var order = await _context.Orders
+                    .Include(o => o.OrderDetails).ThenInclude(d => d.Variant)
+                    .Include(o => o.Payments)
+                    .Include(o => o.Shipping)
+                    .FirstOrDefaultAsync(o => o.OrderId == gatewayData.OrderIdReference);
+
+                if (order == null || OrderStatuses.IsTerminal(order.Status))
                 {
-                    return Json(new { success = false, message = "Thiếu tiền thanh toán." });
+                    await transaction.RollbackAsync();
+                    return Json(new { success = false, message = "Đơn hàng không hợp lệ." });
                 }
 
-                if (order.Status == "Chờ xác nhận")
+                var payment = order.Payments.FirstOrDefault();
+                if (payment == null
+                    || !string.Equals(payment.PaymentMethod, PaymentMethods.BankTransfer, StringComparison.OrdinalIgnoreCase))
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { success = false, message = "Phương thức thanh toán không khớp." });
+                }
+
+                if (payment.PaymentStatus == PaymentStatuses.Paid)
+                {
+                    await transaction.CommitAsync();
+                    return Json(new { success = true, message = "Giao dịch đã được xử lý trước đó." });
+                }
+
+                if (gatewayData.AmountTransferred < (order.TotalAmount ?? 0))
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { success = false, message = "Số tiền chuyển khoản chưa đủ." });
+                }
+
+                if (order.Status == OrderStatuses.Pending)
                 {
                     await _orderInventoryService.DeductOrderStockAsync(
                         order.OrderId,
@@ -358,43 +435,40 @@ namespace TMDT_LT.Areas.Admin.Controllers
                         occurredAt: DateTime.Now,
                         cancellationToken: HttpContext.RequestAborted);
 
-                    order.Status = "Đang xử lý";
+                    _orderStateService.Transition(
+                        order,
+                        OrderStatuses.Processing,
+                        $"Ngân hàng xác nhận chuyển khoản. Mã GD: {gatewayData.TransactionId}.",
+                        DateTime.Now);
 
-                    var defaultCarrier = await _context.ShippingCarriers.FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
-                    string assignedCarrier = defaultCarrier != null ? defaultCarrier.CarrierName : "Hệ thống vận chuyển nội bộ";
+                    var defaultCarrier = await _context.ShippingCarriers
+                        .FirstOrDefaultAsync(c => c.IsActive && c.IsDefault);
+                    var shipping = order.Shipping.FirstOrDefault();
 
-                    var shipInfo = order.Shipping?.FirstOrDefault();
-                    if (shipInfo != null)
+                    if (shipping != null)
                     {
-                        shipInfo.TrackingNumber = "VNDON" + DateTime.Now.Ticks.ToString().Substring(10);
-                        shipInfo.Carrier = assignedCarrier;
+                        shipping.TrackingNumber = "VNDON" + DateTime.Now.Ticks.ToString()[^8..];
+                        shipping.Carrier = defaultCarrier?.CarrierName
+                            ?? "Hệ thống vận chuyển nội bộ";
                     }
                 }
-
-                _context.OrderHistories.Add(new OrderHistory
+                else if (order.Status != OrderStatuses.Processing)
                 {
-                    OrderId = order.OrderId,
-                    Status = "Đang xử lý",
-                    UpdatedAt = DateTime.Now,
-                    Note = $"[Tự động] Nhận thành công {string.Format("{0:N0}", gatewayData.AmountTransferred)}đ qua Ngân hàng."
-                });
-
-                var payment = order.Payments?.FirstOrDefault();
-                if (payment != null)
-                {
-                    payment.PaymentStatus = "Đã thanh toán";
-                    payment.PaymentDate = DateTime.Now;
+                    throw new InvalidOperationException(
+                        $"Không thể xác nhận thanh toán khi đơn đang ở trạng thái '{order.Status}'.");
                 }
+
+                payment.PaymentStatus = PaymentStatuses.Paid;
+                payment.PaymentDate = DateTime.Now;
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-
                 return Json(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await transaction.RollbackAsync();
-                return Json(new { success = false, error = ex.Message });
+                return Json(new { success = false, message = "Không thể xử lý webhook thanh toán." });
             }
         }
     }

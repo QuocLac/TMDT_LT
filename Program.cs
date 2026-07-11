@@ -56,6 +56,7 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<GoogleAnalyticsService>();
 builder.Services.AddScoped<PromotionEngine>();
 builder.Services.AddScoped<IOrderInventoryService, OrderInventoryService>();
+builder.Services.AddScoped<IOrderStateService, OrderStateService>();
 builder.Services.AddHttpClient();
 
 // BỔ SUNG 2 DÒNG NÀY ĐỂ KÍCH HOẠT VNPAY SERVICE

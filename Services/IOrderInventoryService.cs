@@ -23,4 +23,10 @@ public interface IOrderInventoryService
         bool restoreFlashSaleSlots = true,
         DateTime? occurredAt = null,
         CancellationToken cancellationToken = default);
+
+    Task<bool> CloseOrderStockWithoutRestockAsync(
+        int orderId,
+        string reason,
+        DateTime? occurredAt = null,
+        CancellationToken cancellationToken = default);
 }

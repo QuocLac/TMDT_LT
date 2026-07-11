@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Linq;
 using System.Net;
@@ -9,6 +8,7 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
+using TMDT_LT.Services;
 
 namespace TMDT_LT.Areas.Admin.Controllers
 {
@@ -17,36 +17,57 @@ namespace TMDT_LT.Areas.Admin.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _config;
+        private readonly VnPayService _vnPayService;
+        private readonly IOrderInventoryService _orderInventoryService;
+        private readonly IOrderStateService _orderStateService;
 
-        public ReturnController(ApplicationDbContext context, IConfiguration config)
+        public ReturnController(
+            ApplicationDbContext context,
+            IConfiguration config,
+            VnPayService vnPayService,
+            IOrderInventoryService orderInventoryService,
+            IOrderStateService orderStateService)
         {
             _context = context;
             _config = config;
+            _vnPayService = vnPayService;
+            _orderInventoryService = orderInventoryService;
+            _orderStateService = orderStateService;
         }
 
-        // ====================================================================
-        // HÀM HELPER: GỬI EMAIL TỰ ĐỘNG THÔNG BÁO CHO KHÁCH HÀNG
-        // ====================================================================
         private async Task SendEmailAsync(string toEmail, string subject, string body)
         {
             try
             {
                 var smtpSettings = _config.GetSection("SmtpSettings");
-                var mailMessage = new MailMessage
+                var senderEmail = smtpSettings["SenderEmail"];
+                var senderName = smtpSettings["SenderName"];
+                var server = smtpSettings["Server"];
+                var password = smtpSettings["Password"];
+
+                if (string.IsNullOrWhiteSpace(senderEmail)
+                    || string.IsNullOrWhiteSpace(server)
+                    || !int.TryParse(smtpSettings["Port"], out int port))
                 {
-                    From = new MailAddress(smtpSettings["SenderEmail"], smtpSettings["SenderName"]),
+                    return;
+                }
+
+                using var mailMessage = new MailMessage
+                {
+                    From = new MailAddress(senderEmail, senderName ?? "PHONE.ST"),
                     Subject = subject,
                     Body = body,
                     IsBodyHtml = true
                 };
                 mailMessage.To.Add(toEmail);
 
-                using var smtpClient = new SmtpClient(smtpSettings["Server"])
+                using var smtpClient = new SmtpClient(server)
                 {
-                    Port = int.Parse(smtpSettings["Port"]),
-                    Credentials = new NetworkCredential(smtpSettings["SenderEmail"], smtpSettings["Password"]),
+                    Port = port,
+                    Credentials = new NetworkCredential(senderEmail, password ?? string.Empty),
                     EnableSsl = true
                 };
+
                 await smtpClient.SendMailAsync(mailMessage);
             }
             catch (Exception ex)
@@ -55,9 +76,6 @@ namespace TMDT_LT.Areas.Admin.Controllers
             }
         }
 
-        // ====================================================================
-        // 1. DASHBOARD TỔNG DANH SÁCH KHIẾU NẠI (Dành cho trang Return/Index)
-        // ====================================================================
         public async Task<IActionResult> Index(string status)
         {
             var query = _context.OrderReturns
@@ -71,209 +89,303 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 query = query.Where(r => r.Status == status);
             }
 
-            var returns = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
             ViewBag.CurrentStatus = status;
-
-            return View(returns);
+            return View(await query.OrderByDescending(r => r.CreatedAt).ToListAsync());
         }
 
-        // ====================================================================
-        // 2. API: CẬP NHẬT TRẠNG THÁI TIẾN TRÌNH VÀ RÓT XUỐNG BẢNG ORDERS
-        // ====================================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateReturnStatus(int returnId, string newStatus, string adminNote)
+        public async Task<IActionResult> UpdateReturnStatus(
+            int returnId,
+            string newStatus,
+            string adminNote)
         {
-            var returnReq = await _context.OrderReturns
-                .Include(r => r.Order)
-                .Include(r => r.Customer)
-                    .ThenInclude(c => c.Account)
-                .FirstOrDefaultAsync(r => r.ReturnId == returnId);
+            string customerEmail = string.Empty;
+            string customerName = string.Empty;
+            int orderId = 0;
+            bool sendAcceptedEmail = false;
+            bool sendRejectedEmail = false;
 
-            if (returnReq == null) return Json(new { success = false, message = "Không tìm thấy hồ sơ khiếu nại." });
+            using var transaction = await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable);
 
-            returnReq.Status = newStatus;
-            returnReq.AdminNote = adminNote;
-            string customerEmail = returnReq.Customer?.Account?.Email ?? "";
-
-            // NẾU TỪ CHỐI: ĐÁNH BẬT ĐƠN HÀNG VỀ LẠI "HOÀN THÀNH"
-            if (newStatus == "Đã từ chối")
-            {
-                returnReq.ResolvedAt = DateTime.Now;
-
-                if (returnReq.Order != null)
-                {
-                    returnReq.Order.Status = "Hoàn thành";
-                    _context.Orders.Update(returnReq.Order); // Rót dữ liệu
-                }
-
-                _context.OrderHistories.Add(new OrderHistory
-                {
-                    OrderId = returnReq.OrderId,
-                    Status = "Hoàn thành",
-                    UpdatedAt = DateTime.Now,
-                    Note = $"[Hệ thống] Yêu cầu Trả hàng bị TỪ CHỐI. Lý do Admin: {adminNote}. Khôi phục trạng thái Hoàn thành."
-                });
-
-                if (!string.IsNullOrEmpty(customerEmail))
-                {
-                    string emailBody = $"<h3>Chào {returnReq.Customer?.FullName},</h3><p>Cửa hàng rất tiếc phải thông báo yêu cầu đổi trả cho đơn hàng <b>#ORD-{returnReq.OrderId}</b> của bạn đã bị từ chối.</p><p><b>Lý do:</b> {adminNote}</p>";
-                    _ = SendEmailAsync(customerEmail, $"[PHONE.ST] Cập nhật khiếu nại đơn hàng #ORD-{returnReq.OrderId}", emailBody);
-                }
-            }
-            else
-            {
-                // RÓT TRỰC TIẾP TRẠNG THÁI ("Chờ khách trả hàng", "Đang kiểm định"...) XUỐNG BẢNG ORDERS
-                if (returnReq.Order != null)
-                {
-                    returnReq.Order.Status = newStatus;
-                    _context.Orders.Update(returnReq.Order); // Rót dữ liệu
-                }
-
-                _context.OrderHistories.Add(new OrderHistory
-                {
-                    OrderId = returnReq.OrderId,
-                    Status = newStatus,
-                    UpdatedAt = DateTime.Now,
-                    Note = $"[Tiến trình Trả hàng] Cập nhật mốc: {newStatus}. Ghi chú: {adminNote}"
-                });
-
-                if (newStatus == "Chờ khách trả hàng" && !string.IsNullOrEmpty(customerEmail))
-                {
-                    string emailBody = $"<h3>Chào {returnReq.Customer?.FullName},</h3><p>Yêu cầu trả hàng cho đơn <b>#ORD-{returnReq.OrderId}</b> của bạn đã được <b>CHẤP NHẬN</b>.</p><p>Vui lòng đóng gói sản phẩm cẩn thận và gửi về địa chỉ kho của chúng tôi theo hướng dẫn trong Lịch sử đơn hàng.</p><p><b>Ghi chú từ Shop:</b> {adminNote}</p>";
-                    _ = SendEmailAsync(customerEmail, $"[PHONE.ST] Yêu cầu trả hàng #ORD-{returnReq.OrderId} được chấp nhận", emailBody);
-                }
-            }
-
-            _context.OrderReturns.Update(returnReq);
-            await _context.SaveChangesAsync();
-            return Json(new { success = true, message = "Đã cập nhật tiến trình." });
-        }
-
-        // ====================================================================
-        // 3. API: KIỂM ĐỊNH KHO BÃI & XÁC NHẬN HOÀN TIỀN (BƯỚC QUYẾT TOÁN)
-        // ====================================================================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ProcessRefund(int returnId, bool isProductIntact, string adminNote, string transactionRef)
-        {
-            var returnReq = await _context.OrderReturns
-                .Include(r => r.Order).ThenInclude(o => o.OrderDetails).ThenInclude(od => od.Variant)
-                .Include(r => r.Order).ThenInclude(o => o.Payments)
-                .Include(r => r.Customer).ThenInclude(c => c.Account)
-                .FirstOrDefaultAsync(r => r.ReturnId == returnId);
-
-            if (returnReq == null || returnReq.Status != "Đang kiểm định")
-                return Json(new { success = false, message = "Hồ sơ không hợp lệ hoặc chưa đến bước Kiểm định kho." });
-
-            var order = returnReq.Order;
-            if (order == null) return Json(new { success = false, message = "Lỗi liên kết dữ liệu đơn hàng gốc." });
-
-            var payment = order.Payments.FirstOrDefault();
-
-            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // PHÂN LUỒNG HOÀN TIỀN VNPAY
-                if (payment != null && payment.PaymentStatus == "Đã thanh toán" && payment.PaymentMethod == "VNPAY")
+                var returnRequest = await _context.OrderReturns
+                    .Include(r => r.Order).ThenInclude(o => o.Payments)
+                    .Include(r => r.Customer).ThenInclude(c => c.Account)
+                    .FirstOrDefaultAsync(r => r.ReturnId == returnId);
+
+                if (returnRequest == null || returnRequest.Order == null)
                 {
-                    var vnPayService = HttpContext.RequestServices.GetRequiredService<TMDT_LT.Services.VnPayService>();
-                    string transactionDateStr = payment.PaymentDate?.ToString("yyyyMMddHHmmss") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
-
-                    bool isRefundSuccess = true; // Môi trường DEV để test localhost
-                    // bool isRefundSuccess = await vnPayService.RequestBankRefundAsync(order.OrderId, order.TotalAmount ?? 0, transactionDateStr, User.Identity?.Name ?? "admin");
-
-                    if (!isRefundSuccess)
-                    {
-                        return Json(new { success = false, message = "Cổng VNPay từ chối lệnh hoàn tiền." });
-                    }
-
-                    transactionRef = $"VNPAY_AUTO_{DateTime.Now:yyyyMMddHHmmss}";
-                }
-                else if (string.IsNullOrWhiteSpace(transactionRef))
-                {
-                    return Json(new { success = false, message = "Vui lòng nhập Mã Giao Dịch Ngân Hàng sau khi đã quét QR." });
+                    await transaction.RollbackAsync();
+                    return Json(new { success = false, message = "Không tìm thấy hồ sơ khiếu nại." });
                 }
 
-                // XỬ LÝ KHO BÃI
-                // Nếu hàng còn nguyên: nhập lại kho vật lý đúng một lần.
-                // Nếu hàng hỏng: không nhập lại kho, nhưng vẫn đóng cờ kho để tránh hoàn lặp.
-                if (isProductIntact)
+                if (returnRequest.Status == newStatus)
                 {
-                    if (order.IsStockDeducted)
+                    await transaction.CommitAsync();
+                    return Json(new { success = true, message = "Trạng thái đã được cập nhật trước đó." });
+                }
+
+                if (!ReturnStatuses.CanTransition(returnRequest.Status, newStatus))
+                {
+                    throw new InvalidOperationException(
+                        $"Không thể chuyển hồ sơ từ '{returnRequest.Status}' sang '{newStatus}'.");
+                }
+
+                var order = returnRequest.Order;
+                string orderTargetStatus;
+                string historyNote;
+
+                if (newStatus == ReturnStatuses.Rejected)
+                {
+                    orderTargetStatus = OrderStatuses.Completed;
+                    returnRequest.ResolvedAt = DateTime.Now;
+                    historyNote = $"Yêu cầu trả hàng bị từ chối. Lý do Admin: {adminNote}.";
+                    sendRejectedEmail = true;
+
+                    var payment = order.Payments.FirstOrDefault();
+                    if (payment != null
+                        && (payment.PaymentStatus == PaymentStatuses.AwaitingRefund
+                            || string.Equals(payment.PaymentMethod, PaymentMethods.Cod, StringComparison.OrdinalIgnoreCase)))
                     {
-                        foreach (var detail in order.OrderDetails)
-                        {
-                            int quantity = detail.Quantity ?? 0;
-                            if (quantity <= 0 || detail.Variant == null) continue;
-
-                            detail.Variant.Stock = (detail.Variant.Stock ?? 0) + quantity;
-                            _context.InventoryTransactions.Add(new InventoryTransactions
-                            {
-                                VariantId = detail.VariantId ?? 0,
-                                TransactionType = "ADJUST",
-                                Quantity = quantity,
-                                ReferenceId = order.OrderId,
-                                TransactionDate = DateTime.Now,
-                                Note = $"Nhập lại kho do hoàn trả đơn #{order.OrderId}"
-                            });
-                        }
-
-                        order.IsStockDeducted = false;
-                        order.StockDeductedAt = null;
+                        payment.PaymentStatus = PaymentStatuses.Paid;
+                        payment.PaymentDate ??= DateTime.Now;
                     }
-
-                    adminNote = "[Nhập lại Kho] " + adminNote;
+                }
+                else if (newStatus == ReturnStatuses.AwaitingCustomer)
+                {
+                    orderTargetStatus = OrderStatuses.ReturnAwaitingCustomer;
+                    historyNote = $"Yêu cầu trả hàng được chấp nhận. Ghi chú: {adminNote}.";
+                    sendAcceptedEmail = true;
+                }
+                else if (newStatus == ReturnStatuses.Inspecting)
+                {
+                    orderTargetStatus = OrderStatuses.ReturnInspecting;
+                    historyNote = $"Kho đã nhận hàng và bắt đầu kiểm định. Ghi chú: {adminNote}.";
                 }
                 else
                 {
-                    order.IsStockDeducted = false;
-                    order.StockDeductedAt = null;
-                    adminNote = "[Hàng Phế Phẩm/Hỏng] " + adminNote;
+                    throw new InvalidOperationException("Trạng thái trả hàng không được hỗ trợ ở bước này.");
                 }
 
-                // CẬP NHẬT TRẠNG THÁI KHIẾU NẠI VÀ ĐƠN HÀNG GỐC
-                returnReq.Status = "Hoàn tiền thành công";
-                returnReq.ResolvedAt = DateTime.Now;
-                returnReq.AdminNote = adminNote;
+                returnRequest.Status = newStatus;
+                returnRequest.AdminNote = adminNote?.Trim();
 
-                order.Status = "Đã hoàn trả"; // CHUẨN XÁC TRẠNG THÁI VÀO BẢNG ORDER
-
-                if (payment != null)
-                {
-                    payment.PaymentStatus = "Đã hoàn tiền";
-                    _context.Payments.Update(payment);
-                }
-
-                _context.OrderHistories.Add(new OrderHistory
-                {
-                    OrderId = order.OrderId,
-                    Status = "Đã hoàn trả",
-                    UpdatedAt = DateTime.Now,
-                    Note = $"[Hoàn Tiền Thành Công] {adminNote}. Mã GD: {transactionRef}"
-                });
-
-                // ÉP EF CORE RÓT DỮ LIỆU
-                _context.Orders.Update(order);
-                _context.OrderReturns.Update(returnReq);
+                _orderStateService.Transition(
+                    order,
+                    orderTargetStatus,
+                    historyNote,
+                    DateTime.Now);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // Gửi Email Biên lai
-                if (returnReq.Customer != null && returnReq.Customer.Account != null && !string.IsNullOrEmpty(returnReq.Customer.Account.Email))
+                customerEmail = returnRequest.Customer?.Account?.Email ?? string.Empty;
+                customerName = returnRequest.Customer?.FullName ?? "Quý khách";
+                orderId = returnRequest.OrderId;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return Json(new { success = false, message = ex.Message });
+            }
+
+            if (!string.IsNullOrWhiteSpace(customerEmail))
+            {
+                if (sendAcceptedEmail)
                 {
-                    string emailBody = $"<h3>Chào {returnReq.Customer.FullName},</h3><p>Cửa hàng đã <b>Hoàn Tiền Thành Công</b> cho đơn hàng <b>#ORD-{order.OrderId}</b> của bạn.</p><p>Số tiền <b>{string.Format("{0:N0}", order.TotalAmount)}đ</b> đã được chuyển khoản. Mã GD ngân hàng: <b>{transactionRef}</b>.</p><p>Trân trọng,<br/>Đội ngũ PHONE.ST</p>";
-                    _ = SendEmailAsync(returnReq.Customer.Account.Email, $"[PHONE.ST] Biên lai Hoàn tiền đơn #ORD-{order.OrderId}", emailBody);
+                    string body = $"<h3>Chào {customerName},</h3>"
+                        + $"<p>Yêu cầu trả hàng cho đơn <b>#ORD-{orderId}</b> đã được chấp nhận.</p>"
+                        + $"<p><b>Ghi chú:</b> {adminNote}</p>";
+                    await SendEmailAsync(
+                        customerEmail,
+                        $"[PHONE.ST] Yêu cầu trả hàng #ORD-{orderId} được chấp nhận",
+                        body);
+                }
+                else if (sendRejectedEmail)
+                {
+                    string body = $"<h3>Chào {customerName},</h3>"
+                        + $"<p>Yêu cầu đổi trả cho đơn <b>#ORD-{orderId}</b> đã bị từ chối.</p>"
+                        + $"<p><b>Lý do:</b> {adminNote}</p>";
+                    await SendEmailAsync(
+                        customerEmail,
+                        $"[PHONE.ST] Cập nhật khiếu nại #ORD-{orderId}",
+                        body);
+                }
+            }
+
+            return Json(new { success = true, message = "Đã cập nhật tiến trình." });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ProcessRefund(
+            int returnId,
+            bool isProductIntact,
+            string adminNote,
+            string transactionRef)
+        {
+            string customerEmail = string.Empty;
+            string customerName = string.Empty;
+            int completedOrderId = 0;
+            decimal refundedAmount = 0;
+            string finalTransactionRef = transactionRef?.Trim() ?? string.Empty;
+
+            using var transaction = await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable);
+
+            try
+            {
+                var returnRequest = await _context.OrderReturns
+                    .Include(r => r.Order).ThenInclude(o => o.OrderDetails).ThenInclude(od => od.Variant)
+                    .Include(r => r.Order).ThenInclude(o => o.Payments)
+                    .Include(r => r.Customer).ThenInclude(c => c.Account)
+                    .FirstOrDefaultAsync(r => r.ReturnId == returnId);
+
+                if (returnRequest == null || returnRequest.Order == null)
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { success = false, message = "Không tìm thấy hồ sơ hoàn trả." });
                 }
 
-                return Json(new { success = true, message = "Đã chốt hoàn tiền và cập nhật trạng thái đơn hàng thành công!" });
+                if (returnRequest.Status == ReturnStatuses.Refunded
+                    && returnRequest.Order.Status == OrderStatuses.Returned)
+                {
+                    await transaction.CommitAsync();
+                    return Json(new { success = true, message = "Hồ sơ đã được hoàn tiền trước đó." });
+                }
+
+                if (returnRequest.Status != ReturnStatuses.Inspecting
+                    || returnRequest.Order.Status != OrderStatuses.ReturnInspecting)
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Hồ sơ chưa đến bước kiểm định hoặc trạng thái đơn không đồng bộ."
+                    });
+                }
+
+                var order = returnRequest.Order;
+                var payment = order.Payments.FirstOrDefault();
+
+                if (!order.IsStockDeducted)
+                {
+                    throw new InvalidOperationException(
+                        "Tồn kho của đơn đã được quyết toán trước đó; không thể hoàn tiền lặp.");
+                }
+
+                if (payment == null)
+                {
+                    throw new InvalidOperationException("Không tìm thấy thông tin thanh toán của đơn hàng.");
+                }
+
+                if (string.Equals(payment.PaymentMethod, PaymentMethods.VnPay, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (payment.PaymentStatus != PaymentStatuses.Paid
+                        && payment.PaymentStatus != PaymentStatuses.AwaitingRefund)
+                    {
+                        throw new InvalidOperationException("Dòng tiền VNPAY không ở trạng thái có thể hoàn.");
+                    }
+
+                    string transactionDate = payment.PaymentDate?.ToString("yyyyMMddHHmmss")
+                        ?? DateTime.Now.ToString("yyyyMMddHHmmss");
+
+                    bool refunded = await _vnPayService.RequestBankRefundAsync(
+                        order.OrderId,
+                        order.TotalAmount ?? 0,
+                        transactionDate,
+                        User.Identity?.Name ?? "admin");
+
+                    if (!refunded)
+                    {
+                        throw new InvalidOperationException("Cổng VNPAY từ chối lệnh hoàn tiền.");
+                    }
+
+                    finalTransactionRef = $"VNPAY_REFUND_{order.OrderId}_{DateTime.Now:yyyyMMddHHmmss}";
+                }
+                else if (string.IsNullOrWhiteSpace(finalTransactionRef))
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Vui lòng nhập mã giao dịch hoàn tiền ngân hàng."
+                    });
+                }
+
+                bool stockClosed;
+                if (isProductIntact)
+                {
+                    stockClosed = await _orderInventoryService.RestoreOrderStockAsync(
+                        order.OrderId,
+                        "Nhập lại kho từ đơn hoàn trả còn nguyên",
+                        restoreFlashSaleSlots: false,
+                        occurredAt: DateTime.Now,
+                        cancellationToken: HttpContext.RequestAborted);
+                    adminNote = "[Nhập lại kho] " + adminNote;
+                }
+                else
+                {
+                    stockClosed = await _orderInventoryService.CloseOrderStockWithoutRestockAsync(
+                        order.OrderId,
+                        "Hàng hoàn bị hỏng, không nhập lại tồn bán",
+                        occurredAt: DateTime.Now,
+                        cancellationToken: HttpContext.RequestAborted);
+                    adminNote = "[Hàng hỏng/không nhập lại kho] " + adminNote;
+                }
+
+                if (!stockClosed)
+                {
+                    throw new InvalidOperationException(
+                        "Trạng thái tồn kho của đơn đã được đóng trước đó; không thể quyết toán lặp.");
+                }
+
+                returnRequest.Status = ReturnStatuses.Refunded;
+                returnRequest.ResolvedAt = DateTime.Now;
+                returnRequest.AdminNote = adminNote?.Trim();
+                payment.PaymentStatus = PaymentStatuses.Refunded;
+
+                _orderStateService.Transition(
+                    order,
+                    OrderStatuses.Returned,
+                    $"Hoàn tiền thành công. {adminNote}. Mã GD: {finalTransactionRef}.",
+                    DateTime.Now);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                customerEmail = returnRequest.Customer?.Account?.Email ?? string.Empty;
+                customerName = returnRequest.Customer?.FullName ?? "Quý khách";
+                completedOrderId = order.OrderId;
+                refundedAmount = order.TotalAmount ?? 0;
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 return Json(new { success = false, message = "Lỗi xử lý hệ thống: " + ex.Message });
             }
+
+            if (!string.IsNullOrWhiteSpace(customerEmail))
+            {
+                string body = $"<h3>Chào {customerName},</h3>"
+                    + $"<p>Cửa hàng đã hoàn tiền cho đơn <b>#ORD-{completedOrderId}</b>.</p>"
+                    + $"<p>Số tiền: <b>{refundedAmount:N0}đ</b>.</p>"
+                    + $"<p>Mã giao dịch: <b>{finalTransactionRef}</b>.</p>";
+
+                await SendEmailAsync(
+                    customerEmail,
+                    $"[PHONE.ST] Biên lai hoàn tiền #ORD-{completedOrderId}",
+                    body);
+            }
+
+            return Json(new
+            {
+                success = true,
+                message = "Đã chốt hoàn tiền, tồn kho và trạng thái đơn hàng."
+            });
         }
     }
 }

@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TMDT_LT.Data;
@@ -15,72 +17,67 @@ namespace TMDT_LT.Controllers
         private readonly ApplicationDbContext _context;
         private readonly VnPayService _vnPayService;
         private readonly IOrderInventoryService _orderInventoryService;
+        private readonly IOrderStateService _orderStateService;
 
         public PaymentController(
             ApplicationDbContext context,
             VnPayService vnPayService,
-            IOrderInventoryService orderInventoryService)
+            IOrderInventoryService orderInventoryService,
+            IOrderStateService orderStateService)
         {
             _context = context;
             _vnPayService = vnPayService;
             _orderInventoryService = orderInventoryService;
+            _orderStateService = orderStateService;
         }
 
-        // =================================================================
-        // 1. CALLBACK ĐỒNG BỘ (Trình duyệt khách hàng nhận kết quả)
-        // =================================================================
+        // Return URL chỉ phục vụ hiển thị. IPN mới là nguồn xác nhận dòng tiền.
+        [Authorize]
         [HttpGet]
         public async Task<IActionResult> PaymentReturn()
         {
             var response = _vnPayService.PaymentExecute(Request.Query);
 
-            if (response == null || !response.Success)
+            if (response == null || !response.Success || !int.TryParse(response.OrderId, out int orderId))
             {
-                TempData["Error"] = "Thanh toán thất bại hoặc giao dịch bị hủy bỏ.";
-                return RedirectToAction("Index", "Cart");
+                TempData["Error"] = "Thanh toán chưa thành công hoặc phản hồi từ VNPAY không hợp lệ.";
+                return RedirectToAction("Orders", "Customer");
             }
 
-            int orderId = Convert.ToInt32(response.OrderId);
+            int customerId = int.TryParse(User.FindFirstValue("CustomerId"), out int parsedCustomerId)
+                ? parsedCustomerId
+                : 0;
 
-            // Giữ hành vi hiện tại để không trộn payment lifecycle vào batch tồn kho.
-            // Phase VNPay sau sẽ dùng IPN làm nguồn xác nhận thanh toán duy nhất.
             var order = await _context.Orders
                 .Include(o => o.Payments)
-                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.CustomerId == customerId);
 
-            if (order != null)
+            if (order == null)
             {
-                var payment = order.Payments.FirstOrDefault();
-
-                if (payment != null &&
-                    payment.PaymentStatus != "Đã thanh toán" &&
-                    payment.PaymentStatus != "Đã hoàn tiền")
-                {
-                    order.Status = "Đang xử lý";
-                    payment.PaymentStatus = "Đã thanh toán";
-                    payment.PaymentDate = DateTime.Now;
-
-                    _context.OrderHistories.Add(new OrderHistory
-                    {
-                        OrderId = order.OrderId,
-                        Status = "Đang xử lý",
-                        UpdatedAt = DateTime.Now,
-                        Note = $"[Return URL] Xác nhận giao dịch VNPAY thành công. Mã GD: {response.TransactionId}."
-                    });
-
-                    await _context.SaveChangesAsync();
-                }
+                TempData["Error"] = "Không tìm thấy đơn hàng tương ứng.";
+                return RedirectToAction("Orders", "Customer");
             }
 
-            TempData["OrderSuccessModal"] = JsonSerializer.Serialize(
-                new { OrderId = orderId, Method = "VNPAY" });
+            var payment = order.Payments.FirstOrDefault();
+            bool confirmed = payment != null
+                && (payment.PaymentStatus == PaymentStatuses.Paid
+                    || payment.PaymentStatus == PaymentStatuses.Refunded);
 
-            return RedirectToAction("Orders", "Customer");
+            if (confirmed)
+            {
+                TempData["OrderSuccessModal"] = JsonSerializer.Serialize(
+                    new { OrderId = orderId, Method = PaymentMethods.VnPay });
+            }
+            else
+            {
+                TempData["Error"] = "VNPAY đã trả khách về cửa hàng, nhưng hệ thống vẫn đang chờ IPN xác nhận giao dịch.";
+            }
+
+            return RedirectToAction("OrderPlaced", "Checkout", new { orderId });
         }
 
-        // =================================================================
-        // 2. IPN/WEBHOOK BẢO MẬT (Server-to-Server)
-        // =================================================================
+        [AllowAnonymous]
+        [IgnoreAntiforgeryToken]
         [HttpGet]
         [HttpPost]
         public async Task<IActionResult> BankIPN()
@@ -96,102 +93,123 @@ namespace TMDT_LT.Controllers
                 return Json(new { RspCode = "97", Message = "Invalid Checksum" });
             }
 
-            var order = await _context.Orders
-                .Include(o => o.Payments)
-                .FirstOrDefaultAsync(o => o.OrderId == ipnResponse.OrderId);
-
-            if (order == null)
-            {
-                return Json(new { RspCode = "01", Message = "Order Not Found" });
-            }
-
-            if (order.TotalAmount != ipnResponse.Amount)
-            {
-                return Json(new { RspCode = "04", Message = "Invalid Amount" });
-            }
-
-            var payment = order.Payments.FirstOrDefault();
-            if (payment == null)
-            {
-                return Json(new { RspCode = "99", Message = "Payment Info Missing" });
-            }
-
-            if (payment.PaymentStatus == "Đã thanh toán" ||
-                payment.PaymentStatus == "Đã hoàn tiền")
-            {
-                return Json(new { RspCode = "02", Message = "Order already confirmed" });
-            }
-
-            if (payment.PaymentStatus == "Thất bại" && order.Status == "Đã hủy")
-            {
-                return Json(new { RspCode = "00", Message = "Failure already processed" });
-            }
-
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable);
 
             try
             {
+                var order = await _context.Orders
+                    .Include(o => o.Payments)
+                    .FirstOrDefaultAsync(o => o.OrderId == ipnResponse.OrderId);
+
+                if (order == null)
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { RspCode = "01", Message = "Order Not Found" });
+                }
+
+                if (order.TotalAmount != ipnResponse.Amount)
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { RspCode = "04", Message = "Invalid Amount" });
+                }
+
+                var payment = order.Payments.FirstOrDefault();
+                if (payment == null)
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { RspCode = "99", Message = "Payment Info Missing" });
+                }
+
+                if (!string.Equals(payment.PaymentMethod, PaymentMethods.VnPay, StringComparison.OrdinalIgnoreCase))
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { RspCode = "02", Message = "Payment Method Mismatch" });
+                }
+
                 if (ipnResponse.TransactionStatus == "00")
                 {
-                    order.Status = "Đang xử lý";
-                    payment.PaymentStatus = "Đã thanh toán";
+                    if (payment.PaymentStatus == PaymentStatuses.Paid
+                        || payment.PaymentStatus == PaymentStatuses.Refunded)
+                    {
+                        await transaction.CommitAsync();
+                        return Json(new { RspCode = "00", Message = "Already Confirmed" });
+                    }
+
+                    if (order.Status == OrderStatuses.Cancelled
+                        || order.Status == OrderStatuses.Returned)
+                    {
+                        await transaction.RollbackAsync();
+                        return Json(new { RspCode = "02", Message = "Order Closed" });
+                    }
+
+                    payment.PaymentStatus = PaymentStatuses.Paid;
                     payment.PaymentDate = DateTime.Now;
 
-                    _context.OrderHistories.Add(new OrderHistory
+                    if (order.Status == OrderStatuses.Pending)
                     {
-                        OrderId = order.OrderId,
-                        Status = "Đang xử lý",
-                        UpdatedAt = DateTime.Now,
-                        Note = $"Ngân hàng xác nhận đã thu hộ {ipnResponse.Amount:N0}đ. Mã GD: {ipnResponse.TransactionId}."
-                    });
+                        _orderStateService.Transition(
+                            order,
+                            OrderStatuses.Processing,
+                            $"VNPAY IPN xác nhận thanh toán thành công. Mã GD: {ipnResponse.TransactionId}.",
+                            DateTime.Now);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return Json(new { RspCode = "00", Message = "Confirm Success" });
                 }
-                else if (ipnResponse.TransactionStatus == "02" ||
-                         ipnResponse.TransactionStatus == "99")
+
+                if (ipnResponse.TransactionStatus == "02"
+                    || ipnResponse.TransactionStatus == "99")
                 {
-                    var restored = await _orderInventoryService.RestoreOrderStockAsync(
+                    if (payment.PaymentStatus == PaymentStatuses.Failed
+                        && order.Status == OrderStatuses.Cancelled)
+                    {
+                        await transaction.CommitAsync();
+                        return Json(new { RspCode = "00", Message = "Failure Already Processed" });
+                    }
+
+                    if (payment.PaymentStatus == PaymentStatuses.Paid
+                        || payment.PaymentStatus == PaymentStatuses.Refunded)
+                    {
+                        await transaction.RollbackAsync();
+                        return Json(new { RspCode = "02", Message = "Paid Order Cannot Be Cancelled" });
+                    }
+
+                    if (order.Status != OrderStatuses.Pending
+                        && order.Status != OrderStatuses.Processing)
+                    {
+                        await transaction.RollbackAsync();
+                        return Json(new { RspCode = "02", Message = "Order State Conflict" });
+                    }
+
+                    await _orderInventoryService.RestoreOrderStockAsync(
                         order.OrderId,
                         "Hoàn kho do VNPAY báo giao dịch thất bại",
                         restoreFlashSaleSlots: true,
                         occurredAt: DateTime.Now,
                         cancellationToken: HttpContext.RequestAborted);
 
-                    if (!restored)
-                    {
-                        // Một request đồng thời khác đã claim và hoàn kho trước.
-                        // Reload để không ghi timeline/trạng thái trùng từ dữ liệu tracking cũ.
-                        await _context.Entry(order).ReloadAsync(HttpContext.RequestAborted);
-                        await _context.Entry(payment).ReloadAsync(HttpContext.RequestAborted);
-                        await transaction.CommitAsync();
+                    payment.PaymentStatus = PaymentStatuses.Failed;
 
-                        return Json(new
-                        {
-                            RspCode = "00",
-                            Message = "Failure already processed"
-                        });
-                    }
+                    _orderStateService.Transition(
+                        order,
+                        OrderStatuses.Cancelled,
+                        $"VNPAY IPN báo giao dịch thất bại. Mã GD: {ipnResponse.TransactionId}.",
+                        DateTime.Now);
 
-                    order.Status = "Đã hủy";
-                    payment.PaymentStatus = "Thất bại";
-
-                    _context.OrderHistories.Add(new OrderHistory
-                    {
-                        OrderId = order.OrderId,
-                        Status = "Đã hủy",
-                        UpdatedAt = DateTime.Now,
-                        Note = "[Tự động Webhook] Giao dịch thất bại. Hệ thống đã hủy đơn, hoàn kho và hoàn suất Flash Sale đúng một lần."
-                    });
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return Json(new { RspCode = "00", Message = "Failure Processed" });
                 }
 
-                await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-
-                return Json(new { RspCode = "00", Message = "Confirm Success" });
+                return Json(new { RspCode = "00", Message = "Non-final Status Ignored" });
             }
             catch (Exception)
             {
                 await transaction.RollbackAsync();
-
-                // Không trả nội dung exception hoặc dữ liệu nội bộ cho provider.
                 return Json(new { RspCode = "99", Message = "System Error" });
             }
         }

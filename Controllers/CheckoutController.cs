@@ -138,13 +138,13 @@ namespace TMDT_LT.Controllers
             }
 
             PaymentMethod = string.IsNullOrWhiteSpace(PaymentMethod) ? "COD" : PaymentMethod.Trim();
-            bool isVnPay = PaymentMethod.Equals("VNPAY", StringComparison.OrdinalIgnoreCase);
-            bool isBankTransfer = PaymentMethod.Equals("BankTransfer", StringComparison.OrdinalIgnoreCase);
-            bool isCod = PaymentMethod.Equals("COD", StringComparison.OrdinalIgnoreCase);
+            bool isVnPay = PaymentMethod.Equals(PaymentMethods.VnPay, StringComparison.OrdinalIgnoreCase);
+            bool isBankTransfer = PaymentMethod.Equals(PaymentMethods.BankTransfer, StringComparison.OrdinalIgnoreCase);
+            bool isCod = PaymentMethod.Equals(PaymentMethods.Cod, StringComparison.OrdinalIgnoreCase);
 
             if (!isCod && !isVnPay && !isBankTransfer)
             {
-                PaymentMethod = "COD";
+                PaymentMethod = PaymentMethods.Cod;
                 isCod = true;
             }
 
@@ -286,7 +286,7 @@ namespace TMDT_LT.Controllers
                 {
                     CustomerId = customerId,
                     OrderDate = now,
-                    Status = "Chờ xác nhận",
+                    Status = OrderStatuses.Pending,
                     TotalAmount = finalTotal,
                     ShippingFullName = address.ReceiverName ?? address.Customer?.FullName,
                     ShippingPhone = address.ReceiverPhone ?? address.Customer?.Phone,
@@ -316,10 +316,10 @@ namespace TMDT_LT.Controllers
                 }
 
                 string paymentStatus = isCod
-                    ? "Chưa thanh toán"
+                    ? PaymentStatuses.Unpaid
                     : isBankTransfer
-                        ? "Chờ xác nhận chuyển khoản"
-                        : "Chờ thanh toán qua Cổng";
+                        ? PaymentStatuses.AwaitingBankTransfer
+                        : PaymentStatuses.AwaitingGateway;
 
                 string orderCreatedNote = isBankTransfer
                     ? "Đơn hàng mới được hệ thống ghi nhận, đang chờ xác nhận chuyển khoản. Tồn kho đã được giữ cho đơn này."
@@ -327,7 +327,7 @@ namespace TMDT_LT.Controllers
 
                 _context.Payments.Add(new Payments { OrderId = newOrder.OrderId, PaymentMethod = PaymentMethod, PaymentDate = now, PaymentStatus = paymentStatus });
                 _context.Shipping.Add(new Shipping { OrderId = newOrder.OrderId, Carrier = "Giao hàng tiêu chuẩn", Status = "Chờ lấy hàng" });
-                _context.OrderHistories.Add(new OrderHistory { OrderId = newOrder.OrderId, Status = "Chờ xác nhận", UpdatedAt = now, Note = orderCreatedNote });
+                _context.OrderHistories.Add(new OrderHistory { OrderId = newOrder.OrderId, Status = OrderStatuses.Pending, UpdatedAt = now, Note = orderCreatedNote });
 
                 if (dbCartItemsToRemove.Any()) _context.CartItems.RemoveRange(dbCartItemsToRemove);
 
@@ -495,8 +495,8 @@ namespace TMDT_LT.Controllers
                 .Where(od => od.FlashSaleItemId == flashSaleItemId
                     && od.Order != null
                     && od.Order.CustomerId == customerId
-                    && od.Order.Status != "Đã hủy"
-                    && od.Order.Status != "Đã hoàn trả")
+                    && od.Order.Status != OrderStatuses.Cancelled
+                    && od.Order.Status != OrderStatuses.Returned)
                 .SumAsync(od => (int?)od.Quantity) ?? 0;
         }
 

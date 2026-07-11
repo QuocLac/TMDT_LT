@@ -199,6 +199,61 @@ public sealed class OrderInventoryService : IOrderInventoryService
         return true;
     }
 
+    public async Task<bool> CloseOrderStockWithoutRestockAsync(
+        int orderId,
+        string reason,
+        DateTime? occurredAt = null,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureTransaction();
+
+        var order = await LoadOrderAsync(orderId, cancellationToken);
+        var timestamp = occurredAt ?? DateTime.Now;
+
+        var claimed = await _context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+              UPDATE Orders
+              SET IsStockDeducted = 0,
+                  StockDeductedAt = NULL
+              WHERE OrderId = {orderId}
+                AND IsStockDeducted = 1
+              """,
+            cancellationToken);
+
+        if (claimed == 0)
+        {
+            return false;
+        }
+
+        var quantitiesByVariant = order.OrderDetails
+            .Where(detail => detail.VariantId.HasValue && (detail.Quantity ?? 0) > 0)
+            .GroupBy(detail => detail.VariantId!.Value)
+            .Select(group => new
+            {
+                VariantId = group.Key,
+                Quantity = group.Sum(detail => detail.Quantity ?? 0)
+            })
+            .ToList();
+
+        foreach (var item in quantitiesByVariant)
+        {
+            _context.InventoryTransactions.Add(new InventoryTransactions
+            {
+                VariantId = item.VariantId,
+                TransactionType = "RETURN_DAMAGED",
+                Quantity = 0,
+                ReferenceId = order.OrderId,
+                TransactionDate = timestamp,
+                Note = $"{reason}. Đơn #{order.OrderId}; {item.Quantity} sản phẩm không nhập lại tồn bán."
+            });
+        }
+
+        order.IsStockDeducted = false;
+        order.StockDeductedAt = null;
+
+        return true;
+    }
+
     private async Task<Orders> LoadOrderAsync(
         int orderId,
         CancellationToken cancellationToken)

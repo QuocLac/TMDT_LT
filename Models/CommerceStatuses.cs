@@ -1,0 +1,92 @@
+using System;
+using System.Collections.Generic;
+
+namespace TMDT_LT.Models;
+
+public static class OrderStatuses
+{
+    public const string Pending = "Chờ xác nhận";
+    public const string Processing = "Đang xử lý";
+    public const string Shipping = "Đang giao";
+    public const string Delivered = "Đã giao";
+    public const string Completed = "Hoàn thành";
+    public const string Cancelled = "Đã hủy";
+    public const string ReturnPending = "Chờ duyệt";
+    public const string ReturnAwaitingCustomer = "Chờ khách trả hàng";
+    public const string ReturnInspecting = "Đang kiểm định";
+    public const string Returned = "Đã hoàn trả";
+
+    private static readonly IReadOnlyDictionary<string, HashSet<string>> AllowedTransitions =
+        new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            [Pending] = new(StringComparer.Ordinal) { Processing, Cancelled },
+            [Processing] = new(StringComparer.Ordinal) { Shipping, Cancelled },
+            [Shipping] = new(StringComparer.Ordinal) { Delivered },
+            [Delivered] = new(StringComparer.Ordinal) { Completed, ReturnPending },
+            [ReturnPending] = new(StringComparer.Ordinal) { ReturnAwaitingCustomer, Completed },
+            [ReturnAwaitingCustomer] = new(StringComparer.Ordinal) { ReturnInspecting, Completed },
+            [ReturnInspecting] = new(StringComparer.Ordinal) { Returned, Completed }
+        };
+
+    public static bool CanTransition(string? currentStatus, string? targetStatus)
+    {
+        if (string.IsNullOrWhiteSpace(currentStatus) || string.IsNullOrWhiteSpace(targetStatus))
+        {
+            return false;
+        }
+
+        return AllowedTransitions.TryGetValue(currentStatus.Trim(), out var targets)
+            && targets.Contains(targetStatus.Trim());
+    }
+
+    public static bool IsTerminal(string? status) =>
+        string.Equals(status, Cancelled, StringComparison.Ordinal)
+        || string.Equals(status, Returned, StringComparison.Ordinal);
+}
+
+public static class PaymentStatuses
+{
+    public const string Unpaid = "Chưa thanh toán";
+    public const string AwaitingGateway = "Chờ thanh toán qua Cổng";
+    public const string AwaitingBankTransfer = "Chờ xác nhận chuyển khoản";
+    public const string Paid = "Đã thanh toán";
+    public const string AwaitingRefund = "Chờ hoàn tiền";
+    public const string Refunded = "Đã hoàn tiền";
+    public const string Failed = "Thất bại";
+    public const string Cancelled = "Đã hủy";
+}
+
+public static class PaymentMethods
+{
+    public const string Cod = "COD";
+    public const string VnPay = "VNPAY";
+    public const string BankTransfer = "BankTransfer";
+}
+
+public static class ReturnStatuses
+{
+    public const string Pending = "Chờ duyệt";
+    public const string AwaitingCustomer = "Chờ khách trả hàng";
+    public const string Inspecting = "Đang kiểm định";
+    public const string Refunded = "Hoàn tiền thành công";
+    public const string Rejected = "Đã từ chối";
+
+    private static readonly IReadOnlyDictionary<string, HashSet<string>> AllowedTransitions =
+        new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            [Pending] = new(StringComparer.Ordinal) { AwaitingCustomer, Rejected },
+            [AwaitingCustomer] = new(StringComparer.Ordinal) { Inspecting, Rejected },
+            [Inspecting] = new(StringComparer.Ordinal) { Refunded, Rejected }
+        };
+
+    public static bool CanTransition(string? currentStatus, string? targetStatus)
+    {
+        if (string.IsNullOrWhiteSpace(currentStatus) || string.IsNullOrWhiteSpace(targetStatus))
+        {
+            return false;
+        }
+
+        return AllowedTransitions.TryGetValue(currentStatus.Trim(), out var targets)
+            && targets.Contains(targetStatus.Trim());
+    }
+}
