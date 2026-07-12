@@ -1,0 +1,213 @@
+.customer-invoice-status {
+    margin-bottom: 20px;
+    overflow: hidden;
+    border: 1px solid #dbe4f0;
+    border-radius: 13px;
+    background: #ffffff;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, .07);
+    color: #0f172a;
+    font-family: "Plus Jakarta Sans", Arial, sans-serif;
+}
+
+.customer-invoice-status__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 17px;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #f8fafc, #eff6ff);
+}
+
+.customer-invoice-status__eyebrow {
+    margin-bottom: 4px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.customer-invoice-status__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.customer-invoice-status__badge {
+    flex-shrink: 0;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.customer-invoice-status__badge--pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.customer-invoice-status__badge--issued {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.customer-invoice-status__badge--rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.customer-invoice-status__badge--cancelled {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.customer-invoice-status__body {
+    padding: 16px 17px;
+}
+
+.customer-invoice-status__message {
+    margin: 0 0 14px;
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.customer-invoice-status__facts {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+}
+
+.customer-invoice-status__fact {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #e2e8f0;
+    font-size: 11px;
+}
+
+.customer-invoice-status__fact dt {
+    color: #64748b;
+    font-weight: 650;
+}
+
+.customer-invoice-status__fact dd {
+    margin: 0;
+    max-width: 64%;
+    color: #0f172a;
+    font-weight: 800;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.customer-invoice-status__reason {
+    margin-top: 13px;
+    padding: 10px 11px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.customer-invoice-status__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.customer-invoice-status__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px 11px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 850;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.customer-invoice-status__button--primary {
+    border-color: #0f172a;
+    background: #0f172a;
+    color: #ffffff;
+}
+
+.customer-invoice-status__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.customer-invoice-status__updated {
+    color: #94a3b8;
+    font-size: 9px;
+    font-weight: 750;
+}
+
+.customer-invoice-status__refresh {
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.customer-invoice-status__refresh:disabled {
+    color: #94a3b8;
+    cursor: wait;
+}
+
+.customer-invoice-status--floating {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1040;
+    width: min(380px, calc(100vw - 32px));
+    max-height: calc(100vh - 36px);
+    overflow: auto;
+}
+
+@media (max-width: 576px) {
+    .customer-invoice-status__header {
+        flex-direction: column;
+    }
+
+    .customer-invoice-status__badge {
+        align-self: flex-start;
+    }
+
+    .customer-invoice-status__fact {
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .customer-invoice-status__fact dd {
+        max-width: none;
+        text-align: left;
+    }
+
+    .customer-invoice-status--floating {
+        right: 10px;
+        bottom: 10px;
+        width: calc(100vw - 20px);
+        max-height: 75vh;
+    }
+}
