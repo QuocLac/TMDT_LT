@@ -79,6 +79,11 @@ public sealed class CommerceOrderSaveChangesInterceptor
             CheckoutIdempotencyConstants.VoucherItemName
         ]?.ToString();
 
+        CheckoutInvoiceRequestSnapshot? invoiceSnapshot =
+            httpContext?.Items[
+                CheckoutInvoiceRequestConstants.SnapshotItemName
+            ] as CheckoutInvoiceRequestSnapshot;
+
         foreach (var entry in context.ChangeTracker
                      .Entries<Orders>()
                      .Where(current =>
@@ -147,7 +152,48 @@ public sealed class CommerceOrderSaveChangesInterceptor
 
             // TotalAmount vẫn là trường tương thích chính của hệ thống.
             order.TotalAmount = order.GrandTotalAmount;
+
+            AddInvoiceRequestSnapshot(
+                context,
+                order,
+                invoiceSnapshot);
         }
+    }
+
+    private static void AddInvoiceRequestSnapshot(
+        DbContext context,
+        Orders order,
+        CheckoutInvoiceRequestSnapshot? snapshot)
+    {
+        if (snapshot?.IsRequested != true)
+        {
+            return;
+        }
+
+        bool alreadyTracked = context.ChangeTracker
+            .Entries<OrderInvoiceRequests>()
+            .Any(current =>
+                current.State != EntityState.Deleted
+                && current.Entity.Order == order);
+
+        if (alreadyTracked)
+        {
+            return;
+        }
+
+        context.Add(new OrderInvoiceRequests
+        {
+            Order = order,
+            CustomerId = order.CustomerId,
+            BuyerType = snapshot.BuyerType,
+            BuyerName = snapshot.BuyerName,
+            TaxCode = snapshot.TaxCode,
+            BuyerAddress = snapshot.BuyerAddress,
+            BuyerEmail = snapshot.BuyerEmail,
+            BuyerPhone = snapshot.BuyerPhone,
+            Status = InvoiceRequestStatuses.Pending,
+            RequestedAt = DateTime.UtcNow
+        });
     }
 
     private void CaptureCreatedOrderId(DbContext? context)

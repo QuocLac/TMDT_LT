@@ -1,0 +1,125 @@
+.checkout-invoice-request {
+    margin-top: 18px;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #ffffff;
+    font-family: "Plus Jakarta Sans", Arial, sans-serif;
+}
+
+.checkout-invoice-request__toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    margin: 0;
+    padding: 16px;
+    cursor: pointer;
+}
+
+.checkout-invoice-request__toggle input {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    accent-color: #0f172a;
+}
+
+.checkout-invoice-request__toggle strong {
+    display: block;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 850;
+}
+
+.checkout-invoice-request__toggle small {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.checkout-invoice-request__fields {
+    padding: 0 16px 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.checkout-invoice-request__notice {
+    margin: 14px 0;
+    padding: 10px 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.checkout-invoice-request__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px;
+}
+
+.checkout-invoice-request__grid label {
+    min-width: 0;
+}
+
+.checkout-invoice-request__grid label > span {
+    display: block;
+    margin-bottom: 6px;
+    color: #475569;
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+.checkout-invoice-request__grid em {
+    display: block;
+    margin-top: 2px;
+    color: #94a3b8;
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.checkout-invoice-request__grid input,
+.checkout-invoice-request__grid select,
+.checkout-invoice-request__grid textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 12px;
+    outline: none;
+    padding: 10px 11px;
+}
+
+.checkout-invoice-request__grid textarea {
+    resize: vertical;
+}
+
+.checkout-invoice-request__grid input:focus,
+.checkout-invoice-request__grid select:focus,
+.checkout-invoice-request__grid textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+}
+
+.checkout-invoice-request__wide {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+    .checkout-invoice-request__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .checkout-invoice-request__wide {
+        grid-column: auto;
+    }
+}

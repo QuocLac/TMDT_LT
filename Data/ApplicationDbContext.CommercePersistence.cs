@@ -13,6 +13,8 @@ public partial class ApplicationDbContext
 
     public virtual DbSet<CheckoutAttempts> CheckoutAttempts { get; set; }
 
+    public virtual DbSet<OrderInvoiceRequests> OrderInvoiceRequests { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrderDetails>(entity =>
@@ -169,6 +171,83 @@ public partial class ApplicationDbContext
             entity.Property(e => e.RowVersion)
                 .IsRowVersion()
                 .IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<OrderInvoiceRequests>(entity =>
+        {
+            entity.HasKey(current =>
+                current.InvoiceRequestId);
+            entity.ToTable("OrderInvoiceRequests");
+
+            entity.HasIndex(current =>
+                current.OrderId)
+                .IsUnique();
+            entity.HasIndex(current => new
+            {
+                current.Status,
+                current.RequestedAt
+            });
+            entity.HasIndex(current =>
+                current.TaxCode);
+
+            entity.Property(current =>
+                    current.BuyerType)
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(current =>
+                    current.BuyerName)
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(current =>
+                    current.TaxCode)
+                .HasMaxLength(20);
+            entity.Property(current =>
+                    current.BuyerAddress)
+                .HasMaxLength(500)
+                .IsRequired();
+            entity.Property(current =>
+                    current.BuyerEmail)
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(current =>
+                    current.BuyerPhone)
+                .HasMaxLength(30);
+            entity.Property(current =>
+                    current.Status)
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(current =>
+                    current.RequestedAt)
+                .HasColumnType("datetime2");
+            entity.Property(current =>
+                    current.ReviewedAt)
+                .HasColumnType("datetime2");
+            entity.Property(current =>
+                    current.ReviewedBy)
+                .HasMaxLength(120);
+            entity.Property(current =>
+                    current.AdminNote)
+                .HasMaxLength(500);
+            entity.Property(current =>
+                    current.IssuedAt)
+                .HasColumnType("datetime2");
+            entity.Property(current =>
+                    current.InvoiceNumber)
+                .HasMaxLength(100);
+            entity.Property(current =>
+                    current.InvoiceLookupCode)
+                .HasMaxLength(200);
+            entity.Property(current =>
+                    current.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
+
+            entity.HasOne(current =>
+                    current.Order)
+                .WithOne()
+                .HasForeignKey<OrderInvoiceRequests>(
+                    current => current.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Shipping>(entity =>

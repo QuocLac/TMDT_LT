@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
 using System;
 using System.Linq;
+using System.Net.Mail;
+using System.Text.RegularExpressions;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -66,12 +68,28 @@ public sealed class CheckoutIdempotencyFilter
             "AppliedVoucherCode"
         ].ToString().Trim().ToUpperInvariant();
 
+        CheckoutInvoiceRequestSnapshot invoiceSnapshot;
+        try
+        {
+            invoiceSnapshot =
+                BuildInvoiceRequestSnapshot(form);
+        }
+        catch (CheckoutInvoiceValidationException ex)
+        {
+            Reject(context, ex.Message);
+            return;
+        }
+
         context.HttpContext.Items[
             CheckoutIdempotencyConstants.KeyItemName
         ] = idempotencyKey;
         context.HttpContext.Items[
             CheckoutIdempotencyConstants.VoucherItemName
         ] = voucherCode;
+
+        context.HttpContext.Items[
+            CheckoutInvoiceRequestConstants.SnapshotItemName
+        ] = invoiceSnapshot;
 
         int selectedAddressId = int.TryParse(
             form["SelectedAddressId"],
@@ -95,7 +113,8 @@ public sealed class CheckoutIdempotencyFilter
             NormalizeSelectedItems(
                 form["selectedItems"]),
             Normalize(form["buyNowVariantId"]),
-            Normalize(form["buyNowQty"]));
+            Normalize(form["buyNowQty"]),
+            invoiceSnapshot.CanonicalFingerprint);
 
         CheckoutClaimResult claim =
             await _idempotencyService.BeginAsync(
@@ -298,7 +317,8 @@ public sealed class CheckoutIdempotencyFilter
         string voucherCode,
         string selectedItems,
         string buyNowVariantId,
-        string buyNowQty)
+        string buyNowQty,
+        string invoiceFingerprint)
     {
         string canonical = string.Join(
             "|",
@@ -308,7 +328,8 @@ public sealed class CheckoutIdempotencyFilter
             voucherCode,
             selectedItems,
             buyNowVariantId,
-            buyNowQty);
+            buyNowQty,
+            invoiceFingerprint);
 
         byte[] hash = SHA256.HashData(
             Encoding.UTF8.GetBytes(canonical));
@@ -338,6 +359,166 @@ public sealed class CheckoutIdempotencyFilter
                 .Where(value => value > 0)
                 .Distinct()
                 .OrderBy(value => value));
+    }
+
+    private static CheckoutInvoiceRequestSnapshot
+        BuildInvoiceRequestSnapshot(
+            IFormCollection form)
+    {
+        bool isRequested = IsTruthy(
+            form["RequestVatInvoice"]);
+
+        if (!isRequested)
+        {
+            return CheckoutInvoiceRequestSnapshot.None;
+        }
+
+        string buyerType = NormalizeBuyerType(
+            form["InvoiceBuyerType"]);
+        string buyerName = RequiredText(
+            form["InvoiceBuyerName"],
+            "Tên người mua hoặc đơn vị",
+            200);
+        string buyerAddress = RequiredText(
+            form["InvoiceAddress"],
+            "Địa chỉ xuất hóa đơn",
+            500);
+        string buyerEmail = RequiredText(
+            form["InvoiceEmail"],
+            "Email nhận hóa đơn",
+            200)
+            .ToLowerInvariant();
+        string? buyerPhone = OptionalText(
+            form["InvoicePhone"],
+            30);
+        string? taxCode = OptionalText(
+            form["InvoiceTaxCode"],
+            20);
+
+        if (!IsValidEmail(buyerEmail))
+        {
+            throw new CheckoutInvoiceValidationException(
+                "Email nhận hóa đơn không hợp lệ.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(buyerPhone)
+            && !Regex.IsMatch(
+                buyerPhone,
+                @"^[0-9+\s().-]{8,30}$"))
+        {
+            throw new CheckoutInvoiceValidationException(
+                "Số điện thoại nhận hóa đơn không hợp lệ.");
+        }
+
+        if (buyerType
+                == InvoiceBuyerTypes.Organization
+            && string.IsNullOrWhiteSpace(taxCode))
+        {
+            throw new CheckoutInvoiceValidationException(
+                "Vui lòng nhập mã số thuế của tổ chức.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(taxCode))
+        {
+            taxCode = taxCode
+                .Replace(" ", string.Empty)
+                .ToUpperInvariant();
+
+            if (!Regex.IsMatch(
+                    taxCode,
+                    @"^[0-9-]{8,20}$"))
+            {
+                throw new CheckoutInvoiceValidationException(
+                    "Mã số thuế chỉ được chứa chữ số và dấu gạch ngang.");
+            }
+        }
+
+        return new CheckoutInvoiceRequestSnapshot(
+            true,
+            buyerType,
+            buyerName,
+            taxCode,
+            buyerAddress,
+            buyerEmail,
+            buyerPhone);
+    }
+
+    private static string NormalizeBuyerType(
+        string? raw)
+    {
+        string normalized = Normalize(raw);
+
+        return normalized == "ORGANIZATION"
+            ? InvoiceBuyerTypes.Organization
+            : InvoiceBuyerTypes.Individual;
+    }
+
+    private static bool IsTruthy(string? raw)
+    {
+        string normalized = Normalize(raw);
+
+        return normalized is "TRUE"
+            or "1"
+            or "ON"
+            or "YES";
+    }
+
+    private static string RequiredText(
+        string? raw,
+        string fieldName,
+        int maxLength)
+    {
+        string value = raw?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new CheckoutInvoiceValidationException(
+                $"{fieldName} là bắt buộc.");
+        }
+
+        if (value.Length > maxLength)
+        {
+            throw new CheckoutInvoiceValidationException(
+                $"{fieldName} vượt quá {maxLength} ký tự.");
+        }
+
+        return value;
+    }
+
+    private static string? OptionalText(
+        string? raw,
+        int maxLength)
+    {
+        string value = raw?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (value.Length > maxLength)
+        {
+            throw new CheckoutInvoiceValidationException(
+                $"Thông tin hóa đơn vượt quá {maxLength} ký tự.");
+        }
+
+        return value;
+    }
+
+    private static bool IsValidEmail(string value)
+    {
+        try
+        {
+            var address = new MailAddress(value);
+            return string.Equals(
+                address.Address,
+                value,
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string Normalize(
