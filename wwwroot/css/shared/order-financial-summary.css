@@ -1,0 +1,193 @@
+.order-financial-summary {
+    margin-bottom: 22px;
+    overflow: hidden;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .07);
+    color: #0f172a;
+    font-family: "Plus Jakarta Sans", Arial, sans-serif;
+}
+
+.order-financial-summary__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 17px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #f8fafc, #eff6ff);
+}
+
+.order-financial-summary__eyebrow {
+    margin-bottom: 4px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.order-financial-summary__title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 850;
+}
+
+.order-financial-summary__source {
+    flex-shrink: 0;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.order-financial-summary__source--legacy {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.order-financial-summary__body {
+    padding: 17px 18px 18px;
+}
+
+.order-financial-summary__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 0;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.order-financial-summary__row strong {
+    color: #0f172a;
+    font-weight: 800;
+    text-align: right;
+}
+
+.order-financial-summary__row--discount strong {
+    color: #16a34a;
+}
+
+.order-financial-summary__voucher {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 7px;
+    border: 1px dashed #f59e0b;
+    border-radius: 6px;
+    background: #fffbeb;
+    color: #92400e !important;
+    font-size: 10px;
+    letter-spacing: .04em;
+}
+
+.order-financial-summary__total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px solid #cbd5e1;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.order-financial-summary__total strong {
+    color: #dc2626;
+    font-size: 20px;
+    letter-spacing: -.02em;
+    text-align: right;
+}
+
+.order-financial-summary__audit {
+    margin-top: 15px;
+    padding-top: 13px;
+    border-top: 1px dashed #cbd5e1;
+}
+
+.order-financial-summary__audit summary {
+    color: #2563eb;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    user-select: none;
+}
+
+.order-financial-summary__audit-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.order-financial-summary__audit-grid > div {
+    min-width: 0;
+    padding: 9px;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.order-financial-summary__audit-grid span {
+    display: block;
+    margin-bottom: 3px;
+    color: #94a3b8;
+    font-size: 9px;
+    font-weight: 750;
+    text-transform: uppercase;
+}
+
+.order-financial-summary__audit-grid strong {
+    display: block;
+    color: #334155;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.order-financial-summary__check--ok {
+    color: #15803d !important;
+}
+
+.order-financial-summary__check--warning {
+    color: #b45309 !important;
+}
+
+.order-financial-summary--floating {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 1030;
+    width: min(380px, calc(100vw - 32px));
+    max-height: calc(100vh - 44px);
+    overflow: auto;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .order-financial-summary__header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .order-financial-summary__source {
+        align-self: flex-start;
+    }
+
+    .order-financial-summary__audit-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .order-financial-summary--floating {
+        right: 12px;
+        bottom: 12px;
+        width: calc(100vw - 24px);
+        max-height: 70vh;
+    }
+}
