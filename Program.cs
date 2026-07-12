@@ -35,12 +35,16 @@ builder.Services.AddScoped<
     CheckoutIdempotencyFilter>();
 builder.Services.AddScoped<
     ReturnIntakeFilter>();
+builder.Services.AddScoped<
+    AdminReturnWorkflowFilter>();
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.AddService<
         CheckoutIdempotencyFilter>();
     options.Filters.AddService<
         ReturnIntakeFilter>();
+    options.Filters.AddService<
+        AdminReturnWorkflowFilter>();
 });
 builder.Services.AddHttpContextAccessor();
 
@@ -99,6 +103,12 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IReturnIntakeService,
     ReturnIntakeService>();
+builder.Services.AddScoped<
+    IReturnWorkflowService,
+    ReturnWorkflowService>();
+builder.Services.AddScoped<
+    IReturnWorkflowNotificationService,
+    ReturnWorkflowNotificationService>();
 builder.Services.Configure<ReturnIntakeOptions>(
     builder.Configuration.GetSection(
         ReturnIntakeOptions.SectionName));
