@@ -227,98 +227,53 @@ namespace TMDT_LT.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SubmitProductReview(
-            int orderId,
-            int detailId,
-            int productId,
-            int rating,
-            string descriptionMatch,
-            string comment,
-            List<IFormFile> reviewFiles)
+        public async Task<IActionResult> SubmitProductReview(int orderId, int detailId, int productId, int rating, string descriptionMatch, string comment, List<IFormFile> reviewFiles)
         {
-            int customerId = GetCurrentCustomerId();
+            string userIdStr = User.FindFirst("CustomerId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+            int customerId = int.Parse(userIdStr);
 
-            var detail = await _context.OrderDetails
-                .Include(d => d.Order)
-                .ThenInclude(o => o.OrderHistories)
-                .FirstOrDefaultAsync(d => d.OrderDetailId == detailId
-                    && d.OrderId == orderId
-                    && d.Order != null
-                    && d.Order.CustomerId == customerId);
-
-            if (detail == null || detail.Order?.Status != OrderStatuses.Completed)
-            {
-                return Json(new { success = false, message = "Chỉ có thể đánh giá khi đơn hàng đã hoàn thành." });
-            }
-
-            if (detail.IsReviewed)
-            {
-                return Json(new { success = false, message = "Bạn đã gửi đánh giá rồi." });
-            }
+            var detail = await _context.OrderDetails.Include(d => d.Order).ThenInclude(o => o.OrderHistories).FirstOrDefaultAsync(d => d.OrderDetailId == detailId && d.Order.CustomerId == customerId);
+            if (detail == null || detail.Order.Status != "Hoàn thành") return Json(new { success = false, message = "Chỉ có thể đánh giá khi đơn hàng đã 'Hoàn thành'." });
+            if (detail.IsReviewed) return Json(new { success = false, message = "Bạn đã gửi đánh giá rồi." });
 
             string finalComment = $"Đúng với mô tả: {descriptionMatch}\nĐánh giá: {comment}";
-            string mediaPaths = string.Empty;
+            string dbMediaPaths = "";
 
             if (reviewFiles != null && reviewFiles.Count > 0)
             {
                 string reviewFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "reviews");
-                Directory.CreateDirectory(reviewFolder);
+                if (!Directory.Exists(reviewFolder)) Directory.CreateDirectory(reviewFolder);
                 var savedList = new List<string>();
-
-                foreach (var file in reviewFiles.Where(file => file.Length > 0))
+                foreach (var file in reviewFiles)
                 {
-                    string targetName = Guid.NewGuid() + "_" + Path.GetFileName(file.FileName);
-                    await using var stream = new FileStream(
-                        Path.Combine(reviewFolder, targetName),
-                        FileMode.CreateNew);
-                    await file.CopyToAsync(stream);
-                    savedList.Add($"/uploads/reviews/{targetName}");
+                    if (file.Length > 0)
+                    {
+                        string targetName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(file.FileName);
+                        using (var stream = new FileStream(Path.Combine(reviewFolder, targetName), FileMode.Create)) await file.CopyToAsync(stream);
+                        savedList.Add($"/uploads/reviews/{targetName}");
+                    }
                 }
-
-                mediaPaths = string.Join(",", savedList);
+                dbMediaPaths = string.Join(",", savedList);
             }
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var reviewMaster = new Reviews
-                {
-                    ProductId = productId,
-                    CustomerId = customerId,
-                    OrderId = orderId,
-                    Rating = rating,
-                    Comment = finalComment,
-                    CreatedAt = DateTime.Now,
-                    IsHidden = false,
-                    IsRead = false
-                };
-
+                var reviewMaster = new Reviews { ProductId = productId, CustomerId = customerId, OrderId = orderId, Rating = rating, Comment = finalComment, CreatedAt = DateTime.Now, IsHidden = false, IsRead = false };
                 _context.Reviews.Add(reviewMaster);
                 await _context.SaveChangesAsync();
 
-                _context.ReviewDetails.Add(new ReviewDetails
-                {
-                    ReviewId = reviewMaster.ReviewId,
-                    VariantId = detail.VariantId,
-                    Rating = rating,
-                    Comment = finalComment,
-                    MediaUrls = mediaPaths,
-                    IsRead = false,
-                    IsHidden = false,
-                    CreatedAt = DateTime.Now
-                });
-
+                var reviewDetail = new ReviewDetails { ReviewId = reviewMaster.ReviewId, VariantId = detail.VariantId, Rating = rating, Comment = finalComment, MediaUrls = dbMediaPaths, IsRead = false, IsHidden = false, CreatedAt = DateTime.Now };
+                _context.ReviewDetails.Add(reviewDetail);
                 detail.IsReviewed = true;
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Json(new { success = true, message = "Cảm ơn bạn đã đánh giá!" });
             }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return Json(new { success = false, message = "Lỗi: " + ex.Message });
-            }
+            catch (Exception ex) { await transaction.RollbackAsync(); return Json(new { success = false, message = "Lỗi: " + ex.Message }); }
         }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]

@@ -61,6 +61,39 @@
             border-radius: 4px;
             transition: width 0.4s ease;
         }
+
+        /* PHẢN HỒI ADMIN */
+        .admin-reply-box {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: #EFF6FF;
+            border-left: 4px solid #3B82F6;
+            border-radius: 6px;
+        }
+
+            .admin-reply-box .admin-reply-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 6px;
+            }
+
+                .admin-reply-box .admin-reply-header i {
+                    color: #3B82F6;
+                }
+
+                .admin-reply-box .admin-reply-header span {
+                    font-weight: 700;
+                    color: #1E40AF;
+                    font-size: 13px;
+                }
+
+            .admin-reply-box .admin-reply-content {
+                font-size: 13px;
+                color: #1E3A8A;
+                margin: 0;
+                line-height: 1.6;
+            }
     </style>
 }
 
@@ -153,6 +186,20 @@
                             @foreach (var line in commentLines)
                             {
                                 <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 6px 0;">@line</p>
+                            }
+
+                            @* =========================================================
+                               PHẢN HỒI CỦA ADMIN - HIỂN THỊ NGAY DƯỚI BÌNH LUẬN KHÁCH HÀNG
+                               ========================================================= *@
+                            @if (!string.IsNullOrEmpty(rev.AdminReply))
+                            {
+                                <div class="admin-reply-box">
+                                    <div class="admin-reply-header">
+                                        <i class="fas fa-store"></i>
+                                        <span>Phản hồi từ cửa hàng KingPhone:</span>
+                                    </div>
+                                    <p class="admin-reply-content">@rev.AdminReply</p>
+                                </div>
                             }
 
                             @if (!string.IsNullOrEmpty(details?.MediaUrls))
