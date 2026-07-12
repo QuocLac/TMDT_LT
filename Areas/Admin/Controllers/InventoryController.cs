@@ -153,8 +153,13 @@ namespace TMDT_LT.Areas.Admin.Controllers
                 .SumAsync(l => l.RemainingQuantity);
 
             ViewBag.TotalVariantsCount = variants.Count(v => (v.Stock ?? 0) > 0);
-            ViewBag.LowStockCount = variants.Count(v => (v.Stock ?? 0) > 0 && (v.Stock ?? 0) <= 5);
-            ViewBag.ActiveStoresCount = await _context.Stores.CountAsync(s => s.IsActive == true);
+            // THAY ĐỔI: Quét danh sách lô trong database để tìm các lô hàng chạm ngưỡng <= 1/3 lượng nhập ban đầu
+            ViewBag.LowStockCount = inventoryLots.Count(l =>
+                l.IsActive == true &&
+                l.IsDeleted == false &&
+                l.RemainingQuantity > 0 &&
+                l.RemainingQuantity <= (l.ReceivedQuantity / 3.0) // Chia cho 3.0 để giữ độ chính xác kiểu số thực (double)
+            ); ViewBag.ActiveStoresCount = await _context.Stores.CountAsync(s => s.IsActive == true);
 
             decimal totalInventoryValueCost = inventoryLots
                 .Where(l => l.IsActive == true && l.RemainingQuantity > 0 && l.IsDeleted == false)

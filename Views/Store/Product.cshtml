@@ -26,6 +26,9 @@
         quantity = 1,
         google_business_vertical = "retail"
     });
+
+    // Các biến phục vụ phần bộ lọc đánh giá tích hợp từ Product2
+    int? selectedStar = ViewBag.SelectedStar;
 }
 
 @section Styles {
@@ -34,6 +37,31 @@
     <link rel="stylesheet" href="~/css/storefront/store-pdp.css" asp-append-version="true" />
     <style>
         body, button, input, select, textarea { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+
+        /* BREADCRUMB / ĐIỀU HƯỚNG QUAY LẠI TRANG CHỦ */
+        .pdp-breadcrumb-navigation {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .pdp-nav-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #64748B;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        .pdp-nav-back-btn:hover {
+            color: var(--navy-deep, #0F172A);
+        }
+        .pdp-breadcrumb-separator {
+            color: #CBD5E1;
+            font-weight: 400;
+        }
 
         /* NÚT CHỌN BIẾN THỂ */
         .chip-btn { padding: 8px 16px; border: 1px solid var(--border-color); background: white; color: var(--navy-deep); border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
@@ -144,7 +172,7 @@
             color: #FFFFFF;
         }
 
-        media (max-width: 991px) {
+        @@media (max-width: 991px) {
             .pdp-service-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -154,7 +182,7 @@
             }
         }
 
-        media (max-width: 767px) {
+        @@media (max-width: 767px) {
             .pdp-service-grid {
                 grid-template-columns: 1fr;
             }
@@ -196,11 +224,10 @@
             color: #FFFFFF;
         }
 
-        media (max-width: 767px) {
+        @@media (max-width: 767px) {
             body { padding-bottom: 76px; }
             .pdp-mobile-buybar { display: flex; }
         }
-
 
         .chip-btn.active { border-color: var(--accent-red) !important; color: var(--accent-red) !important; background: #FEF2F2 !important; box-shadow: none; }
         .chip-btn.disabled-chip { opacity: 0.3 !important; cursor: not-allowed !important; border-color: #E5E7EB !important; background: #F9FAFB !important; color: #9CA3AF !important; }
@@ -228,7 +255,7 @@
         .shopee-suggestion-row i.fa-search { color: #757575; margin-right: 12px; font-size: 13px; }
 
         /* ANIMATION TIA CHỚP FLASH SALE */
-        keyframes pulse-bolt {
+        @@keyframes pulse-bolt {
             0% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.15); opacity: 0.8; text-shadow: 0 0 15px #FEF08A; }
             100% { transform: scale(1); opacity: 1; }
@@ -253,20 +280,75 @@
         .fs-progress-fill { height: 100%; background: linear-gradient(90deg, #F59E0B 0%, #EF4444 100%); transition: width 0.5s ease; }
         .fs-progress-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; font-size: 10px; font-weight: 800; color: white; line-height: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
         .variant-spec-badge { background: #F1F5F9; color: #475569; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid #E2E8F0; }
+
+        /* STYLE PHẦN LỌC ĐÁNH GIÁ TỪ PRODUCT2 */
+        .filter-star-btn {
+            padding: 8px 16px;
+            border: 1px solid #E2E8F0;
+            background: #FFFFFF;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #475569;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-star-btn:hover, .filter-star-btn.active {
+            background: var(--navy-deep, #0F172A);
+            color: #FFFFFF;
+            border-color: var(--navy-deep, #0F172A);
+        }
+
+        .admin-reply-box {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: #EFF6FF;
+            border-left: 4px solid #3B82F6;
+            border-radius: 6px;
+        }
+
+        .admin-reply-box .admin-reply-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .admin-reply-box .admin-reply-header i { color: #3B82F6; }
+        .admin-reply-box .admin-reply-header span { font-weight: 700; color: #1E40AF; font-size: 13px; }
+        .admin-reply-box .admin-reply-content { font-size: 13px; color: #1E3A8A; margin: 0; line-height: 1.6; }
     </style>
 }
 
 <div class="pdp-container" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
     
     @* =======================================================
+       KHU VỰC ĐIỀU HƯỚNG QUAY LẠI TRANG CHỦ / BREADCRUMB
+       ======================================================= *@
+    <div class="pdp-breadcrumb-navigation">
+        <a href="/" class="pdp-nav-back-btn">
+            <i class="fas fa-home"></i> Trang chủ
+        </a>
+        <span class="pdp-breadcrumb-separator"><i class="fas fa-chevron-right" style="font-size: 10px;"></i></span>
+        <a href="/Store/Catalog?category=@Model.Product.CategoryId" class="pdp-nav-back-btn">
+            @Model.Product.Category?.CategoryName
+        </a>
+        <span class="pdp-breadcrumb-separator"><i class="fas fa-chevron-right" style="font-size: 10px;"></i></span>
+        <span style="color: #0F172A; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">@Model.Product.Name</span>
+    </div>
+
+    @* =======================================================
        KHU VỰC 1: HÌNH ẢNH & MUA HÀNG TRUNG TÂM
        ======================================================= *@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 50px;">
-        <!-- Cột Ảnh -->
         <div>
             <div style="border: 1px solid #E2E8F0; border-radius: 12px; padding: 30px; text-align: center; background: #FFFFFF; height: 450px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
                 
-                <!-- Huy hiệu giảm giá cho Main Image -->
                 <div id="pdpMainImageFsTag" style="display: none; position: absolute; top: 12px; left: 12px; background: rgba(220, 38, 38, 0.9); color: white; font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 6px; z-index: 2; align-items: center; gap: 6px; backdrop-filter: blur(4px); box-shadow: 0 4px 10px rgba(220,38,38,0.2);">
                     <i class="fas fa-clock"></i> <span class="pdp-fs-countdown-text">--:--:--</span>
                 </div>
@@ -290,7 +372,6 @@
             }
         </div>
 
-        <!-- Cột Thông tin & Giá -->
         <div>
             <span style="font-size: 11px; font-weight: 800; background: #0F172A; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-transform: uppercase;">
                 @Model.Product.Brand?.BrandName
@@ -299,9 +380,6 @@
                 @Model.Product.Name
             </h1>
 
-            <!-- ============================================= -->
-            <!-- KHỐI BANNER FLASH SALE (ẨN HIỆN BẰNG JS) -->
-            <!-- ============================================= -->
             <div id="pdpFlashSaleBanner" style="display: none; background: linear-gradient(90deg, #EF4444 0%, #EA580C 100%); border-radius: 12px 12px 0 0; padding: 16px 24px; color: white; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(239,68,68,0.2);">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <i class="fas fa-bolt flash-bolt" style="font-size: 28px; color: #FEF08A; text-shadow: 0 0 10px rgba(254,240,138,0.8);"></i>
@@ -325,7 +403,6 @@
                 </div>
             </div>
 
-            <!-- KHỐI GIÁ TIỀN -->
             <div id="pdpPriceContainer" style="background: #F8FAFC; padding: 20px 24px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 24px; transition: all 0.3s ease;">
                 <div id="pdpPriceBlock">
                     <span id="pdpDisplayPrice" style="font-size: 32px; font-weight: 800; color: #0F172A;">@displayPrice</span>
@@ -435,7 +512,6 @@
         <partial name="_AprioriCrossSellSlider" model="Model.AprioriCrossSellProducts" />
     }
 
-
     @* =======================================================
        KHU VỰC 2: BÀI VIẾT MÔ TẢ & BẢNG THÔNG SỐ
        ======================================================= *@
@@ -491,7 +567,7 @@
     </div>
 
     @* =======================================================
-       KHU VỰC 3: ĐÁNH GIÁ TỪ KHÁCH HÀNG
+       KHU VỰC 3: ĐÁNH GIÁ TỪ KHÁCH HÀNG (TÍCH HỢP BỘ LỌC SAO TỪ PRODUCT2)
        ======================================================= *@
     <div class="pdp-reviews-section" style="margin-top: 50px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 32px;">
         <h3 style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 24px; text-transform: uppercase;">Khách hàng phản hồi về sản phẩm</h3>
@@ -500,7 +576,7 @@
             <div style="text-align: center; border-right: 1px solid #E2E8F0; padding-right: 40px;">
                 <div style="font-size: 48px; font-weight: 800; color: #0F172A; line-height: 1;">@Model.AverageRating.ToString("0.0")</div>
                 <div style="margin: 8px 0; font-size: 16px;">
-                    @for (int i = 1; i <= 5; i++) { <i class="fas fa-star star-custom @(i <= Math.Round(Model.AverageRating) ? "filled" : "")"></i> }
+                    @for (int i = 1; i <= 5; i++) { <i class="fas fa-star star-custom @(i <= Model.AverageRating ? "filled" : "")"></i> }
                 </div>
                 <div style="font-size: 13px; color: #64748B; font-weight: 600;">@Model.TotalReviews lượt đánh giá</div>
             </div>
@@ -508,7 +584,7 @@
             <div>
                 @for (int i = 5; i >= 1; i--)
                 {
-                    int count = Model.StarCounts.ContainsKey(i) ? Model.StarCounts[i] : 0;
+                    int count = Model.StarCounts != null && Model.StarCounts.ContainsKey(i) ? Model.StarCounts[i] : 0;
                     double percent = Model.TotalReviews > 0 ? ((double)count / Model.TotalReviews) * 100 : 0;
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px; font-size: 13px; font-weight: 700; color: #475569;">
                         <span style="width: 40px; text-align: right;">@i sao</span>
@@ -517,6 +593,19 @@
                         </div>
                         <span style="width: 35px; color: #94A3B8; margin-left: 4px;">@count</span>
                     </div>
+                }
+            </div>
+        </div>
+
+        <div style="margin-bottom: 32px;">
+            <div style="font-size: 14px; font-weight: 800; color: var(--navy-deep, #0F172A); margin-bottom: 12px;">LỌC THEO SỐ SAO TIÊU CHÍ:</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <a href="/Store/Product/@Model.Product.ProductId" class="filter-star-btn @(!selectedStar.HasValue ? "active" : "")">Tất cả</a>
+                @for (int i = 5; i >= 1; i--)
+                {
+                    <a href="/Store/Product/@Model.Product.ProductId?starFilter=@i" class="filter-star-btn @(selectedStar == i ? "active" : "")">
+                        @i Sao (@(Model.StarCounts != null && Model.StarCounts.ContainsKey(i) == true ? Model.StarCounts[i] : 0))
+                    </a>
                 }
             </div>
         </div>
@@ -535,7 +624,7 @@
                                     <i class="fas fa-check-circle"></i> Đã mua hàng
                                 </span>
                             </div>
-                            <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">@(rev.CreatedAt?.ToString("dd/MM/yyyy"))</span>
+                            <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">@(rev.CreatedAt?.ToString("dd/MM/yyyy HH:mm"))</span>
                         </div>
                         <div style="font-size: 12px; margin-bottom: 12px;">
                             @for (int i = 1; i <= 5; i++) { <i class="fas fa-star star-custom @(i <= (rev.Rating ?? 5) ? "filled" : "")"></i> }
@@ -554,6 +643,17 @@
                                 <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 6px 0;">@line</p>
                             }
 
+                            @if (!string.IsNullOrEmpty(rev.AdminReply))
+                            {
+                                <div class="admin-reply-box">
+                                    <div class="admin-reply-header">
+                                        <i class="fas fa-store"></i>
+                                        <span>Phản hồi từ cửa hàng KingPhone:</span>
+                                    </div>
+                                    <p class="admin-reply-content">@rev.AdminReply</p>
+                                </div>
+                            }
+
                             @if (!string.IsNullOrEmpty(detailRev?.MediaUrls))
                             {
                                 var medias = detailRev.MediaUrls.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
@@ -562,7 +662,7 @@
                                     <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
                                         @foreach(var m in medias)
                                         {
-                                            if (m.EndsWith(".mp4") || m.EndsWith(".mov") || m.EndsWith(".avi"))
+                                            if (m.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) || m.EndsWith(".mov", StringComparison.OrdinalIgnoreCase) || m.EndsWith(".avi", StringComparison.OrdinalIgnoreCase))
                                             {
                                                 <video src="@m" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #E2E8F0;" controls></video>
                                             }
@@ -580,7 +680,7 @@
                     </div>
                 }
 
-                @if (Model.TotalReviews > 3)
+                @if (Model.TotalReviews > 3 && !selectedStar.HasValue)
                 {
                     <div style="text-align: center; margin-top: 28px;">
                         <a href="/Store/Product/@Model.Product.ProductId/Reviews" class="btn-dark" style="background: transparent; border: 1px solid #0F172A; color: #0F172A; text-decoration: none; font-weight: 700; padding: 10px 24px; border-radius: 6px; display: inline-block;">
@@ -592,7 +692,7 @@
             else
             {
                 <p style="text-align: center; color: #94A3B8; font-size: 14px; font-style: italic; padding: 20px 0;">
-                    Chưa có phản hồi nào cho dòng sản phẩm này. Hãy là người đầu tiên trải nghiệm!
+                    Không tìm thấy bài đánh giá nào khớp với tiêu chí số sao được lọc này.
                 </p>
             }
         </div>
@@ -1279,6 +1379,7 @@
             qaEvaluateMatrix();
         }
 
+        // Đánh giá tính sẵn có dựa trên ma trận thuộc tính
         function qaEvaluateMatrix() {
             document.querySelectorAll('.attr-qa-storage').forEach(el => qaCheckAvailability('storage', el.getAttribute('data-val'), el));
             document.querySelectorAll('.attr-qa-ram').forEach(el => qaCheckAvailability('ram', el.getAttribute('data-val'), el));
@@ -1325,7 +1426,6 @@
             if(exactMatch) { maxPhysical = exactMatch.stock; if(exactMatch.isFlashSale) { fsLimit = exactMatch.fsRemaining; if (exactMatch.maxPerUser > 0) fsLimit = Math.min(fsLimit, exactMatch.maxPerUser); } }
             if (newQty >= 1 && newQty <= maxPhysical) { input.value = newQty; if (exactMatch && exactMatch.isFlashSale && newQty > fsLimit && change > 0) { if(typeof window.showToast === 'function') window.showToast(`Bạn đang mua ${newQty} sản phẩm. Từ sản phẩm thứ ${fsLimit + 1} sẽ tính giá thường!`); } } else if (newQty > maxPhysical && change > 0) { if(typeof window.showToast === 'function') window.showToast("Đã đạt giới hạn tồn kho vật lý của cửa hàng."); } else if (newQty < 1) { input.value = 1; }
         }
-
 
         function submitQuickAdd(actionType) {
             qaActionType = actionType;

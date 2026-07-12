@@ -149,10 +149,6 @@ namespace TMDT_LT.Controllers
                 bool isLimitReached = item.Quantity < quantity;
                 string msg = isLimitReached ? $"Tồn kho vật lý chỉ còn {item.Quantity} sản phẩm." : "";
 
-                // Sau khi Refresh, nếu lượng bị ép xuống nghĩa là lố Tồn kho vật lý
-                bool isLimitReached = item.Quantity < quantity;
-                string msg = isLimitReached ? $"Tồn kho vật lý chỉ còn {item.Quantity} sản phẩm." : "";
-
                 await SaveCartAsync(cart);
 
                 return Json(new
@@ -167,7 +163,6 @@ namespace TMDT_LT.Controllers
 
             return Json(new { success = false, message = "Sản phẩm không có trong giỏ" });
         }
-
         [HttpPost]
         public async Task<IActionResult> GetCartSummary([FromBody] List<int> selectedVariantIds)
         {

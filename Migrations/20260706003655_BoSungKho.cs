@@ -10,12 +10,12 @@ namespace TMDT_LT.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "IsDeleted",
-                table: "InventoryLots",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
+            //migrationBuilder.AddColumn<bool>(
+            //    name: "IsDeleted",
+            //    table: "InventoryLots",
+            //    type: "bit",
+            //    nullable: false,
+            //    defaultValue: false);
         }
 
         /// <inheritdoc />

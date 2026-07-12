@@ -52,10 +52,18 @@
             <div style="color:#6B7280; font-size:12px; font-weight: 600; margin-bottom:6px;">LỢI NHUẬN DỰ KIẾN GỘP</div>
             <div style="font-size:22px; font-weight:700; color:#10B981;">@expectedProfit.ToString("N0") đ</div>
         </div>
-        <div style="background:#FFF; padding:18px; border-radius:10px; border:1px solid @(lowStockCount > 0 ? "#FCA5A5" : "#E5E7EB");">
-            <div style="color: @(lowStockCount > 0 ? "#EF4444" : "#6B7280"); font-size:12px; font-weight: 600; margin-bottom:6px;">HÀNG SẮP HẾT KHO</div>
-            <div style="font-size:24px; font-weight:700; color: @(lowStockCount > 0 ? "#EF4444" : "#111827");">@lowStockCount</div>
+
+        <div style="background: #FFF; padding: 18px; border-radius: 10px; border: 1px solid @(lowStockCount > 0 ? "#FCA5A5" : "#E5E7EB"); box-shadow: @(lowStockCount > 0 ? "0 0 10px rgba(239,68,68,0.08)" : "none");">
+            <div style="color: @(lowStockCount > 0 ? "#EF4444" : "#6B7280"); font-size:12px; font-weight: 600; margin-bottom:6px;">HÀNG SẮP HẾT KHO (ĐỘNG 1/3)</div>
+            <div style="font-size:24px; font-weight:700; color: @(lowStockCount > 0 ? "#EF4444" : "#111827"); display: flex; align-items: center; gap: 8px;">
+                @lowStockCount
+                @if (lowStockCount > 0)
+                {
+                    <span style="font-size: 11px; background: #FEE2E2; color: #EF4444; padding: 2px 8px; border-radius: 12px; font-weight: 600;">Cần nhập gấp</span>
+                }
+            </div>
         </div>
+
         <div style="background:#F9FAFB; padding:18px; border-radius:10px; border:1px solid #E5E7EB;">
             <div style="color:#6B7280; font-size:12px; font-weight: 600; margin-bottom:6px;">CHI NHÁNH LIÊN KẾT</div>
             <div style="font-size:24px; font-weight:700; color:#111827;">@activeStoresCount</div>
@@ -103,7 +111,9 @@
                     int totalWarehouseDays = (DateTime.Now - lot.ReceivedDate).Days;
                     bool isAgedStock = totalWarehouseDays > 30;
 
-                    // 🔥 SỬA: Logic kiểm tra ảnh xếp tầng (Ảnh cấu hình -> Ảnh sản phẩm gốc -> Ảnh default)
+                    // 🔥 VỊ TRÍ SỬA 2: Đưa biến kiểm tra tỷ lệ động 1/3 vào từng hàng dữ liệu của vòng lặp
+                    bool isLowStock = remQty > 0 && remQty <= (lot.ReceivedQuantity / 3.0);
+
                     string imgUrl = "/images/products/default-product.png";
                     if (!string.IsNullOrEmpty(lot.Variant?.ImageUrl))
                     {
@@ -116,10 +126,21 @@
 
                     string searchKeyword = $"{lot.Variant?.Product?.Name?.ToLower()} lot-00{lot.LotId}";
 
+                    // Tự động phân cấp màu nền dòng dữ liệu: Ưu tiên đỏ nhạt cho hàng sắp hết để nhập kho gấp
+                    string rowStyleBackground = "";
+                    if (isLowStock)
+                    {
+                        rowStyleBackground = "background-color: #FEF2F2;";
+                    }
+                    else if (isAgedStock)
+                    {
+                        rowStyleBackground = "background-color: #FFFBEB;";
+                    }
+
                     <tr class="lot-data-row" id="lot-row-@(lot.LotId)"
                         data-keyword="@searchKeyword"
                         data-store="@rowStoreName.ToLower()"
-                        style="border-bottom: 1px solid #F3F4F6; color: #374151; transition: background 0.15s; @(isAgedStock ? "background-color: #FFFBEB;" : "")">
+                        style="border-bottom: 1px solid #F3F4F6; color: #374151; transition: background 0.15s; @rowStyleBackground">
 
                         <td style="padding: 14px; font-family: monospace; font-weight: 700; color: #2563EB;">
                             #LOT-00@(lot.LotId)
@@ -132,12 +153,22 @@
                             </div>
                         </td>
                         <td style="padding: 14px; font-weight: 500; color: #4B5563;" class="lot-store-cell">@rowStoreName</td>
-                        <td style="padding: 14px; text-align: center; font-weight: 700; color: #111827;" class="lot-qty-cell">@remQty / @lot.ReceivedQuantity máy</td>
+
+                        <td style="padding: 14px; text-align: center; font-weight: 700; color: @(isLowStock ? "#EF4444" : "#111827");" class="lot-qty-cell">
+                            <div>@remQty / @lot.ReceivedQuantity máy</div>
+                            @if (isLowStock)
+                            {
+                                <div style="font-size: 10px; color: #EF4444; font-weight: 800; margin-top: 4px; background: #FEE2E2; padding: 2px 7px; border-radius: 10px; display: inline-block; border: 1px solid #FCA5A5;">
+                                    ⚠️ Sắp hết hàng (≤ 1/3)
+                                </div>
+                            }
+                        </td>
+
                         <td style="padding: 14px; text-align: right; font-weight: 600; color: #374151;">@lot.UnitCost.ToString("N0") đ</td>
                         <td style="padding: 14px; text-align: right; font-weight: 600; color: #2563EB;">@basePrice.ToString("N0") đ</td>
                         <td style="padding: 14px; text-align: center; font-weight: 500; color: #4B5563;">
                             @lot.ReceivedDate.ToString("dd/MM/yyyy")
-                            @if (isAgedStock)
+                            @if (isAgedStock && !isLowStock)
                             {
                                 <div style="font-size: 10px; color: #D97706; font-weight: 800; margin-top: 3px; background: #FEF3C7; padding: 2px 6px; border-radius: 10px; display: inline-block;">
                                     Tồn đọng @totalWarehouseDays ngày

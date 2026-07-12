@@ -39,6 +39,7 @@ namespace TMDT_LT.Controllers
             ViewBag.Categories = categories;
 
             // 3. Tải Sản phẩm bán chạy (BestSellers)
+            // 3. Tải Sản phẩm bán chạy (BestSellers)
             var bestSellers = await _context.Products
                 .Include(p => p.ProductVariants)
                 .Where(p => p.IsActive == true)
@@ -46,7 +47,7 @@ namespace TMDT_LT.Controllers
                     .SelectMany(v => _context.OrderDetails.Where(od => od.VariantId == v.VariantId))
                     .Sum(od => (int?)od.Quantity) ?? 0)
                 .Take(10)
-                .ToListAsync();
+                .ToListAsync(); // <-- Dòng 42 kích hoạt truy vấn xuống DB và sinh lỗi ở đây
 
             // 4. Gợi ý cá nhân hóa theo tài khoản/phiên truy cập
             //    - Có đăng nhập: ưu tiên hành vi gắn CustomerId.
