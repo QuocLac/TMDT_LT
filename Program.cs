@@ -11,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 // ====================================================================
 builder.Services.AddScoped<
     CommerceOrderSaveChangesInterceptor>();
+builder.Services.AddScoped<
+    CheckoutPromotionQuotaInterceptor>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(
     (serviceProvider, options) =>
@@ -21,7 +23,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(
 
         options.AddInterceptors(
             serviceProvider.GetRequiredService<
-                CommerceOrderSaveChangesInterceptor>());
+                CommerceOrderSaveChangesInterceptor>(),
+            serviceProvider.GetRequiredService<
+                CheckoutPromotionQuotaInterceptor>());
     });
 
 // ====================================================================

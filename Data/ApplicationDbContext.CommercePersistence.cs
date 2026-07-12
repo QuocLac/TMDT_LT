@@ -69,6 +69,33 @@ public partial class ApplicationDbContext
                 .IsConcurrencyToken();
         });
 
+        modelBuilder.Entity<Promotions>(entity =>
+        {
+            // Checkout tăng UsedCount theo mô hình optimistic concurrency.
+            // Hai request cùng đọc một quota chỉ có một request cập nhật thành công.
+            entity.Property(e => e.UsedCount)
+                .IsConcurrencyToken();
+
+            // Ngăn claim bằng cấu hình cũ nếu Admin đổi quota hoặc tắt voucher
+            // đúng lúc khách đang checkout.
+            entity.Property(e => e.UsageLimit)
+                .IsConcurrencyToken();
+            entity.Property(e => e.IsActive)
+                .IsConcurrencyToken();
+            entity.Property(e => e.StartDate)
+                .IsConcurrencyToken();
+            entity.Property(e => e.EndDate)
+                .IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<CustomerWallet>(entity =>
+        {
+            // Một voucher trong ví chỉ được chuyển từ Saved (0) sang Used (1)
+            // bởi một checkout duy nhất.
+            entity.Property(e => e.Status)
+                .IsConcurrencyToken();
+        });
+
         modelBuilder.Entity<Orders>(entity =>
         {
             entity.Property(e => e.ShippingWard)
