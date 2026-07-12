@@ -33,10 +33,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(
 // ====================================================================
 builder.Services.AddScoped<
     CheckoutIdempotencyFilter>();
+builder.Services.AddScoped<
+    ReturnIntakeFilter>();
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.AddService<
         CheckoutIdempotencyFilter>();
+    options.Filters.AddService<
+        ReturnIntakeFilter>();
 });
 builder.Services.AddHttpContextAccessor();
 
@@ -92,6 +96,12 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     ICheckoutIdempotencyService,
     CheckoutIdempotencyService>();
+builder.Services.AddScoped<
+    IReturnIntakeService,
+    ReturnIntakeService>();
+builder.Services.Configure<ReturnIntakeOptions>(
+    builder.Configuration.GetSection(
+        ReturnIntakeOptions.SectionName));
 
 builder.Services.Configure<UnpaidOrderExpirationOptions>(
     builder.Configuration.GetSection(
