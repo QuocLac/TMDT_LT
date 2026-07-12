@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace TMDT_LT.Models;
@@ -14,6 +14,18 @@ public partial class Orders
     public string? Status { get; set; }
 
     public decimal? TotalAmount { get; set; }
+
+    public decimal SubtotalAmount { get; set; }
+
+    public decimal DiscountAmount { get; set; }
+
+    public decimal TaxAmount { get; set; }
+
+    public decimal GrandTotalAmount { get; set; }
+
+    public string? AppliedVoucherCode { get; set; }
+
+    public string? CheckoutIdempotencyKey { get; set; }
 
     public string? ShippingFullName { get; set; }
 
@@ -43,21 +55,29 @@ public partial class Orders
 
     public virtual Customer? Customer { get; set; }
 
-    public virtual ICollection<OrderDetails> OrderDetails { get; set; } = new List<OrderDetails>();
+    public virtual ICollection<OrderDetails> OrderDetails { get; set; }
+        = new List<OrderDetails>();
 
-    public virtual ICollection<Payments> Payments { get; set; } = new List<Payments>();
+    public virtual ICollection<Payments> Payments { get; set; }
+        = new List<Payments>();
 
-    public virtual ICollection<PaymentTransactions> PaymentTransactions { get; set; } = new List<PaymentTransactions>();
+    public virtual ICollection<PaymentTransactions> PaymentTransactions { get; set; }
+        = new List<PaymentTransactions>();
 
-    public virtual ICollection<OrderReservations> OrderReservations { get; set; } = new List<OrderReservations>();
+    public virtual ICollection<OrderReservations> OrderReservations { get; set; }
+        = new List<OrderReservations>();
 
-    public virtual ICollection<Shipping> Shipping { get; set; } = new List<Shipping>();
+    public virtual ICollection<Shipping> Shipping { get; set; }
+        = new List<Shipping>();
 
-    public virtual ICollection<ShippingEvents> ShippingEvents { get; set; } = new List<ShippingEvents>();
+    public virtual ICollection<ShippingEvents> ShippingEvents { get; set; }
+        = new List<ShippingEvents>();
 
-    public virtual ICollection<OrderHistory> OrderHistories { get; set; } = new List<OrderHistory>();
+    public virtual ICollection<OrderHistory> OrderHistories { get; set; }
+        = new List<OrderHistory>();
 
-    public virtual ICollection<OrderReturns> OrderReturns { get; set; } = new List<OrderReturns>();
+    public virtual ICollection<OrderReturns> OrderReturns { get; set; }
+        = new List<OrderReturns>();
 
     public string? CancellationReason { get; set; }
 

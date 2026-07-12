@@ -11,29 +11,52 @@ public partial class ApplicationDbContext
 
     public virtual DbSet<ShippingEvents> ShippingEvents { get; set; }
 
+    public virtual DbSet<CheckoutAttempts> CheckoutAttempts { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrderDetails>(entity =>
         {
-            entity.Property(e => e.ProductNameSnapshot).HasMaxLength(200).HasDefaultValue(string.Empty);
-            entity.Property(e => e.VariantCodeSnapshot).HasMaxLength(80).HasDefaultValue(string.Empty);
-            entity.Property(e => e.VariantNameSnapshot).HasMaxLength(200).HasDefaultValue(string.Empty);
-            entity.Property(e => e.ImageUrlSnapshot).HasMaxLength(500).HasDefaultValue(string.Empty);
-            entity.Property(e => e.OriginalUnitPrice).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.DiscountAmountPerUnit).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.LineTotal).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.ProductNameSnapshot)
+                .HasMaxLength(200)
+                .HasDefaultValue(string.Empty);
+            entity.Property(e => e.VariantCodeSnapshot)
+                .HasMaxLength(80)
+                .HasDefaultValue(string.Empty);
+            entity.Property(e => e.VariantNameSnapshot)
+                .HasMaxLength(200)
+                .HasDefaultValue(string.Empty);
+            entity.Property(e => e.ImageUrlSnapshot)
+                .HasMaxLength(500)
+                .HasDefaultValue(string.Empty);
+            entity.Property(e => e.OriginalUnitPrice)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.DiscountAmountPerUnit)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.LineTotal)
+                .HasColumnType("decimal(18, 2)");
         });
 
         modelBuilder.Entity<Payments>(entity =>
         {
-            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.Currency).HasMaxLength(10).HasDefaultValue("VND");
-            entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.ProviderTransactionId).HasMaxLength(100);
-            entity.Property(e => e.LastResponseCode).HasMaxLength(20);
-            entity.Property(e => e.LastTransactionStatus).HasMaxLength(20);
-            entity.Property(e => e.LastProcessedAt).HasColumnType("datetime");
-            entity.Property(e => e.FailureReason).HasMaxLength(500);
+            entity.Property(e => e.Amount)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Currency)
+                .HasMaxLength(10)
+                .HasDefaultValue("VND");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.ProviderTransactionId)
+                .HasMaxLength(100);
+            entity.Property(e => e.LastResponseCode)
+                .HasMaxLength(20);
+            entity.Property(e => e.LastTransactionStatus)
+                .HasMaxLength(20);
+            entity.Property(e => e.LastProcessedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.FailureReason)
+                .HasMaxLength(500);
         });
 
         modelBuilder.Entity<ProductVariants>(entity =>
@@ -45,9 +68,77 @@ public partial class ApplicationDbContext
 
         modelBuilder.Entity<Orders>(entity =>
         {
-            entity.Property(e => e.ShippingWard).HasMaxLength(100);
-            entity.Property(e => e.ShippingWardCode).HasMaxLength(30);
-            entity.Property(e => e.ShippingFee).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.ShippingWard)
+                .HasMaxLength(100);
+            entity.Property(e => e.ShippingWardCode)
+                .HasMaxLength(30);
+            entity.Property(e => e.ShippingFee)
+                .HasColumnType("decimal(18, 2)");
+
+            entity.Property(e => e.SubtotalAmount)
+                .HasColumnType("decimal(18, 2)")
+                .HasDefaultValue(0m);
+            entity.Property(e => e.DiscountAmount)
+                .HasColumnType("decimal(18, 2)")
+                .HasDefaultValue(0m);
+            entity.Property(e => e.TaxAmount)
+                .HasColumnType("decimal(18, 2)")
+                .HasDefaultValue(0m);
+            entity.Property(e => e.GrandTotalAmount)
+                .HasColumnType("decimal(18, 2)")
+                .HasDefaultValue(0m);
+            entity.Property(e => e.AppliedVoucherCode)
+                .HasMaxLength(20);
+            entity.Property(e => e.CheckoutIdempotencyKey)
+                .HasMaxLength(64);
+
+            entity.HasIndex(e => e.CheckoutIdempotencyKey)
+                .IsUnique()
+                .HasFilter("[CheckoutIdempotencyKey] IS NOT NULL");
+        });
+
+        modelBuilder.Entity<CheckoutAttempts>(entity =>
+        {
+            entity.HasKey(e => e.CheckoutAttemptId);
+            entity.ToTable("CheckoutAttempts");
+
+            entity.HasIndex(e => e.IdempotencyKey)
+                .IsUnique();
+            entity.HasIndex(e => new
+            {
+                e.CustomerId,
+                e.CreatedAt
+            });
+            entity.HasIndex(e => new
+            {
+                e.Status,
+                e.ExpiresAt
+            });
+            entity.HasIndex(e => e.OrderId);
+
+            entity.Property(e => e.IdempotencyKey)
+                .HasMaxLength(64)
+                .IsRequired();
+            entity.Property(e => e.RequestHash)
+                .HasMaxLength(64)
+                .IsRequired();
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(e => e.PaymentMethod)
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime2");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("datetime2");
+            entity.Property(e => e.ExpiresAt)
+                .HasColumnType("datetime2");
+            entity.Property(e => e.FailureReason)
+                .HasMaxLength(500);
+            entity.Property(e => e.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
         });
 
         modelBuilder.Entity<Shipping>(entity =>
@@ -56,18 +147,27 @@ public partial class ApplicationDbContext
                 .IsUnique()
                 .HasFilter("[TrackingNumber] IS NOT NULL");
 
-            entity.Property(e => e.ProviderCode).HasMaxLength(50);
-            entity.Property(e => e.ProviderStatus).HasMaxLength(80);
-            entity.Property(e => e.ShippingFee).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.CodAmount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.InsuranceValue).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.CancelledAt).HasColumnType("datetime");
+            entity.Property(e => e.ProviderCode)
+                .HasMaxLength(50);
+            entity.Property(e => e.ProviderStatus)
+                .HasMaxLength(80);
+            entity.Property(e => e.ShippingFee)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CodAmount)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.InsuranceValue)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CancelledAt)
+                .HasColumnType("datetime");
             entity.Property(e => e.CreatedAt)
                 .HasColumnType("datetime")
                 .HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
-            entity.Property(e => e.LastWebhookAt).HasColumnType("datetime");
-            entity.Property(e => e.LastError).HasMaxLength(500);
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.LastWebhookAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.LastError)
+                .HasMaxLength(500);
         });
 
         modelBuilder.Entity<ShippingEvents>(entity =>
@@ -75,21 +175,45 @@ public partial class ApplicationDbContext
             entity.HasKey(e => e.ShippingEventId);
             entity.ToTable("ShippingEvents");
 
-            entity.HasIndex(e => e.IdempotencyKey).IsUnique();
-            entity.HasIndex(e => new { e.OrderId, e.ReceivedAt });
-            entity.HasIndex(e => new { e.ShippingId, e.ReceivedAt });
+            entity.HasIndex(e => e.IdempotencyKey)
+                .IsUnique();
+            entity.HasIndex(e => new
+            {
+                e.OrderId,
+                e.ReceivedAt
+            });
+            entity.HasIndex(e => new
+            {
+                e.ShippingId,
+                e.ReceivedAt
+            });
 
-            entity.Property(e => e.Provider).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.EventType).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.IdempotencyKey).HasMaxLength(220).IsRequired();
-            entity.Property(e => e.TrackingNumber).HasMaxLength(100);
-            entity.Property(e => e.ProviderStatus).HasMaxLength(80);
-            entity.Property(e => e.MappedStatus).HasMaxLength(80);
-            entity.Property(e => e.PayloadHash).HasMaxLength(64);
-            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
-            entity.Property(e => e.ReceivedAt).HasColumnType("datetime");
-            entity.Property(e => e.ProcessedAt).HasColumnType("datetime");
-            entity.Property(e => e.ErrorMessage).HasMaxLength(500);
+            entity.Property(e => e.Provider)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.EventType)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.IdempotencyKey)
+                .HasMaxLength(220)
+                .IsRequired();
+            entity.Property(e => e.TrackingNumber)
+                .HasMaxLength(100);
+            entity.Property(e => e.ProviderStatus)
+                .HasMaxLength(80);
+            entity.Property(e => e.MappedStatus)
+                .HasMaxLength(80);
+            entity.Property(e => e.PayloadHash)
+                .HasMaxLength(64);
+            entity.Property(e => e.Status)
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(e => e.ReceivedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.ProcessedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.ErrorMessage)
+                .HasMaxLength(500);
 
             entity.HasOne(e => e.Shipping)
                 .WithMany(e => e.ShippingEvents)
@@ -107,22 +231,47 @@ public partial class ApplicationDbContext
             entity.HasKey(e => e.PaymentTransactionId);
             entity.ToTable("PaymentTransactions");
 
-            entity.HasIndex(e => e.IdempotencyKey).IsUnique();
-            entity.HasIndex(e => new { e.OrderId, e.ReceivedAt });
-            entity.HasIndex(e => new { e.PaymentId, e.ReceivedAt });
+            entity.HasIndex(e => e.IdempotencyKey)
+                .IsUnique();
+            entity.HasIndex(e => new
+            {
+                e.OrderId,
+                e.ReceivedAt
+            });
+            entity.HasIndex(e => new
+            {
+                e.PaymentId,
+                e.ReceivedAt
+            });
 
-            entity.Property(e => e.Provider).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.EventType).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.IdempotencyKey).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.ProviderTransactionId).HasMaxLength(100);
-            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
-            entity.Property(e => e.ResponseCode).HasMaxLength(20);
-            entity.Property(e => e.TransactionStatus).HasMaxLength(20);
-            entity.Property(e => e.PayloadHash).HasMaxLength(64);
-            entity.Property(e => e.ReceivedAt).HasColumnType("datetime");
-            entity.Property(e => e.ProcessedAt).HasColumnType("datetime");
-            entity.Property(e => e.ErrorMessage).HasMaxLength(500);
+            entity.Property(e => e.Provider)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.EventType)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.IdempotencyKey)
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(e => e.ProviderTransactionId)
+                .HasMaxLength(100);
+            entity.Property(e => e.Amount)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Status)
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(e => e.ResponseCode)
+                .HasMaxLength(20);
+            entity.Property(e => e.TransactionStatus)
+                .HasMaxLength(20);
+            entity.Property(e => e.PayloadHash)
+                .HasMaxLength(64);
+            entity.Property(e => e.ReceivedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.ProcessedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.ErrorMessage)
+                .HasMaxLength(500);
 
             entity.HasOne(e => e.Payment)
                 .WithMany(e => e.PaymentTransactions)
@@ -140,15 +289,31 @@ public partial class ApplicationDbContext
             entity.HasKey(e => e.ReservationId);
             entity.ToTable("OrderReservations");
 
-            entity.HasIndex(e => new { e.OrderId, e.VariantId }).IsUnique();
-            entity.HasIndex(e => new { e.Status, e.ExpiresAt });
+            entity.HasIndex(e => new
+            {
+                e.OrderId,
+                e.VariantId
+            })
+                .IsUnique();
+            entity.HasIndex(e => new
+            {
+                e.Status,
+                e.ExpiresAt
+            });
 
-            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
-            entity.Property(e => e.ReservedAt).HasColumnType("datetime");
-            entity.Property(e => e.ExpiresAt).HasColumnType("datetime");
-            entity.Property(e => e.ConsumedAt).HasColumnType("datetime");
-            entity.Property(e => e.ReleasedAt).HasColumnType("datetime");
-            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.Status)
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(e => e.ReservedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.ExpiresAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.ConsumedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.ReleasedAt)
+                .HasColumnType("datetime");
+            entity.Property(e => e.Reason)
+                .HasMaxLength(500);
 
             entity.HasOne(e => e.Order)
                 .WithMany(e => e.OrderReservations)

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using TMDT_LT.Data;
+using TMDT_LT.Filters;
 using TMDT_LT.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,15 +9,31 @@ var builder = WebApplication.CreateBuilder(args);
 // ====================================================================
 // 1. KẾT NỐI DATABASE
 // ====================================================================
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString(
-            "DefaultConnection")));
+builder.Services.AddScoped<
+    CommerceOrderSaveChangesInterceptor>();
+
+builder.Services.AddDbContext<ApplicationDbContext>(
+    (serviceProvider, options) =>
+    {
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString(
+                "DefaultConnection"));
+
+        options.AddInterceptors(
+            serviceProvider.GetRequiredService<
+                CommerceOrderSaveChangesInterceptor>());
+    });
 
 // ====================================================================
 // 2. CẤU HÌNH DỊCH VỤ CỐT LÕI (MVC, HttpContext)
 // ====================================================================
-builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<
+    CheckoutIdempotencyFilter>();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.AddService<
+        CheckoutIdempotencyFilter>();
+});
 builder.Services.AddHttpContextAccessor();
 
 // ====================================================================
@@ -68,6 +85,9 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IRefundSettlementService,
     RefundSettlementService>();
+builder.Services.AddScoped<
+    ICheckoutIdempotencyService,
+    CheckoutIdempotencyService>();
 
 builder.Services.Configure<UnpaidOrderExpirationOptions>(
     builder.Configuration.GetSection(
