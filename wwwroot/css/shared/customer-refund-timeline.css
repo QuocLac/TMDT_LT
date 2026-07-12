@@ -1,0 +1,233 @@
+.customer-refund-card {
+    margin-bottom: 24px;
+    overflow: hidden;
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .07);
+    font-family: "Plus Jakarta Sans", Arial, sans-serif;
+}
+
+.customer-refund-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px;
+    background: linear-gradient(135deg, #eff6ff, #ffffff);
+    border-bottom: 1px solid #dbeafe;
+}
+
+.customer-refund-card__eyebrow {
+    margin-bottom: 5px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.customer-refund-card__title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.customer-refund-card__badge {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.customer-refund-card__badge--completed {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.customer-refund-card__badge--processing {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.customer-refund-card__badge--review {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.customer-refund-card__badge--attention {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.customer-refund-card__body {
+    padding: 18px;
+}
+
+.customer-refund-card__amount {
+    margin-bottom: 4px;
+    color: #0f172a;
+    font-size: 25px;
+    font-weight: 900;
+    letter-spacing: -.03em;
+}
+
+.customer-refund-card__message {
+    margin: 0 0 17px;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+.customer-refund-card__facts {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 18px;
+}
+
+.customer-refund-card__fact {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #e2e8f0;
+    font-size: 12px;
+}
+
+.customer-refund-card__fact dt {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.customer-refund-card__fact dd {
+    margin: 0;
+    max-width: 62%;
+    color: #0f172a;
+    font-weight: 800;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.customer-refund-card__timeline {
+    position: relative;
+    display: grid;
+    gap: 15px;
+    margin-top: 8px;
+    padding-left: 21px;
+}
+
+.customer-refund-card__timeline::before {
+    content: "";
+    position: absolute;
+    top: 7px;
+    bottom: 8px;
+    left: 6px;
+    width: 2px;
+    background: #e2e8f0;
+}
+
+.customer-refund-card__event {
+    position: relative;
+}
+
+.customer-refund-card__event::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: -20px;
+    width: 11px;
+    height: 11px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    background: #2563eb;
+    box-shadow: 0 0 0 2px #bfdbfe;
+}
+
+.customer-refund-card__event--completed::before {
+    background: #16a34a;
+    box-shadow: 0 0 0 2px #bbf7d0;
+}
+
+.customer-refund-card__event--review::before {
+    background: #d97706;
+    box-shadow: 0 0 0 2px #fde68a;
+}
+
+.customer-refund-card__event--attention::before {
+    background: #ea580c;
+    box-shadow: 0 0 0 2px #fed7aa;
+}
+
+.customer-refund-card__event-title {
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.customer-refund-card__event-time {
+    margin-top: 2px;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.customer-refund-card__event-description {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.customer-refund-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.customer-refund-card__updated {
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.customer-refund-card__refresh {
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.customer-refund-card__refresh:disabled {
+    color: #94a3b8;
+    cursor: wait;
+}
+
+@media (max-width: 576px) {
+    .customer-refund-card__header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .customer-refund-card__badge {
+        align-self: flex-start;
+    }
+
+    .customer-refund-card__fact {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .customer-refund-card__fact dd {
+        max-width: none;
+        text-align: left;
+    }
+}
