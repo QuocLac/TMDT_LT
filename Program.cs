@@ -95,8 +95,14 @@ builder.Services.AddScoped<
     IPaymentTransactionService,
     PaymentTransactionService>();
 builder.Services.AddScoped<
-    IRefundSettlementService,
     RefundSettlementService>();
+builder.Services.AddScoped<
+    InspectionAwareRefundSettlementService>();
+builder.Services.AddScoped<
+    IRefundSettlementService>(
+        serviceProvider =>
+            serviceProvider.GetRequiredService<
+                InspectionAwareRefundSettlementService>());
 builder.Services.AddScoped<
     ICheckoutIdempotencyService,
     CheckoutIdempotencyService>();
@@ -109,6 +115,9 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IReturnWorkflowNotificationService,
     ReturnWorkflowNotificationService>();
+builder.Services.AddScoped<
+    IReturnInspectionService,
+    ReturnInspectionService>();
 builder.Services.Configure<ReturnIntakeOptions>(
     builder.Configuration.GetSection(
         ReturnIntakeOptions.SectionName));

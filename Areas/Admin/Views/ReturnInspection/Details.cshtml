@@ -1,0 +1,360 @@
+@model TMDT_LT.Services.ReturnInspectionDetailsViewModel
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Kiểm định hồ sơ #" + Model.ReturnId;
+
+    var conditionOptions = new[]
+    {
+        new { Code = TMDT_LT.Models.ReturnInspectionConditionCodes.Sealed, Label = "Còn nguyên seal" },
+        new { Code = TMDT_LT.Models.ReturnInspectionConditionCodes.Good, Label = "Tình trạng tốt" },
+        new { Code = TMDT_LT.Models.ReturnInspectionConditionCodes.Damaged, Label = "Hư hỏng / lỗi" },
+        new { Code = TMDT_LT.Models.ReturnInspectionConditionCodes.Missing, Label = "Thiếu sản phẩm / phụ kiện" },
+        new { Code = TMDT_LT.Models.ReturnInspectionConditionCodes.WrongItem, Label = "Sai sản phẩm" }
+    };
+
+    var dispositionOptions = new[]
+    {
+        new { Code = TMDT_LT.Models.ReturnInspectionDispositions.Restock, Label = "Nhập lại kho bán được" },
+        new { Code = TMDT_LT.Models.ReturnInspectionDispositions.DamagedStock, Label = "Kho hàng lỗi / bảo hành" },
+        new { Code = TMDT_LT.Models.ReturnInspectionDispositions.Reject, Label = "Không chấp nhận hoàn" },
+        new { Code = TMDT_LT.Models.ReturnInspectionDispositions.ManualReview, Label = "Chuyển đối soát thủ công" }
+    };
+
+    string DecisionText(string? decision) => decision switch
+    {
+        TMDT_LT.Models.ReturnInspectionDecisions.FullRefund =>
+            "Đủ điều kiện hoàn toàn bộ",
+        TMDT_LT.Models.ReturnInspectionDecisions.Reject =>
+            "Từ chối hoàn tiền",
+        TMDT_LT.Models.ReturnInspectionDecisions.ManualReview =>
+            "Cần đối soát thủ công",
+        _ => "Chưa chốt"
+    };
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <a asp-action="Index"
+               class="text-decoration-none small">
+                ← Danh sách kiểm định
+            </a>
+            <h1 class="h3 fw-bold mt-2 mb-1">
+                Hồ sơ trả hàng #@Model.ReturnId
+            </h1>
+            <p class="text-secondary mb-0">
+                Đơn #@Model.OrderId · @Model.CustomerName
+            </p>
+        </div>
+        <span class="badge text-bg-warning px-3 py-2">
+            @Model.ReturnStatus
+        </span>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Warning"] != null)
+    {
+        <div class="alert alert-warning">@TempData["Warning"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="row g-4">
+        <div class="col-xl-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h2 class="h5 fw-bold mb-3">
+                        Sản phẩm cần kiểm định
+                    </h2>
+
+                    @if (Model.IsFinalized)
+                    {
+                        <div class="alert alert-info">
+                            Kết quả đã được chốt và không thể sửa.
+                        </div>
+                    }
+
+                    <form asp-action="Finalize"
+                          method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden"
+                               name="ReturnId"
+                               value="@Model.ReturnId" />
+
+                        @for (int i = 0; i < Model.Lines.Count; i++)
+                        {
+                            var line = Model.Lines[i];
+
+                            <input type="hidden"
+                                   name="Lines[@i].OrderDetailId"
+                                   value="@line.OrderDetailId" />
+
+                            <div class="border rounded-3 p-3 mb-3">
+                                <div class="d-flex flex-wrap justify-content-between gap-3 mb-3">
+                                    <div>
+                                        <div class="fw-bold">
+                                            @line.ProductName
+                                        </div>
+                                        <div class="small text-secondary">
+                                            @line.VariantName
+                                            @if (!string.IsNullOrWhiteSpace(line.VariantCode))
+                                            {
+                                                <span>· @line.VariantCode</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="small text-secondary">
+                                            Giá trị hiệu lực / sản phẩm
+                                        </div>
+                                        <strong>
+                                            @string.Format("{0:N0} đ", line.UnitAmount)
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                @if (Model.IsFinalized)
+                                {
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <div class="small text-secondary">Theo đơn</div>
+                                            <strong>@line.ExpectedQuantity</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="small text-secondary">Kho nhận</div>
+                                            <strong>@line.ReceivedQuantity</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="small text-secondary">Được duyệt</div>
+                                            <strong>@line.ApprovedQuantity</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="small text-secondary">Giá trị đủ điều kiện</div>
+                                            <strong>@string.Format("{0:N0} đ", line.EligibleAmount)</strong>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="small text-secondary">Tình trạng</div>
+                                            <strong>@line.ConditionCode</strong>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="small text-secondary">Hướng xử lý</div>
+                                            <strong>@line.Disposition</strong>
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(line.Note))
+                                        {
+                                            <div class="col-12">
+                                                <div class="small text-secondary">Ghi chú</div>
+                                                <div>@line.Note</div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">
+                                                Số lượng theo đơn
+                                            </label>
+                                            <input class="form-control"
+                                                   value="@line.ExpectedQuantity"
+                                                   disabled />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">
+                                                Số lượng kho nhận
+                                            </label>
+                                            <input type="number"
+                                                   name="Lines[@i].ReceivedQuantity"
+                                                   min="0"
+                                                   max="@line.ExpectedQuantity"
+                                                   value="@line.ReceivedQuantity"
+                                                   class="form-control"
+                                                   required />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">
+                                                Số lượng được duyệt
+                                            </label>
+                                            <input type="number"
+                                                   name="Lines[@i].ApprovedQuantity"
+                                                   min="0"
+                                                   max="@line.ExpectedQuantity"
+                                                   value="@line.ApprovedQuantity"
+                                                   class="form-control"
+                                                   required />
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">
+                                                Tình trạng thực tế
+                                            </label>
+                                            <select name="Lines[@i].ConditionCode"
+                                                    class="form-select"
+                                                    required>
+                                                <option value="">Chọn tình trạng</option>
+                                                @foreach (var option in conditionOptions)
+                                                {
+                                                    if (line.ConditionCode == option.Code)
+                                                    {
+                                                        <option value="@option.Code" selected>
+                                                            @option.Label
+                                                        </option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@option.Code">
+                                                            @option.Label
+                                                        </option>
+                                                    }
+                                                }
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">
+                                                Hướng xử lý kho
+                                            </label>
+                                            <select name="Lines[@i].Disposition"
+                                                    class="form-select"
+                                                    required>
+                                                <option value="">Chọn hướng xử lý</option>
+                                                @foreach (var option in dispositionOptions)
+                                                {
+                                                    if (line.Disposition == option.Code)
+                                                    {
+                                                        <option value="@option.Code" selected>
+                                                            @option.Label
+                                                        </option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@option.Code">
+                                                            @option.Label
+                                                        </option>
+                                                    }
+                                                }
+                                            </select>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold">
+                                                Ghi chú dòng sản phẩm
+                                            </label>
+                                            <textarea name="Lines[@i].Note"
+                                                      class="form-control"
+                                                      maxlength="500"
+                                                      rows="2">@line.Note</textarea>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (!Model.IsFinalized)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">
+                                    Kết luận kiểm định
+                                </label>
+                                <textarea name="SummaryNote"
+                                          class="form-control"
+                                          maxlength="1000"
+                                          rows="3"
+                                          placeholder="Ghi rõ tình trạng, phụ kiện thiếu, lỗi phát hiện hoặc lý do chuyển đối soát."></textarea>
+                            </div>
+
+                            <div class="alert alert-warning small">
+                                Nếu tất cả sản phẩm và số lượng đều được duyệt,
+                                hệ thống cho phép hoàn toàn bộ đơn.
+                                Kết quả một phần sẽ chuyển đối soát thủ công
+                                và không tự gọi provider.
+                            </div>
+
+                            <button type="submit"
+                                    class="btn btn-dark">
+                                Chốt kết quả kiểm định
+                            </button>
+                        }
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h2 class="h5 fw-bold">Thông tin hồ sơ</h2>
+                    <dl class="mb-0">
+                        <div class="d-flex justify-content-between gap-3 py-2 border-bottom">
+                            <dt class="text-secondary fw-normal">Khách hàng</dt>
+                            <dd class="mb-0 text-end fw-semibold">@Model.CustomerName</dd>
+                        </div>
+                        <div class="d-flex justify-content-between gap-3 py-2 border-bottom">
+                            <dt class="text-secondary fw-normal">Email</dt>
+                            <dd class="mb-0 text-end">@Model.CustomerEmail</dd>
+                        </div>
+                        <div class="py-2 border-bottom">
+                            <dt class="text-secondary fw-normal">Lý do trả hàng</dt>
+                            <dd class="mb-0 mt-1 fw-semibold">@Model.ReturnReason</dd>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.ReturnDescription))
+                        {
+                            <div class="py-2 border-bottom">
+                                <dt class="text-secondary fw-normal">Mô tả của khách</dt>
+                                <dd class="mb-0 mt-1">@Model.ReturnDescription</dd>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between gap-3 py-2">
+                            <dt class="text-secondary fw-normal">Giá trị đơn</dt>
+                            <dd class="mb-0 text-end fw-bold">
+                                @string.Format("{0:N0} đ", Model.OriginalOrderAmount)
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            @if (Model.IsFinalized)
+            {
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h2 class="h5 fw-bold">Kết quả đã chốt</h2>
+                        <div class="alert @(Model.Decision == TMDT_LT.Models.ReturnInspectionDecisions.FullRefund ? "alert-success" : Model.Decision == TMDT_LT.Models.ReturnInspectionDecisions.Reject ? "alert-danger" : "alert-warning")">
+                            <strong>@DecisionText(Model.Decision)</strong>
+                        </div>
+                        <dl class="mb-0">
+                            <div class="d-flex justify-content-between gap-3 py-2 border-bottom">
+                                <dt class="text-secondary fw-normal">Đủ điều kiện</dt>
+                                <dd class="mb-0 fw-bold">
+                                    @string.Format("{0:N0} đ", Model.EligibleRefundAmount)
+                                </dd>
+                            </div>
+                            <div class="d-flex justify-content-between gap-3 py-2 border-bottom">
+                                <dt class="text-secondary fw-normal">Người kiểm định</dt>
+                                <dd class="mb-0 text-end">@Model.InspectedBy</dd>
+                            </div>
+                            <div class="d-flex justify-content-between gap-3 py-2">
+                                <dt class="text-secondary fw-normal">Thời gian</dt>
+                                <dd class="mb-0 text-end">
+                                    @(Model.InspectedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")
+                                </dd>
+                            </div>
+                        </dl>
+                        @if (!string.IsNullOrWhiteSpace(Model.SummaryNote))
+                        {
+                            <div class="mt-3 p-3 bg-light rounded">
+                                @Model.SummaryNote
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -15,6 +15,10 @@ public partial class ApplicationDbContext
 
     public virtual DbSet<OrderInvoiceRequests> OrderInvoiceRequests { get; set; }
 
+    public virtual DbSet<ReturnInspections> ReturnInspections { get; set; }
+
+    public virtual DbSet<ReturnInspectionItems> ReturnInspectionItems { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrderDetails>(entity =>
@@ -248,6 +252,125 @@ public partial class ApplicationDbContext
                 .HasForeignKey<OrderInvoiceRequests>(
                     current => current.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReturnInspections>(entity =>
+        {
+            entity.HasKey(current =>
+                current.InspectionId);
+            entity.ToTable("ReturnInspections");
+
+            entity.HasIndex(current =>
+                current.ReturnId)
+                .IsUnique();
+            entity.HasIndex(current =>
+                current.OrderId);
+            entity.HasIndex(current => new
+            {
+                current.Status,
+                current.UpdatedAt
+            });
+
+            entity.Property(current =>
+                    current.Status)
+                .HasMaxLength(20)
+                .IsRequired();
+            entity.Property(current =>
+                    current.Decision)
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(current =>
+                    current.OriginalOrderAmount)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(current =>
+                    current.EligibleRefundAmount)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(current =>
+                    current.SummaryNote)
+                .HasMaxLength(1000);
+            entity.Property(current =>
+                    current.CreatedAt)
+                .HasColumnType("datetime2");
+            entity.Property(current =>
+                    current.UpdatedAt)
+                .HasColumnType("datetime2");
+            entity.Property(current =>
+                    current.InspectedAt)
+                .HasColumnType("datetime2");
+            entity.Property(current =>
+                    current.InspectedBy)
+                .HasMaxLength(120);
+            entity.Property(current =>
+                    current.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
+
+            entity.HasOne(current =>
+                    current.ReturnRequest)
+                .WithOne()
+                .HasForeignKey<ReturnInspections>(
+                    current => current.ReturnId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(current =>
+                    current.Order)
+                .WithMany()
+                .HasForeignKey(current =>
+                    current.OrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<ReturnInspectionItems>(entity =>
+        {
+            entity.HasKey(current =>
+                current.InspectionItemId);
+            entity.ToTable("ReturnInspectionItems");
+
+            entity.HasIndex(current => new
+            {
+                current.InspectionId,
+                current.OrderDetailId
+            })
+                .IsUnique();
+            entity.HasIndex(current =>
+                current.OrderDetailId);
+
+            entity.Property(current =>
+                    current.ConditionCode)
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(current =>
+                    current.Disposition)
+                .HasMaxLength(30)
+                .IsRequired();
+            entity.Property(current =>
+                    current.UnitAmountSnapshot)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(current =>
+                    current.EligibleAmount)
+                .HasColumnType("decimal(18, 2)");
+            entity.Property(current =>
+                    current.Note)
+                .HasMaxLength(500);
+            entity.Property(current =>
+                    current.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
+
+            entity.HasOne(current =>
+                    current.Inspection)
+                .WithMany(current =>
+                    current.Items)
+                .HasForeignKey(current =>
+                    current.InspectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(current =>
+                    current.OrderDetail)
+                .WithMany()
+                .HasForeignKey(current =>
+                    current.OrderDetailId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<Shipping>(entity =>
