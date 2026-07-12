@@ -1,0 +1,233 @@
+@using System.Globalization
+@model TMDT_LT.Models.ViewModels.Commerce.OrderReceiptViewModel
+@{
+    Layout = null;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string Money(decimal value) => $"{value.ToString("N0", vi)} đ";
+    string statusClass = Model.IsRefunded
+        ? "receipt-status--refunded"
+        : Model.IsPaid
+            ? "receipt-status--paid"
+            : "receipt-status--pending";
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1" />
+    <title>@Model.DocumentTitle - @Model.ReceiptNumber</title>
+    <link rel="stylesheet"
+          href="~/css/shared/order-receipt.css"
+          asp-append-version="true" />
+</head>
+<body class="order-receipt-page">
+    <main class="order-receipt-sheet">
+        <div class="order-receipt-toolbar">
+            <a href="javascript:history.back()"
+               class="order-receipt-toolbar__button">
+                Quay lại
+            </a>
+            <button type="button"
+                    class="order-receipt-toolbar__button order-receipt-toolbar__button--primary"
+                    onclick="window.print()">
+                In / Lưu PDF
+            </button>
+        </div>
+
+        <header class="order-receipt-header">
+            <div>
+                <div class="order-receipt-brand">@Model.StoreName</div>
+                <div class="order-receipt-brand-note">
+                    Chứng từ xác nhận giao dịch thương mại điện tử
+                </div>
+            </div>
+            <div class="order-receipt-document">
+                <h1>@Model.DocumentTitle</h1>
+                <div>@Model.ReceiptNumber</div>
+            </div>
+        </header>
+
+        <section class="order-receipt-meta">
+            <div>
+                <span>Ngày lập</span>
+                <strong>@Model.IssuedAt.ToString("dd/MM/yyyy HH:mm")</strong>
+            </div>
+            <div>
+                <span>Ngày đặt hàng</span>
+                <strong>@(Model.OrderDate?.ToString("dd/MM/yyyy HH:mm") ?? "—")</strong>
+            </div>
+            <div>
+                <span>Trạng thái đơn</span>
+                <strong>@Model.OrderStatus</strong>
+            </div>
+            <div>
+                <span>Trạng thái thanh toán</span>
+                <strong class="receipt-status @statusClass">
+                    @Model.PaymentStatus
+                </strong>
+            </div>
+        </section>
+
+        <section class="order-receipt-section">
+            <h2>Thông tin giao hàng</h2>
+            <div class="order-receipt-info-grid">
+                <div>
+                    <span>Người nhận</span>
+                    <strong>@Model.RecipientName</strong>
+                </div>
+                <div>
+                    <span>Số điện thoại</span>
+                    <strong>@Model.RecipientPhone</strong>
+                </div>
+                <div class="order-receipt-info-grid__wide">
+                    <span>Địa chỉ</span>
+                    <strong>@Model.ShippingAddress</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="order-receipt-section">
+            <h2>Sản phẩm</h2>
+            <div class="order-receipt-table-wrap">
+                <table class="order-receipt-table">
+                    <thead>
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th>Mã biến thể</th>
+                            <th class="number">SL</th>
+                            <th class="number">Đơn giá</th>
+                            <th class="number">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var line in Model.Lines)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@line.ProductName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(line.VariantName))
+                                    {
+                                        <small>@line.VariantName</small>
+                                    }
+                                    @if (line.IsFlashSaleItem)
+                                    {
+                                        <span class="order-receipt-tag">Flash Sale</span>
+                                    }
+                                </td>
+                                <td>@line.VariantCode</td>
+                                <td class="number">@line.Quantity</td>
+                                <td class="number">
+                                    @Money(line.UnitPrice)
+                                    @if (line.OriginalUnitPrice > line.UnitPrice)
+                                    {
+                                        <small class="order-receipt-old-price">
+                                            @Money(line.OriginalUnitPrice)
+                                        </small>
+                                    }
+                                </td>
+                                <td class="number">
+                                    <strong>@Money(line.LineTotal)</strong>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="order-receipt-bottom">
+            <div class="order-receipt-section order-receipt-payment">
+                <h2>Thanh toán và vận chuyển</h2>
+                <dl>
+                    <div>
+                        <dt>Phương thức</dt>
+                        <dd>@Model.PaymentMethod</dd>
+                    </div>
+                    <div>
+                        <dt>Ngày thanh toán</dt>
+                        <dd>@(Model.PaymentDate?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa xác nhận")</dd>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(Model.ProviderTransactionId))
+                    {
+                        <div>
+                            <dt>Mã giao dịch</dt>
+                            <dd>@Model.ProviderTransactionId</dd>
+                        </div>
+                    }
+                    <div>
+                        <dt>Đơn vị vận chuyển</dt>
+                        <dd>@Model.Carrier</dd>
+                    </div>
+                    <div>
+                        <dt>Trạng thái vận chuyển</dt>
+                        <dd>@Model.ShippingStatus</dd>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(Model.TrackingNumber))
+                    {
+                        <div>
+                            <dt>Mã vận đơn</dt>
+                            <dd>@Model.TrackingNumber</dd>
+                        </div>
+                    }
+                </dl>
+            </div>
+
+            <div class="order-receipt-section order-receipt-totals">
+                <h2>Tổng kết thanh toán</h2>
+                <dl>
+                    <div>
+                        <dt>Tiền hàng</dt>
+                        <dd>@Money(Model.Financial.SubtotalAmount)</dd>
+                    </div>
+                    <div class="discount">
+                        <dt>Giảm giá</dt>
+                        <dd>-@Money(Model.Financial.DiscountAmount)</dd>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(Model.Financial.AppliedVoucherCode))
+                    {
+                        <div>
+                            <dt>Mã ưu đãi</dt>
+                            <dd>@Model.Financial.AppliedVoucherCode</dd>
+                        </div>
+                    }
+                    <div>
+                        <dt>Phí vận chuyển</dt>
+                        <dd>@Money(Model.Financial.ShippingFee)</dd>
+                    </div>
+                    <div>
+                        <dt>Thuế</dt>
+                        <dd>@Money(Model.Financial.TaxAmount)</dd>
+                    </div>
+                    <div class="grand-total">
+                        <dt>Tổng thanh toán</dt>
+                        <dd>@Money(Model.Financial.GrandTotalAmount)</dd>
+                    </div>
+                </dl>
+
+                @if (Model.IsAdminView)
+                {
+                    <div class="order-receipt-admin-check">
+                        Đối soát:
+                        <strong>
+                            @(Model.Financial.IsConsistent
+                                ? "Khớp snapshot"
+                                : $"Lệch {Money(Math.Abs(Model.Financial.ReconciliationDelta))}")
+                        </strong>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <footer class="order-receipt-footer">
+            <p>
+                Chứng từ này được tạo từ dữ liệu đơn hàng đã lưu tại thời điểm giao dịch.
+            </p>
+            <p>
+                Đây không phải hóa đơn điện tử hoặc hóa đơn giá trị gia tăng và không thay thế chứng từ thuế hợp pháp.
+            </p>
+        </footer>
+    </main>
+</body>
+</html>
