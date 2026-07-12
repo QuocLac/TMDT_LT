@@ -12,7 +12,7 @@ using TMDT_LT.Data;
 namespace TMDT_LT.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260712004145_AddCheckoutFinancialSnapshotsAndIdempotency")]
+    [Migration("20260712005420_AddCheckoutFinancialSnapshotsAndIdempotency")]
     partial class AddCheckoutFinancialSnapshotsAndIdempotency
     {
         /// <inheritdoc />
@@ -1709,7 +1709,7 @@ namespace TMDT_LT.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<decimal?>("CostPrice")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<DateTime?>("CreatedDate")
                         .ValueGeneratedOnAdd()
@@ -2348,9 +2348,9 @@ namespace TMDT_LT.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.HasIndex("TrackingNumber")
+                    b.HasIndex("ProviderCode", "TrackingNumber")
                         .IsUnique()
-                        .HasFilter("[TrackingNumber] IS NOT NULL");
+                        .HasFilter("[ProviderCode] IS NOT NULL AND [TrackingNumber] IS NOT NULL");
 
                     b.ToTable("Shipping");
                 });

@@ -216,11 +216,11 @@ namespace TMDT_LT.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Shipping_TrackingNumber",
+                name: "IX_Shipping_ProviderCode_TrackingNumber",
                 table: "Shipping",
-                column: "TrackingNumber",
+                columns: new[] { "ProviderCode", "TrackingNumber" },
                 unique: true,
-                filter: "[TrackingNumber] IS NOT NULL");
+                filter: "[ProviderCode] IS NOT NULL AND [TrackingNumber] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Orders_CheckoutIdempotencyKey",
@@ -277,7 +277,7 @@ namespace TMDT_LT.Migrations
                 name: "ShippingEvents");
 
             migrationBuilder.DropIndex(
-                name: "IX_Shipping_TrackingNumber",
+                name: "IX_Shipping_ProviderCode_TrackingNumber",
                 table: "Shipping");
 
             migrationBuilder.DropIndex(

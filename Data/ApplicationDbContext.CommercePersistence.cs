@@ -61,6 +61,9 @@ public partial class ApplicationDbContext
 
         modelBuilder.Entity<ProductVariants>(entity =>
         {
+            entity.Property(e => e.CostPrice)
+                .HasColumnType("decimal(18, 2)");
+
             entity.Property(e => e.RowVersion)
                 .IsRowVersion()
                 .IsConcurrencyToken();
@@ -143,9 +146,15 @@ public partial class ApplicationDbContext
 
         modelBuilder.Entity<Shipping>(entity =>
         {
-            entity.HasIndex(e => e.TrackingNumber)
+            entity.HasIndex(e => new
+            {
+                e.ProviderCode,
+                e.TrackingNumber
+            })
                 .IsUnique()
-                .HasFilter("[TrackingNumber] IS NOT NULL");
+                .HasFilter(
+                    "[ProviderCode] IS NOT NULL "
+                    + "AND [TrackingNumber] IS NOT NULL");
 
             entity.Property(e => e.ProviderCode)
                 .HasMaxLength(50);
