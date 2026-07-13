@@ -832,7 +832,10 @@ public sealed class KingPhoneAiToolService : IKingPhoneAiToolService
             return null;
         }
 
-        var originalPrice = listPrice > currentPrice ? listPrice : null;
+        decimal? originalPrice =
+    listPrice > currentPrice
+        ? listPrice
+        : null;
         var stock = Math.Max(0, variant.Stock ?? 0);
         var variantName = string.Join(
             " / ",
