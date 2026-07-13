@@ -78,7 +78,7 @@ builder.Services.AddAuthentication(
 
 builder.Services.AddAuthorization();
 
-// Giới hạn tần suất riêng cho AI để bảo vệ chi phí và tránh spam.
+// Giới hạn tần suất riêng cho AI để bảo vệ hạn mức và tránh spam.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -163,7 +163,7 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<IKingPhoneAiToolService, KingPhoneAiToolService>();
 
-// KingPhone AI foundation: Responses API, cấu hình bằng User Secrets hoặc biến môi trường.
+// Trợ lý KingPhone dùng API tương thích OpenAI; provider được chọn trong section AI.
 builder.Services.Configure<KingPhoneAiOptions>(
     builder.Configuration.GetSection(
         KingPhoneAiOptions.SectionName));
@@ -171,7 +171,6 @@ builder.Services.AddHttpClient<
     IKingPhoneAiService,
     KingPhoneAiService>(client =>
     {
-        client.BaseAddress = new Uri("https://api.openai.com/v1/");
         client.Timeout = Timeout.InfiniteTimeSpan;
     });
 
