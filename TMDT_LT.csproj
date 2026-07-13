@@ -4,7 +4,12 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>TMDT_LT-KingPhone-AI-20260713</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="ga4-credentials.json" />
+  </ItemGroup>
 
   <ItemGroup>
     <Folder Include="wwwroot\uploads\banners\" />

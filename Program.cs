@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 using TMDT_LT.Data;
 using TMDT_LT.Filters;
 using TMDT_LT.Services;
+using TMDT_LT.Services.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,6 +78,30 @@ builder.Services.AddAuthentication(
 
 builder.Services.AddAuthorization();
 
+// Giới hạn tần suất riêng cho AI để bảo vệ chi phí và tránh spam.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("kingphone-ai-chat", httpContext =>
+    {
+        var customerId = httpContext.User.FindFirst("CustomerId")?.Value;
+        var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var partitionKey = string.IsNullOrWhiteSpace(customerId)
+            ? $"guest:{remoteIp}"
+            : $"customer:{customerId}";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+});
+
 // ====================================================================
 // 5. CẤU HÌNH SIGNALR (CHAT TRỰC TUYẾN)
 // ====================================================================
@@ -134,6 +161,20 @@ builder.Services.AddHostedService<
 
 builder.Services.AddHttpClient();
 
+builder.Services.AddScoped<IKingPhoneAiToolService, KingPhoneAiToolService>();
+
+// KingPhone AI foundation: Responses API, cấu hình bằng User Secrets hoặc biến môi trường.
+builder.Services.Configure<KingPhoneAiOptions>(
+    builder.Configuration.GetSection(
+        KingPhoneAiOptions.SectionName));
+builder.Services.AddHttpClient<
+    IKingPhoneAiService,
+    KingPhoneAiService>(client =>
+    {
+        client.BaseAddress = new Uri("https://api.openai.com/v1/");
+        client.Timeout = Timeout.InfiniteTimeSpan;
+    });
+
 builder.Services.Configure<VnPayConfig>(
     builder.Configuration.GetSection("VNPay"));
 builder.Services.AddScoped<VnPayService>();
@@ -169,6 +210,7 @@ app.UseRouting();
 
 app.UseSession();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllerRoute(

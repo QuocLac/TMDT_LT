@@ -1,0 +1,114 @@
+.customer-vnpay-retry-card {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid #fed7aa;
+    border-left: 4px solid #ea580c;
+    border-radius: 12px;
+    background: #fff7ed;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+}
+
+.customer-vnpay-retry-card[hidden] {
+    display: none !important;
+}
+
+.customer-vnpay-retry-icon {
+    display: flex;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #ffedd5;
+    color: #c2410c;
+    font-size: 18px;
+}
+
+.customer-vnpay-retry-content {
+    min-width: 0;
+    flex: 1;
+}
+
+.customer-vnpay-retry-content > strong {
+    display: block;
+    color: #9a3412;
+    font-size: 15px;
+    font-weight: 850;
+}
+
+.customer-vnpay-retry-content p {
+    margin: 6px 0 10px;
+    color: #7c2d12;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.customer-vnpay-retry-deadline {
+    margin-bottom: 12px;
+    color: #9a3412;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.customer-vnpay-retry-deadline [data-vnpay-countdown] {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #ffedd5;
+    color: #c2410c;
+    font-variant-numeric: tabular-nums;
+    font-weight: 850;
+}
+
+.customer-vnpay-retry-button {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 15px;
+    border: 0;
+    border-radius: 9px;
+    background: #0f172a;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    transition:
+        transform .15s ease,
+        opacity .15s ease,
+        background .15s ease;
+}
+
+.customer-vnpay-retry-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #1e293b;
+}
+
+.customer-vnpay-retry-button:disabled {
+    cursor: not-allowed;
+    opacity: .58;
+}
+
+.customer-vnpay-retry-message {
+    margin-top: 10px;
+    color: #9a3412;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+@media (max-width: 520px) {
+    .customer-vnpay-retry-card {
+        padding: 15px;
+    }
+
+    .customer-vnpay-retry-button {
+        width: 100%;
+    }
+}
