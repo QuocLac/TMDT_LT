@@ -364,6 +364,68 @@
                     <div style="font-size:11px;color:#64748B;margin-top:5px;">${card.note}</div>`;
                 overviewGrid.appendChild(element);
             });
+
+            try {
+                const auditResponse = await fetch('/Admin/Inventory/PhaseC/Audit');
+                const audit = await auditResponse.json();
+                if (auditResponse.ok && audit.success !== false) {
+                    const auditCard = document.createElement('div');
+                    auditCard.style.cssText =
+                        `background:${audit.healthy ? '#ECFDF5' : '#FFF7ED'};`
+                        + `padding:18px;border-radius:10px;`
+                        + `border:1px solid ${audit.healthy ? '#A7F3D0' : '#FDBA74'};`;
+                    auditCard.innerHTML = `
+                        <div style="color:#64748B;font-size:12px;font-weight:700;margin-bottom:6px;">ĐỐI SOÁT CUỐI MODULE KHO</div>
+                        <div style="font-size:21px;font-weight:800;color:${audit.healthy ? '#047857' : '#C2410C'};">
+                            ${audit.healthy ? 'ĐỒNG NHẤT' : `${audit.criticalIssueCount} LỖI NGHIÊM TRỌNG`}
+                        </div>
+                        <div style="font-size:11px;color:#64748B;margin-top:5px;">
+                            Lệch tồn tổng: ${audit.variantStockMismatchCount};
+                            lô/serial: ${audit.lotIssueCount};
+                            allocation: ${audit.allocationIssueCount};
+                            tài chính: ${audit.financialIssueCount}.
+                        </div>`;
+                    overviewGrid.appendChild(auditCard);
+
+                    if (Number(audit.variantStockMismatchCount) > 0) {
+                        const repairCard = document.createElement('div');
+                        repairCard.style.cssText =
+                            'background:#EFF6FF;padding:18px;border-radius:10px;border:1px solid #BFDBFE;';
+                        repairCard.innerHTML = `
+                            <div style="font-size:12px;font-weight:700;color:#1E3A8A;margin-bottom:8px;">SỬA SNAPSHOT TỒN TỔNG</div>
+                            <div style="font-size:11px;color:#475569;margin-bottom:10px;">
+                                Chỉ đồng bộ ProductVariants.Stock theo tổng lô; không tạo nhập/xuất vật lý.
+                            </div>
+                            <button type="button" id="kp-repair-stock-snapshot"
+                                style="padding:8px 12px;border:0;border-radius:6px;background:#2563EB;color:white;font-size:12px;font-weight:700;cursor:pointer;">
+                                Đồng bộ tồn tổng
+                            </button>`;
+                        overviewGrid.appendChild(repairCard);
+
+                        repairCard.querySelector('#kp-repair-stock-snapshot')
+                            ?.addEventListener('click', async event => {
+                                const button = event.currentTarget;
+                                const reason = window.prompt(
+                                    'Nhập lý do đối soát tồn tổng:',
+                                    'Đồng bộ snapshot tồn tổng sau triển khai FIFO đa kho');
+                                if (!reason?.trim()) return;
+                                button.disabled = true;
+                                try {
+                                    const result = await postJson(
+                                        '/Admin/Inventory/PhaseC/RepairVariantStockSnapshots',
+                                        { reason: reason.trim() });
+                                    window.alert(result.message || 'Đồng bộ thành công.');
+                                    window.location.reload();
+                                } catch (error) {
+                                    button.disabled = false;
+                                    window.alert(error.message || 'Không thể đồng bộ tồn tổng.');
+                                }
+                            });
+                    }
+                }
+            } catch {
+                // Báo cáo Phase C là lớp kiểm tra bổ sung, không làm vỡ dashboard.
+            }
         } catch {
             // Dashboard kho vẫn hoạt động nếu endpoint tổng hợp tạm lỗi.
         }

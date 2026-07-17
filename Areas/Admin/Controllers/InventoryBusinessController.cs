@@ -22,7 +22,7 @@ namespace TMDT_LT.Areas.Admin.Controllers;
 /// </summary>
 [Area("Admin")]
 [Authorize(Roles = "Admin")]
-[Route("Admin/Inventory")]
+[Route("Admin/Inventory/LegacyBusinessFix")]
 public sealed class InventoryBusinessController : Controller
 {
     private readonly ApplicationDbContext _context;

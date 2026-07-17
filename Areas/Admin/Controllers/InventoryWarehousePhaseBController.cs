@@ -22,6 +22,7 @@ namespace TMDT_LT.Areas.Admin.Controllers;
 /// </summary>
 [Area("Admin")]
 [Authorize(Roles = "Admin")]
+[Route("Admin/Inventory")]
 [Route("Admin/Inventory/PhaseB")]
 public sealed class InventoryWarehousePhaseBController : Controller
 {
@@ -36,7 +37,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         _logger = logger;
     }
 
-    [HttpGet("Warehouses")]
+    [HttpGet("Warehouses", Order = -200)]
     public async Task<IActionResult> Warehouses(
         CancellationToken cancellationToken)
     {
@@ -58,7 +59,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         return Json(warehouses);
     }
 
-    [HttpGet("GetAllProductsWithStock")]
+    [HttpGet("GetAllProductsWithStock", Order = -200)]
     public async Task<IActionResult> GetAllProductsWithStock(
         int? warehouseId,
         CancellationToken cancellationToken)
@@ -128,7 +129,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         return Json(result);
     }
 
-    [HttpGet("SearchVariants")]
+    [HttpGet("SearchVariants", Order = -200)]
     public async Task<IActionResult> SearchVariants(
         string q,
         int? warehouseId,
@@ -210,7 +211,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         }));
     }
 
-    [HttpPost("SubmitPO")]
+    [HttpPost("SubmitPO", Order = -200)]
     public async Task<IActionResult> SubmitPO(
         [FromBody] InventoryWarehousePoRequest? request,
         CancellationToken cancellationToken)
@@ -437,7 +438,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         }
     }
 
-    [HttpPost("EstimateSO")]
+    [HttpPost("EstimateSO", Order = -200)]
     public async Task<IActionResult> EstimateSO(
         [FromBody] InventoryWarehouseSoRequest? request,
         CancellationToken cancellationToken)
@@ -477,7 +478,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         }
     }
 
-    [HttpPost("SubmitSO")]
+    [HttpPost("SubmitSO", Order = -200)]
     public async Task<IActionResult> SubmitSO(
         [FromBody] InventoryWarehouseSoRequest? request,
         CancellationToken cancellationToken)
@@ -705,7 +706,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         }
     }
 
-    [HttpPost("AdjustStock")]
+    [HttpPost("AdjustStock", Order = -200)]
     public async Task<IActionResult> AdjustStock(
         int variantId,
         int actualStock,
@@ -901,7 +902,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         }
     }
 
-    [HttpPost("UpdateLotDetail")]
+    [HttpPost("UpdateLotDetail", Order = -200)]
     public async Task<IActionResult> UpdateLotDetail(
         [FromForm] InventoryWarehouseUpdateLotRequest request,
         CancellationToken cancellationToken)
@@ -1064,7 +1065,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         }
     }
 
-    [HttpPost("TransferLot")]
+    [HttpPost("TransferLot", Order = -200)]
     public async Task<IActionResult> TransferLot(
         [FromBody] InventoryTransferLotRequest? request,
         CancellationToken cancellationToken)
@@ -1206,7 +1207,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         }
     }
 
-    [HttpGet("LotLocations")]
+    [HttpGet("LotLocations", Order = -200)]
     public async Task<IActionResult> LotLocations(
         CancellationToken cancellationToken)
     {
@@ -1225,7 +1226,7 @@ public sealed class InventoryWarehousePhaseBController : Controller
         return Json(result);
     }
 
-    [HttpGet("FinancialOverview")]
+    [HttpGet("FinancialOverview", Order = -200)]
     public async Task<IActionResult> FinancialOverview(
         int? year,
         DateTime? fromDate,
@@ -1352,17 +1353,22 @@ public sealed class InventoryWarehousePhaseBController : Controller
             onlineOrderCount = online.OrderCount,
             onlinePaidOrderCount = online.PaidOrderCount,
             onlineCostedOrderCount = online.CostedOrderCount,
+            onlineRecognizedOrderCount = online.RecognizedOrderCount,
+            onlineExcludedPendingOrderCount = online.ExcludedPendingOrderCount,
             onlinePaidAmount = online.PaidAmount,
             onlineRefundAmount = online.RefundAmount,
             onlineNetCashCollected = online.NetCashCollected,
             onlineOutstandingAmount = online.OutstandingAmount,
             onlineActiveCogs = online.ActiveCogs,
             onlineCarrierShippingExpense = online.CarrierShippingExpense,
+            onlineShippingCostProxy = online.CarrierShippingExpense,
             onlineCashContributionProfit = online.CashContributionProfit,
             onlineProfitLimitation = online.Limitation,
             basis =
                 "Phiếu phân phối: doanh thu thuần chưa VAT - FIFO COGS - shipping cost. "
-                + "Đơn bán lẻ thực nhận: tiền đã xác nhận - hoàn tiền - VAT đã thu - allocation COGS còn tiêu thụ - phí vận chuyển thực tế."
+                + "Đơn bán lẻ: chỉ ghi nhận doanh thu khi đã giao/hoàn thành; "
+                + "tiền thu = thanh toán thành công - hoàn tiền; "
+                + "shipping hiện là snapshot/proxy và chưa trừ phí cổng thanh toán."
         });
     }
 

@@ -380,6 +380,7 @@ public sealed class OrderInventoryService : IOrderInventoryService
             RestoreFlashSaleSlots(order);
         }
 
+        ResetFinancialSnapshotsAfterFullRestock(order, timestamp);
         order.IsStockDeducted = false;
         order.StockDeductedAt = null;
         return true;
@@ -416,6 +417,42 @@ public sealed class OrderInventoryService : IOrderInventoryService
                 item.OrderId == orderId
                 && item.Status == OrderInventoryAllocationStatuses.Consumed)
             .ToListAsync(cancellationToken);
+
+        if (allocations.Count == 0)
+        {
+            foreach (var detail in order.OrderDetails.Where(detail =>
+                         detail.VariantId.HasValue
+                         && (detail.Quantity ?? 0) > 0))
+            {
+                _context.InventoryTransactions.Add(
+                    new InventoryTransactions
+                    {
+                        VariantId = detail.VariantId!.Value,
+                        TransactionType = "RETURN_DAMAGED_LEGACY",
+                        Quantity = 0,
+                        ReferenceId = orderId,
+                        TransactionDate = timestamp,
+                        WarehouseId = order.FulfillmentWarehouseId,
+                        UnitCostSnapshot = detail.Quantity > 0 && detail.CogsAmount > 0m
+                            ? RoundMoney(detail.CogsAmount / detail.Quantity.Value)
+                            : detail.Variant?.CostPrice,
+                        TotalCostSnapshot = detail.CogsAmount,
+                        Note =
+                            $"{reason}. Đơn cũ #{orderId} chưa có allocation FIFO; "
+                            + $"{detail.Quantity} sản phẩm không nhập lại tồn bán."
+                    });
+            }
+
+            var legacySerials = await _context.ProductSerials
+                .Where(serial =>
+                    serial.OrderId == orderId
+                    && (serial.Status == "Sold" || serial.Status == "Reserved"))
+                .ToListAsync(cancellationToken);
+            foreach (var serial in legacySerials)
+            {
+                serial.Status = "Damaged";
+            }
+        }
 
         foreach (var allocation in allocations)
         {
@@ -462,9 +499,46 @@ public sealed class OrderInventoryService : IOrderInventoryService
             timestamp,
             cancellationToken);
 
+        MarkFinancialSnapshotsAsInventoryLoss(order, timestamp);
         order.IsStockDeducted = false;
         order.StockDeductedAt = null;
         return true;
+    }
+
+    private static void ResetFinancialSnapshotsAfterFullRestock(
+        Orders order,
+        DateTime timestamp)
+    {
+        foreach (var detail in order.OrderDetails)
+        {
+            detail.NetRevenueAmount = 0m;
+            detail.CogsAmount = 0m;
+            detail.GrossProfitAmount = 0m;
+            detail.CostCalculatedAt = timestamp;
+        }
+
+        order.MerchandiseNetRevenueAmount = 0m;
+        order.CogsAmount = 0m;
+        order.GrossProfitAmount = 0m;
+        order.CostCalculatedAt = timestamp;
+    }
+
+    private static void MarkFinancialSnapshotsAsInventoryLoss(
+        Orders order,
+        DateTime timestamp)
+    {
+        foreach (var detail in order.OrderDetails)
+        {
+            detail.NetRevenueAmount = 0m;
+            detail.GrossProfitAmount = RoundMoney(-Math.Max(0m, detail.CogsAmount));
+            detail.CostCalculatedAt = timestamp;
+        }
+
+        order.MerchandiseNetRevenueAmount = 0m;
+        order.CogsAmount = RoundMoney(
+            order.OrderDetails.Sum(detail => Math.Max(0m, detail.CogsAmount)));
+        order.GrossProfitAmount = RoundMoney(-order.CogsAmount);
+        order.CostCalculatedAt = timestamp;
     }
 
     private async Task<int> ResolveFulfillmentWarehouseIdAsync(

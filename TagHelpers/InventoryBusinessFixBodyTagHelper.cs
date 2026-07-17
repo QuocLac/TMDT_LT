@@ -36,6 +36,6 @@ public sealed class InventoryBusinessFixBodyTagHelper : TagHelper
         string encodedAction = HtmlEncoder.Default.Encode(action);
         output.Attributes.SetAttribute("data-kp-inventory-action", encodedAction);
         output.PostContent.AppendHtml(
-            "<script defer src=\"/js/admin/inventory-business-fix.js?v=2.0.0\"></script>");
+            "<script defer src=\"/js/admin/inventory-business-fix.js?v=3.0.0\"></script>");
     }
 }
