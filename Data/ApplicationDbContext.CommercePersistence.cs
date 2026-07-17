@@ -21,6 +21,8 @@ public partial class ApplicationDbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        ConfigureInventoryPhaseB(modelBuilder);
+
         modelBuilder.Entity<OrderDetails>(entity =>
         {
             entity.Property(e => e.ProductNameSnapshot)
