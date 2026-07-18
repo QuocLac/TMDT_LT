@@ -1,347 +1,311 @@
-﻿@model List<TMDT_LT.Models.ProductVariants>
 @{
     Layout = "_LayoutAdmin";
-    ViewData["Title"] = "Quản lý Kho & Phân Phối";
-
-    int lowStockCount = ViewBag.LowStockCount ?? 0;
-    int activeStoresCount = ViewBag.ActiveStoresCount ?? 0;
-    int agedStockCount = ViewBag.AgedStockCount ?? 0;
-    decimal totalValueCost = ViewBag.TotalInventoryValue ?? 0;
-    decimal totalValueMarket = ViewBag.TotalInventoryValueMarket ?? 0;
-    decimal expectedProfit = ViewBag.ExpectedProfit ?? 0;
-
-    var monthlyReport = ViewBag.MonthlyReport as dynamic;
-    var activeLotsTable = ViewBag.ActiveLotsTable as List<TMDT_LT.Models.InventoryLots> ?? new List<TMDT_LT.Models.InventoryLots>();
+    ViewData["Title"] = "Kiểm soát tồn kho";
 }
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-    <div>
-        <h2 style="margin-bottom: 5px; font-weight: 700; color: #111827; letter-spacing: -0.5px;">QUẢN LÝ KHO & PHÂN PHỐI - KINGPHONE</h2>
-        <p style="color: #6B7280; font-size: 14px;">Hệ thống giám sát chuỗi cung ứng: Quản lý nghiêm ngặt hàng khả dụng, điều chỉnh thông tin lô bãi và phân phối.</p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin/inventory-control-phase-d2.css" asp-append-version="true" />
+}
+
+@Html.AntiForgeryToken()
+
+<div class="ic-page" id="inventoryControlApp">
+    <header class="ic-page-header">
+        <div>
+            <div class="ic-eyebrow">WAREHOUSE CONTROL CENTER · PHASE D2</div>
+            <h1>Kiểm soát tồn kho</h1>
+            <p>Theo dõi On hand, Reserved, Available và kiểm kê có audit theo từng kho.</p>
+        </div>
+        <div class="ic-header-actions">
+            <a class="ic-button ic-button-light" href="/Admin/Inventory/CreateSO">
+                <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                Phiếu xuất
+            </a>
+            <a class="ic-button ic-button-light" href="/Admin/Inventory/CreatePO">
+                <i class="fa-solid fa-truck-ramp-box"></i>
+                Nhận hàng
+            </a>
+            <button class="ic-button ic-button-primary" type="button" id="openCountModalButton">
+                <i class="fa-solid fa-clipboard-check"></i>
+                Tạo phiên kiểm kê
+            </button>
+        </div>
+    </header>
+
+    <section class="ic-toolbar" aria-label="Bộ lọc tồn kho">
+        <label class="ic-field ic-field-warehouse">
+            <span>Kho vận hành</span>
+            <select id="warehouseFilter"></select>
+            <small id="warehouseMeta">Đang tải danh sách kho...</small>
+        </label>
+        <label class="ic-field ic-field-search">
+            <span>Tìm SKU / sản phẩm</span>
+            <div class="ic-input-icon">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input id="stockSearch" type="search" placeholder="Tên sản phẩm, biến thể hoặc Variant ID" autocomplete="off" />
+            </div>
+        </label>
+        <label class="ic-field">
+            <span>Trạng thái tồn</span>
+            <select id="stockScopeFilter">
+                <option value="all">Tất cả SKU</option>
+                <option value="available">Đang có tồn</option>
+                <option value="low">Sắp hết (≤ 5)</option>
+                <option value="out">Hết hàng</option>
+                <option value="drift">Lệch tồn tổng</option>
+            </select>
+        </label>
+        <button class="ic-icon-button" type="button" id="refreshButton" title="Tải lại dữ liệu">
+            <i class="fa-solid fa-rotate"></i>
+        </button>
+    </section>
+
+    <section class="ic-kpi-grid" aria-label="Tổng quan tồn kho">
+        <article class="ic-kpi-card">
+            <div class="ic-kpi-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div>
+                <span>On hand</span>
+                <strong id="totalOnHand">—</strong>
+                <small>Hàng vật lý trong kho</small>
+            </div>
+        </article>
+        <article class="ic-kpi-card">
+            <div class="ic-kpi-icon"><i class="fa-solid fa-lock"></i></div>
+            <div>
+                <span>Reserved</span>
+                <strong id="totalReserved">—</strong>
+                <small>Đã giữ cho đơn hàng</small>
+            </div>
+        </article>
+        <article class="ic-kpi-card ic-kpi-accent">
+            <div class="ic-kpi-icon"><i class="fa-solid fa-cart-flatbed"></i></div>
+            <div>
+                <span>Available</span>
+                <strong id="totalAvailable">—</strong>
+                <small>Có thể tiếp tục bán</small>
+            </div>
+        </article>
+        <article class="ic-kpi-card">
+            <div class="ic-kpi-icon"><i class="fa-solid fa-coins"></i></div>
+            <div>
+                <span>Giá trị tồn</span>
+                <strong id="totalInventoryValue">—</strong>
+                <small>Theo giá vốn từng lô</small>
+            </div>
+        </article>
+        <article class="ic-kpi-card">
+            <div class="ic-kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div>
+                <span>SKU sắp hết</span>
+                <strong id="lowStockCount">—</strong>
+                <small>On hand từ 1 đến 5</small>
+            </div>
+        </article>
+        <article class="ic-kpi-card">
+            <div class="ic-kpi-icon"><i class="fa-solid fa-list-check"></i></div>
+            <div>
+                <span>Phiên đang mở</span>
+                <strong id="pendingCountCount">—</strong>
+                <small>Đang đếm hoặc chờ duyệt</small>
+            </div>
+        </article>
+    </section>
+
+    <div class="ic-tabs" role="tablist">
+        <button type="button" class="ic-tab is-active" data-tab="stock" role="tab">
+            <i class="fa-solid fa-warehouse"></i>
+            Tồn theo SKU
+        </button>
+        <button type="button" class="ic-tab" data-tab="counts" role="tab">
+            <i class="fa-solid fa-clipboard-list"></i>
+            Phiên kiểm kê
+        </button>
+        <button type="button" class="ic-tab" data-tab="ledger" role="tab">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            Sổ biến động
+        </button>
     </div>
-    <div style="display: flex; gap: 12px;">
-        <a href="/Admin/Inventory/CreateSO" style="text-decoration: none; padding: 11px 20px; border-radius: 8px; border: 1px solid #E5E7EB; color: #374151; background: #FFF; font-weight: 600; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;">
-            Lập Phiếu Xuất Kho
-        </a>
-        <a href="/Admin/Inventory/CreatePO" style="text-decoration: none; padding: 11px 20px; border-radius: 8px; background: #2563EB; color: #fff; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(37,99,235,0.2); transition: all 0.2s;">
-            Tạo Phiếu Nhập (NCC)
-        </a>
-    </div>
-</div>
 
-<div style="background: #FFF; padding: 24px; border-radius: 12px; border: 1px solid #E5E7EB; margin-bottom: 30px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
-    <h3 style="font-size: 14px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;">Tổng Overview Hệ Thống (Hàng Khả Dụng)</h3>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
-        <div style="background:#F9FAFB; padding:18px; border-radius:10px; border:1px solid #E5E7EB;">
-            <div style="color:#6B7280; font-size:12px; font-weight: 600; margin-bottom:6px;">TỔNG SẢN PHẨM MÁY</div>
-            <div style="font-size:24px; font-weight:700; color:#111827;">@ViewBag.TotalProductsCount</div>
+    <section class="ic-panel" data-panel="stock">
+        <div class="ic-panel-heading">
+            <div>
+                <h2>Tồn kho theo biến thể</h2>
+                <p id="stockResultMeta">Đang tải dữ liệu...</p>
+            </div>
+            <div class="ic-selection-summary">
+                <span id="selectedSkuCount">0 SKU đã chọn</span>
+                <button type="button" class="ic-link-button" id="clearSelectionButton">Bỏ chọn</button>
+            </div>
         </div>
-        <div style="background:#F9FAFB; padding:18px; border-radius:10px; border:1px solid #E5E7EB;">
-            <div style="color:#6B7280; font-size:12px; font-weight: 600; margin-bottom:6px;">BIẾN THỂ CÒN HÀNG</div>
-            <div style="font-size:24px; font-weight:700; color:#111827;">@ViewBag.TotalVariantsCount</div>
-        </div>
-        <div style="background:#F9FAFB; padding:18px; border-radius:10px; border:1px solid #E5E7EB;">
-            <div style="color:#6B7280; font-size:12px; font-weight: 600; margin-bottom:6px;">GIÁ TRỊ TỒN KHO (VỐN)</div>
-            <div style="font-size:22px; font-weight:700; color:#111827;">@totalValueCost.ToString("N0") đ</div>
-        </div>
-        <div style="background:#F9FAFB; padding:18px; border-radius:10px; border:1px solid #E5E7EB;">
-            <div style="color:#6B7280; font-size:12px; font-weight: 600; margin-bottom:6px;">ĐỊNH GIÁ THỊ TRƯỜNG</div>
-            <div style="font-size:22px; font-weight:700; color:#2563EB;">@totalValueMarket.ToString("N0") đ</div>
-        </div>
-        <div style="background:#F9FAFB; padding:18px; border-radius:10px; border:1px solid #E5E7EB;">
-            <div style="color:#6B7280; font-size:12px; font-weight: 600; margin-bottom:6px;">LỢI NHUẬN DỰ KIẾN GỘP</div>
-            <div style="font-size:22px; font-weight:700; color:#10B981;">@expectedProfit.ToString("N0") đ</div>
-        </div>
-        <div style="background:#FFF; padding:18px; border-radius:10px; border:1px solid @(lowStockCount > 0 ? "#FCA5A5" : "#E5E7EB");">
-            <div style="color: @(lowStockCount > 0 ? "#EF4444" : "#6B7280"); font-size:12px; font-weight: 600; margin-bottom:6px;">HÀNG SẮP HẾT KHO</div>
-            <div style="font-size:24px; font-weight:700; color: @(lowStockCount > 0 ? "#EF4444" : "#111827");">@lowStockCount</div>
-        </div>
-        <div style="background:#F9FAFB; padding:18px; border-radius:10px; border:1px solid #E5E7EB;">
-            <div style="color:#6B7280; font-size:12px; font-weight: 600; margin-bottom:6px;">CHI NHÁNH LIÊN KẾT</div>
-            <div style="font-size:24px; font-weight:700; color:#111827;">@activeStoresCount</div>
-        </div>
-        <div style="background:#FFF; padding:18px; border-radius:10px; border:1px solid @(agedStockCount > 0 ? "#FCD34D" : "#E5E7EB");">
-            <div style="color: @(agedStockCount > 0 ? "#D97706" : "#6B7280"); font-size:12px; font-weight: 600; margin-bottom:6px;">HÀNG TỒN LÂU NGÀY</div>
-            <div style="font-size:24px; font-weight:700; color: @(agedStockCount > 0 ? "#D97706" : "#111827");">@agedStockCount</div>
-        </div>
-    </div>
-</div>
 
-<div style="background:#FFF; padding:24px; border-radius:12px; border:1px solid #E5E7EB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
-    <h3 style="font-size: 14px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;">Quản Lý Chi Tiết Theo Phân Phối Lô</h3>
-
-    <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; background: #F9FAFB; padding: 14px; border-radius: 8px; border: 1px solid #E5E7EB;">
-        <input type="text" id="lotSearchInput" placeholder="Tìm tên máy, mã số Lô..." style="width: 260px; padding: 7px 14px; border-radius: 6px; border: 1px solid #D1D5DB; font-size: 13px;" onkeyup="filterLotTable()" />
-        <select id="lotStoreFilter" style="width: 180px; padding: 7px; border-radius: 6px; border: 1px solid #D1D5DB; font-size: 13px; background:#FFF;" onchange="filterLotTable()">
-            <option value="">-- Tất cả vị trí kho --</option>
-            <option value="kho hcm">Kho HCM trung tâm</option>
-            <option value="kho hn">Kho HN chi nhánh</option>
-        </select>
-    </div>
-
-    <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;" id="lotTable">
-            <thead>
-                <tr style="background: #F9FAFB; border-bottom: 2px solid #E5E7EB; color: #4B5563; font-weight: 600;">
-                    <th style="padding: 12px 14px;">Mã Lô Số</th>
-                    <th style="padding: 12px 14px; width: 28%;">Thiết bị / Cấu hình chi tiết</th>
-                    <th style="padding: 12px 14px;">Vị trí lưu bãi</th>
-                    <th style="padding: 12px 14px; text-align: center;">Tồn thực tế / Nhập</th>
-                    <th style="padding: 12px 14px; text-align: right;">Giá vốn Landed</th>
-                    <th style="padding: 12px 14px; text-align: right;">Giá bán lẻ niêm yết</th>
-                    <th style="padding: 12px 14px; text-align: center;">Thời điểm nhập</th>
-                    <th style="padding: 12px 14px; text-align: center;">Thao tác dữ liệu</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var lot in activeLotsTable)
-                {
-                    var remQty = lot.RemainingQuantity;
-                    var basePrice = lot.Variant?.Price ?? 0;
-
-                    string rowStoreName = (lot.Poid % 2 == 0) ? "Kho HCM trung tâm" : "Kho HN chi nhánh";
-                    int totalWarehouseDays = (DateTime.Now - lot.ReceivedDate).Days;
-                    bool isAgedStock = totalWarehouseDays > 30;
-
-                    // 🔥 SỬA: Logic kiểm tra ảnh xếp tầng (Ảnh cấu hình -> Ảnh sản phẩm gốc -> Ảnh default)
-                    string imgUrl = "/images/products/default-product.png";
-                    if (!string.IsNullOrEmpty(lot.Variant?.ImageUrl))
-                    {
-                        imgUrl = lot.Variant.ImageUrl;
-                    }
-                    else if (!string.IsNullOrEmpty(lot.Variant?.Product?.MainImage))
-                    {
-                        imgUrl = lot.Variant.Product.MainImage;
-                    }
-
-                    string searchKeyword = $"{lot.Variant?.Product?.Name?.ToLower()} lot-00{lot.LotId}";
-
-                    <tr class="lot-data-row" id="lot-row-@(lot.LotId)"
-                        data-keyword="@searchKeyword"
-                        data-store="@rowStoreName.ToLower()"
-                        style="border-bottom: 1px solid #F3F4F6; color: #374151; transition: background 0.15s; @(isAgedStock ? "background-color: #FFFBEB;" : "")">
-
-                        <td style="padding: 14px; font-family: monospace; font-weight: 700; color: #2563EB;">
-                            #LOT-00@(lot.LotId)
-                        </td>
-                        <td style="padding: 14px; display: flex; align-items: center; gap: 12px;">
-                            <img src="@imgUrl" alt="Product Image" style="width: 44px; height: 44px; object-fit: cover; border-radius: 8px; border: 1px solid #E5E7EB;" onerror="this.src='/images/products/default-product.png';" />
-                            <div>
-                                <strong style="color: #111827; font-size: 13.5px;">@lot.Variant?.Product?.Name</strong>
-                                <div style="font-size: 11px; color: #6B7280; margin-top: 3px;">Màu @lot.Variant?.Color | Bản @lot.Variant?.Storage</div>
-                            </div>
-                        </td>
-                        <td style="padding: 14px; font-weight: 500; color: #4B5563;" class="lot-store-cell">@rowStoreName</td>
-                        <td style="padding: 14px; text-align: center; font-weight: 700; color: #111827;" class="lot-qty-cell">@remQty / @lot.ReceivedQuantity máy</td>
-                        <td style="padding: 14px; text-align: right; font-weight: 600; color: #374151;">@lot.UnitCost.ToString("N0") đ</td>
-                        <td style="padding: 14px; text-align: right; font-weight: 600; color: #2563EB;">@basePrice.ToString("N0") đ</td>
-                        <td style="padding: 14px; text-align: center; font-weight: 500; color: #4B5563;">
-                            @lot.ReceivedDate.ToString("dd/MM/yyyy")
-                            @if (isAgedStock)
-                            {
-                                <div style="font-size: 10px; color: #D97706; font-weight: 800; margin-top: 3px; background: #FEF3C7; padding: 2px 6px; border-radius: 10px; display: inline-block;">
-                                    Tồn đọng @totalWarehouseDays ngày
-                                </div>
-                            }
-                        </td>
-                        <td style="padding: 14px; text-align: center;">
-                            <div style="display: flex; gap: 6px; justify-content: center;">
-                                <button onclick="viewLotDetail('@(lot.LotId)', `@lot.Variant?.Product?.Name`, `@lot.Variant?.Color`, `@lot.Variant?.Storage`, '@remQty', '@lot.ReceivedQuantity', '@lot.UnitCost.ToString("N0")', '@basePrice.ToString("N0")', '@lot.ReceivedDate.ToString("dd/MM/yyyy")', '@lot.Poid', `@imgUrl`)" style="padding: 6px 14px; background: #FFF; color: #4F46E5; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Xem chi tiết</button>
-                            </div>
-                        </td>
+        <div class="ic-table-wrap">
+            <table class="ic-table">
+                <thead>
+                    <tr>
+                        <th class="ic-checkbox-column"><input type="checkbox" id="selectPageCheckbox" aria-label="Chọn toàn bộ trang" /></th>
+                        <th>SKU / Sản phẩm</th>
+                        <th class="ic-number-column">On hand</th>
+                        <th class="ic-number-column">Reserved</th>
+                        <th class="ic-number-column">Available</th>
+                        <th class="ic-number-column">Giá vốn TB</th>
+                        <th class="ic-number-column">Giá trị tồn</th>
+                        <th>Tuổi tồn</th>
+                        <th>Kiểm soát</th>
                     </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div id="viewLotModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; justify-content: center; align-items: center; font-family: 'Segoe UI', sans-serif; backdrop-filter: blur(4px);">
-    <div style="background: #FFF; padding: 28px; border-radius: 12px; width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
-        <h3 style="margin-top: 0; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; color: #111827; font-weight: 700; font-size: 16px;">Thông Tin Chi Tiết Lô Hàng</h3>
-        <div style="text-align: center; margin-bottom: 15px;">
-            <img id="detImg" src="" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #E5E7EB;" />
+                </thead>
+                <tbody id="stockTableBody"></tbody>
+            </table>
         </div>
-        <table style="width: 100%; font-size: 13.5px; line-height: 2.2; color: #4B5563; margin-bottom: 20px;">
-            <tr><td style="font-weight: 600; width: 42%;">Mã định danh lô:</td><td id="detLotId" style="font-family: monospace; font-weight:700; color:#2563EB;"></td></tr>
-            <tr><td style="font-weight: 600;">Mã đơn nhập kho (PO):</td><td id="detPOId" style="font-family: monospace; font-weight:700; color:#4B5563;"></td></tr>
-            <tr><td style="font-weight: 600;">Tên sản phẩm chính:</td><td id="detProductName" style="font-weight:700; color:#111827;"></td></tr>
-            <tr><td style="font-weight: 600;">Cấu hình chi tiết:</td><td id="detSpecs"></td></tr>
-            <tr><td style="font-weight: 600;">Số lượng tồn / Nhập:</td><td id="detQty" style="color:#16A34A; font-weight:700;"></td></tr>
-            <tr><td style="font-weight: 600;">Giá vốn gốc Landed:</td><td id="detUnitCost" style="font-weight:600;"></td></tr>
-            <tr><td style="font-weight: 600;">Giá bán lẻ niêm yết:</td><td id="detListPrice" style="color:#2563EB; font-weight:700;"></td></tr>
-            <tr><td style="font-weight: 600;">Ngày nhập bãi bốc dỡ:</td><td id="detDate"></td></tr>
-        </table>
-        <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #E5E7EB; padding-top: 14px;">
-            <button id="btnViewPO" style="padding: 8px 16px; background: #2563EB; color: #FFF; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">Xem Đơn Hàng PO</button>
-            <button onclick="closeModal('viewLotModal')" style="padding: 8px 16px; background: #6B7280; color: #FFF; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">Đóng</button>
+
+        <div class="ic-pagination">
+            <span id="pageIndicator">Trang 1 / 1</span>
+            <div>
+                <button type="button" class="ic-page-button" id="previousPageButton"><i class="fa-solid fa-chevron-left"></i></button>
+                <button type="button" class="ic-page-button" id="nextPageButton"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
         </div>
-    </div>
-</div>
+    </section>
 
-<div id="editLotModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; justify-content: center; align-items: center; font-family: 'Segoe UI', sans-serif; backdrop-filter: blur(4px);">
-    <div style="background: #FFF; padding: 28px; border-radius: 12px; width: 480px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
-        <h3 style="margin-top: 0; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; color: #111827; font-weight: 700; font-size: 16px;">Cập Nhật Thông Tin Biến Thể & Lô Hàng</h3>
-
-        <form id="editLotForm" enctype="multipart/form-data">
-            <input type="hidden" id="editLotIdField" name="LotId" />
-            <input type="hidden" id="editVariantIdField" name="VariantId" />
-
-            <div style="display: flex; align-items: center; gap: 15px; margin: 12px 0;">
-                <img id="editImgPreview" src="" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #D1D5DB;" />
-                <div>
-                    <label style="display: block; font-size: 12px; font-weight: 600; color:#4B5563; margin-bottom:4px;">Thay đổi hình ảnh thiết bị:</label>
-                    <input type="file" id="editImageFile" name="ImageFile" accept="image/*" onchange="previewEditImage(this)" style="font-size:12px;" />
-                </div>
+    <section class="ic-panel" data-panel="counts" hidden>
+        <div class="ic-panel-heading">
+            <div>
+                <h2>Phiên kiểm kê</h2>
+                <p>Snapshot → kiểm đếm → gửi duyệt → ghi sổ chênh lệch.</p>
             </div>
-
-            <div style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color:#374151;">Số lượng tồn của Lô:</label>
-                <input type="number" id="editQtyInput" name="RemainingQuantity" style="width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px;" />
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                <div>
-                    <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color:#374151;">Giá vốn Landed (đ):</label>
-                    <input type="number" id="editUnitCostInput" name="UnitCost" style="width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px;" />
-                </div>
-                <div>
-                    <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color:#374151;">Giá bán niêm yết (đ):</label>
-                    <input type="number" id="editPriceInput" name="Price" style="width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px;" />
-                </div>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color:#374151;">Vị trí bãi bốc dỡ lưu kho:</label>
-                <select id="editStoreSelect" name="StoreLocation" style="width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px; background:#FFF;">
-                    <option value="Kho HCM trung tâm">Kho HCM trung tâm</option>
-                    <option value="Kho HN chi nhánh">Kho HN chi nhánh</option>
+            <label class="ic-inline-filter">
+                <span>Trạng thái</span>
+                <select id="sessionStatusFilter">
+                    <option value="">Tất cả</option>
+                    <option value="Counting">Đang kiểm đếm</option>
+                    <option value="PendingApproval">Chờ duyệt</option>
+                    <option value="Posted">Đã ghi sổ</option>
+                    <option value="Cancelled">Đã hủy</option>
                 </select>
+            </label>
+        </div>
+        <div class="ic-table-wrap">
+            <table class="ic-table">
+                <thead>
+                    <tr>
+                        <th>Mã phiên</th>
+                        <th>Kho</th>
+                        <th>Phạm vi</th>
+                        <th>Tiến độ</th>
+                        <th>Chênh lệch</th>
+                        <th>Giá trị</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="sessionTableBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="ic-panel" data-panel="ledger" hidden>
+        <div class="ic-panel-heading">
+            <div>
+                <h2>Sổ biến động tồn</h2>
+                <p>Lịch sử trước–sau theo kho, SKU, lý do và giá trị ảnh hưởng.</p>
             </div>
+        </div>
+        <div class="ic-table-wrap">
+            <table class="ic-table">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>SKU / Sản phẩm</th>
+                        <th>Loại giao dịch</th>
+                        <th>Trước → Sau</th>
+                        <th>Biến động</th>
+                        <th>Giá trị</th>
+                        <th>Lý do / Tham chiếu</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionTableBody"></tbody>
+            </table>
+        </div>
+    </section>
+</div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #E5E7EB; padding-top: 14px;">
-                <button type="button" onclick="closeModal('editLotModal')" style="padding: 8px 16px; background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px;">Hủy</button>
-                <button type="button" onclick="submitEditLotChange()" style="padding: 8px 18px; background: #D97706; color: #FFF; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;">Cập nhật ngay</button>
+<div class="ic-modal" id="createCountModal" hidden>
+    <div class="ic-modal-card ic-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="createCountTitle">
+        <div class="ic-modal-header">
+            <div>
+                <div class="ic-eyebrow">NEW COUNT SESSION</div>
+                <h2 id="createCountTitle">Tạo phiên kiểm kê</h2>
             </div>
-        </form>
+            <button type="button" class="ic-modal-close" data-close-modal="createCountModal" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ic-modal-body">
+            <div class="ic-info-box" id="countSelectionInfo">Chưa chọn SKU.</div>
+            <label class="ic-field">
+                <span>Kho kiểm kê</span>
+                <select id="countWarehouseId"></select>
+            </label>
+            <label class="ic-field">
+                <span>Phạm vi</span>
+                <select id="countScopeType">
+                    <option value="Cycle">Kiểm kê chu kỳ — các SKU đã chọn</option>
+                    <option value="Full">Kiểm kê toàn kho — tối đa 500 SKU có tồn</option>
+                </select>
+            </label>
+            <label class="ic-field">
+                <span>Ghi chú</span>
+                <textarea id="countNotes" rows="3" maxlength="500" placeholder="Khu vực, ca làm việc, người phụ trách..."></textarea>
+            </label>
+        </div>
+        <div class="ic-modal-footer">
+            <button type="button" class="ic-button ic-button-light" data-close-modal="createCountModal">Hủy</button>
+            <button type="button" class="ic-button ic-button-primary" id="createCountButton">Tạo phiên</button>
+        </div>
     </div>
 </div>
 
-<div id="successModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; justify-content: center; align-items: center; font-family: 'Segoe UI', sans-serif; backdrop-filter: blur(4px);">
-    <div style="background: #FFF; border-radius: 12px; width: 420px; padding: 30px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-        <div style="font-size: 48px; color: #10B981; margin-bottom: 15px;">✅</div>
-        <h3 style="margin: 0 0 10px 0; color: #111827;" id="successTitle">Thành công!</h3>
-        <p style="color: #6B7280; font-size: 14px; margin-bottom: 20px;" id="successMessage">Thao tác đã được thực hiện thành công.</p>
-        <button onclick="closeSuccessModal()" style="padding: 10px 30px; background: #2563EB; color: #FFF; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">Đóng</button>
+<div class="ic-modal" id="sessionDetailModal" hidden>
+    <div class="ic-modal-card ic-modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="sessionDetailTitle">
+        <div class="ic-modal-header">
+            <div>
+                <div class="ic-eyebrow" id="sessionWarehouseLabel">INVENTORY COUNT</div>
+                <h2 id="sessionDetailTitle">Chi tiết phiên kiểm kê</h2>
+                <p id="sessionDetailMeta"></p>
+            </div>
+            <button type="button" class="ic-modal-close" data-close-modal="sessionDetailModal" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ic-modal-body ic-session-body">
+            <div class="ic-session-alert" id="sessionAlert"></div>
+            <div class="ic-table-wrap ic-count-lines-wrap">
+                <table class="ic-table ic-count-table">
+                    <thead>
+                        <tr>
+                            <th>SKU / Sản phẩm</th>
+                            <th class="ic-number-column">Hệ thống</th>
+                            <th class="ic-number-column">Thực đếm</th>
+                            <th class="ic-number-column">Chênh lệch</th>
+                            <th>Lý do</th>
+                            <th class="ic-number-column">Giá vốn tăng</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody id="countLineTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="ic-modal-footer ic-session-footer">
+            <div class="ic-session-total" id="sessionTotal"></div>
+            <div class="ic-session-actions">
+                <button type="button" class="ic-button ic-button-danger" id="cancelSessionButton">Hủy phiên</button>
+                <button type="button" class="ic-button ic-button-light" id="saveLinesButton">Lưu các dòng</button>
+                <button type="button" class="ic-button ic-button-primary" id="submitSessionButton">Gửi duyệt</button>
+                <button type="button" class="ic-button ic-button-success" id="postSessionButton">Duyệt & ghi sổ</button>
+            </div>
+        </div>
     </div>
 </div>
 
-<div id="errorModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; justify-content: center; align-items: center; font-family: 'Segoe UI', sans-serif; backdrop-filter: blur(4px);">
-    <div style="background: #FFF; border-radius: 12px; width: 420px; padding: 30px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-        <div style="font-size: 48px; color: #EF4444; margin-bottom: 15px;">❌</div>
-        <h3 style="margin: 0 0 10px 0; color: #111827;" id="errorTitle">Lỗi!</h3>
-        <p style="color: #6B7280; font-size: 14px; margin-bottom: 20px;" id="errorMessage">Có lỗi xảy ra trong quá trình xử lý.</p>
-        <button onclick="closeErrorModal()" style="padding: 10px 30px; background: #EF4444; color: #FFF; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">Đóng</button>
-    </div>
-</div>
+<div class="ic-toast-stack" id="toastStack" aria-live="polite"></div>
 
 @section Scripts {
-    <script>
-        function showSuccessModal(title, message) {
-            document.getElementById('successTitle').innerText = title || 'Thành công!';
-            document.getElementById('successMessage').innerText = message || 'Thao tác thành công.';
-            document.getElementById('successModal').style.display = 'flex';
-        }
-        function closeSuccessModal() { document.getElementById('successModal').style.display = 'none'; }
-        function showErrorModal(title, message) {
-            document.getElementById('errorTitle').innerText = title || 'Lỗi!';
-            document.getElementById('errorMessage').innerText = message || 'Có lỗi xảy ra.';
-            document.getElementById('errorModal').style.display = 'flex';
-        }
-        function closeErrorModal() { document.getElementById('errorModal').style.display = 'none'; }
-        function closeModal(modalId) { document.getElementById(modalId).style.display = "none"; }
-
-        // XEM CHI TIẾT LÔ HÀNG KÈM ẢNH
-        function viewLotDetail(lotId, productName, color, storage, remQty, recQty, unitCost, listPrice, date, poId, imgUrl) {
-            document.getElementById("detImg").src = imgUrl;
-            document.getElementById("detLotId").innerText = "#LOT-00" + lotId;
-            document.getElementById("detPOId").innerText = "#PO-" + poId;
-            document.getElementById("detProductName").innerText = productName;
-            document.getElementById("detSpecs").innerText = "Màu " + color + " | Bản " + storage;
-            document.getElementById("detQty").innerText = remQty + " / " + recQty + " máy";
-            document.getElementById("detUnitCost").innerText = unitCost + " đ";
-            document.getElementById("detListPrice").innerText = listPrice + " đ";
-            document.getElementById("detDate").innerText = date;
-
-            document.getElementById("btnViewPO").onclick = function() {
-                window.location.href = "/Admin/Inventory/POHistory?poId=" + poId;
-            };
-            document.getElementById("viewLotModal").style.display = "flex";
-        }
-
-        // MỞ MODAL SỬA CHI TIẾT ĐẦY ĐỦ
-        function openEditLotModal(lotId, variantId, currentQty, unitCost, price, storeLocation, imgUrl) {
-            document.getElementById("editLotIdField").value = lotId;
-            document.getElementById("editVariantIdField").value = variantId;
-            document.getElementById("editQtyInput").value = currentQty;
-            document.getElementById("editUnitCostInput").value = Math.round(unitCost);
-            document.getElementById("editPriceInput").value = Math.round(price);
-            document.getElementById("editStoreSelect").value = storeLocation.trim();
-            document.getElementById("editImgPreview").src = imgUrl;
-            document.getElementById("editImageFile").value = "";
-            document.getElementById("editLotModal").style.display = "flex";
-        }
-
-        // Preview ảnh thời gian thực khi chọn file
-        function previewEditImage(input) {
-            if (input.files && input.files[0]) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('editImgPreview').src = e.target.result;
-                }
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        // ĐẨY FORM DATA LÊN API MỚI CỦA CONTROLLER
-        function submitEditLotChange() {
-            var form = document.getElementById("editLotForm");
-            var formData = new FormData(form);
-
-            $.ajax({
-                url: '/Admin/Inventory/UpdateLotDetail',
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function (res) {
-                    if (res.success) {
-                        closeModal('editLotModal');
-                        showSuccessModal('Thành công', res.message);
-                        setTimeout(() => window.location.reload(), 1500);
-                    } else {
-                        showErrorModal('Thất bại', res.message);
-                    }
-                },
-                error: function () {
-                    showErrorModal('Lỗi', 'Không thể kết nối mạng hoặc máy chủ phân phối gặp lỗi.');
-                }
-            });
-        }
-
-        function filterLotTable() {
-            const query = document.getElementById("lotSearchInput").value.trim().toLowerCase();
-            const storeFilter = document.getElementById("lotStoreFilter").value.toLowerCase();
-
-            document.querySelectorAll(".lot-data-row").forEach(row => {
-                const keyword = row.getAttribute("data-keyword") || "";
-                const store = row.getAttribute("data-store") || "";
-
-                let matchSearch = query === "" || keyword.includes(query);
-                let matchStore = storeFilter === "" || store.includes(storeFilter);
-
-                row.style.display = (matchSearch && matchStore) ? "" : "none";
-            });
-        }
-    </script>
+    <script src="~/js/admin/inventory-control-phase-d2.js" asp-append-version="true"></script>
 }
