@@ -1,749 +1,84 @@
-﻿@model List<TMDT_LT.Models.ProductVariants>
 @{
     Layout = "_LayoutAdmin";
-    ViewData["Title"] = "Tạo Phiếu Xuất Kho Phân Phối";
+    ViewData["Title"] = "Xuất kho phân phối";
 }
 
-<style>
-    .filter-group {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        align-items: center;
-        padding: 12px 16px;
-        background: #F9FAFB;
-        border-radius: 8px;
-        border: 1px solid #E5E7EB;
-        margin-bottom: 16px;
-    }
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin/inventory-distribution-phase-d3.css" asp-append-version="true" />
+}
 
-        .filter-group select, .filter-group input {
-            padding: 8px 12px;
-            border: 1px solid #D1D5DB;
-            border-radius: 6px;
-            font-size: 13px;
-            background: #FFF;
-            outline: none;
-            min-width: 140px;
-        }
+@Html.AntiForgeryToken()
 
-            .filter-group select:focus, .filter-group input:focus {
-                border-color: #2563EB;
-                box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-            }
+<div class="id-page" id="inventoryDistributionApp">
+    <header class="id-header">
+        <div>
+            <div class="id-eyebrow">FIFO DISTRIBUTION · PHASE D3</div>
+            <h1>Xuất kho phân phối</h1>
+            <p>Chọn đúng kho nguồn, bảo vệ reservation, preview giá vốn FIFO và lợi nhuận trước khi ghi sổ.</p>
+        </div>
+        <nav class="id-header-actions">
+            <a class="id-button id-button-light" href="/Admin/Inventory"><i class="fa-solid fa-chart-column"></i> Kiểm soát tồn</a>
+            <a class="id-button id-button-light" href="/Admin/Inventory/Operations"><i class="fa-solid fa-right-left"></i> Vận hành kho</a>
+            <a class="id-button id-button-light" href="/Admin/Inventory/CreatePO"><i class="fa-solid fa-truck-ramp-box"></i> Nhận hàng</a>
+        </nav>
+    </header>
 
-    .product-card {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 12px 16px;
-        border: 1px solid #E5E7EB;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        background: #FFF;
-    }
-
-        .product-card:hover {
-            border-color: #2563EB;
-            background: #F0F7FF;
-            box-shadow: 0 2px 8px rgba(37,99,235,0.08);
-        }
-
-        .product-card.selected {
-            border-color: #2563EB;
-            background: #EFF6FF;
-        }
-
-        .product-card img {
-            width: 48px;
-            height: 48px;
-            object-fit: cover;
-            border-radius: 6px;
-            border: 1px solid #E5E7EB;
-        }
-
-    .product-info {
-        flex: 1;
-    }
-
-        .product-info .name {
-            font-weight: 600;
-            color: #111827;
-            font-size: 14px;
-        }
-
-        .product-info .specs {
-            font-size: 12px;
-            color: #6B7280;
-            margin-top: 2px;
-        }
-
-        .product-info .price {
-            font-size: 13px;
-            font-weight: 600;
-            color: #2563EB;
-        }
-
-    .badge-stock {
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-
-        .badge-stock.in-stock {
-            background: #D1FAE5;
-            color: #065F46;
-        }
-
-        .badge-stock.low-stock {
-            background: #FEF3C7;
-            color: #92400E;
-        }
-
-        .badge-stock.out-stock {
-            background: #FEE2E2;
-            color: #991B1B;
-        }
-
-    .product-list-container {
-        max-height: 400px;
-        overflow-y: auto;
-        border: 1px solid #E5E7EB;
-        border-radius: 8px;
-        padding: 8px;
-        background: #FFF;
-    }
-
-        .product-list-container::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .product-list-container::-webkit-scrollbar-thumb {
-            background: #D1D5DB;
-            border-radius: 3px;
-        }
-
-        .product-list-container::-webkit-scrollbar-track {
-            background: #F3F4F6;
-        }
-
-    .btn-add-lot {
-        padding: 6px 14px;
-        background: #2563EB;
-        color: #FFF;
-        border: none;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-    }
-
-        .btn-add-lot:hover {
-            background: #1D4ED8;
-            transform: scale(1.02);
-        }
-
-        .btn-add-lot:disabled {
-            background: #9CA3AF;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-    /* Loading spinner */
-    .loading-spinner {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border: 2px solid #E5E7EB;
-        border-top: 2px solid #2563EB;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-right: 8px;
-        vertical-align: middle;
-    }
-
-    @@keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    .btn-submit-loading {
-        opacity: 0.7;
-        pointer-events: none;
-    }
-</style>
-
-<div style="margin-bottom: 25px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-        <a href="/Admin/Inventory/Index" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #F3F4F6; color: #374151; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; border: 1px solid #E5E7EB; transition: all 0.2s;" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">
-            ← Quay lại kiểm soát kho
-        </a>
-        <h2 style="font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;">XUẤT KHO - Lập Phiếu Phân Phối Chuỗi Đại Lý</h2>
-    </div>
-    <p style="color: #6B7280; font-size: 14px; margin-left: 0;">Thiết lập lệnh điều chuyển xuất kho theo cơ chế FIFO (Nhập trước - Xuất trước) hạch toán chính xác giá vốn lô bãi.</p>
-</div>
-
-<div style="display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-
-    <div>
-        <!-- KHU VỰC TÌM KIẾM VÀ BỘ LỌC -->
-        <div style="background:#FFF; border-radius:12px; border:1px solid #E5E7EB; padding:16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-            <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 200px; position:relative;">
-                    <label style="display:block; font-size:11px; font-weight:700; color:#6B7280; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.3px;">Tìm kiếm sản phẩm</label>
-                    <input type="text" id="searchProductInput" placeholder="Tìm theo tên, mã SKU, thương hiệu..." onkeyup="filterProductList()" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; outline:none;" />
+    <div class="id-workspace">
+        <main class="id-main">
+            <section class="id-card">
+                <div class="id-card-heading"><div><h2>Nguồn hàng</h2><p>Danh sách được phân trang và tính Available sau reservation.</p></div></div>
+                <div class="id-filter-grid">
+                    <label class="id-field"><span>Kho xuất</span><select id="distributionWarehouse"></select></label>
+                    <label class="id-field id-field-wide"><span>Tìm sản phẩm</span><input id="distributionSearch" type="search" placeholder="Tên, biến thể, thương hiệu hoặc Variant ID" /></label>
+                    <label class="id-field"><span>Danh mục</span><select id="distributionCategory"><option value="">Tất cả</option></select></label>
+                    <label class="id-field"><span>Thương hiệu</span><select id="distributionBrand"><option value="">Tất cả</option></select></label>
                 </div>
-                <div style="min-width: 150px;">
-                    <label style="display:block; font-size:11px; font-weight:700; color:#6B7280; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.3px;">Danh mục</label>
-                    <select id="filterCategory" onchange="filterProductList()" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; background:#FFF; outline:none;">
-                        <option value="">Tất cả danh mục</option>
-                        @if (ViewBag.Categories != null)
-                        {
-                            foreach (var c in ViewBag.Categories)
-                            {
-                                <option value="@c.CategoryId">@c.CategoryName</option>
-                            }
-                        }
-                    </select>
+                <div class="id-product-grid" id="distributionProductGrid"></div>
+                <div class="id-pagination"><span id="distributionPageMeta">Trang 1 / 1</span><div><button id="distributionPrevPage" type="button"><i class="fa-solid fa-chevron-left"></i></button><button id="distributionNextPage" type="button"><i class="fa-solid fa-chevron-right"></i></button></div></div>
+            </section>
+
+            <section class="id-card">
+                <div class="id-card-heading"><div><h2>Chi tiết phiếu xuất</h2><p>Mỗi SKU có số lượng, giá bán trước VAT và thuế suất riêng.</p></div><button type="button" class="id-link-button" id="clearDistributionButton">Xóa tất cả</button></div>
+                <div class="id-table-wrap"><table class="id-table"><thead><tr><th>Sản phẩm</th><th>Tồn khả dụng</th><th>Số lượng</th><th>Giá bán</th><th>VAT</th><th>Thành tiền trước VAT</th><th></th></tr></thead><tbody id="distributionLineTableBody"></tbody></table></div>
+            </section>
+
+            <section class="id-card">
+                <div class="id-card-heading"><div><h2>Phiếu phân phối gần đây</h2><p>Doanh thu, COGS và lợi nhuận đã ghi nhận.</p></div><button type="button" class="id-icon-button" id="refreshDistributionsButton"><i class="fa-solid fa-rotate"></i></button></div>
+                <div class="id-table-wrap"><table class="id-table"><thead><tr><th>Mã phiếu</th><th>Ngày</th><th>Kho → cửa hàng</th><th>Số lượng</th><th>Doanh thu HĐ</th><th>COGS</th><th>Lợi nhuận</th></tr></thead><tbody id="recentDistributionTableBody"></tbody></table></div>
+            </section>
+        </main>
+
+        <aside class="id-sidebar">
+            <section class="id-card id-sticky-card">
+                <div class="id-card-heading"><div><span class="id-eyebrow">DISTRIBUTION DOCUMENT</span><h2>Thông tin chứng từ</h2></div></div>
+                <label class="id-field"><span>Cửa hàng / đại lý nhận</span><select id="distributionStore"></select></label>
+                <label class="id-field"><span>Số hóa đơn / chứng từ</span><input id="distributionInvoiceNumber" maxlength="100" placeholder="PXK-2026-..." /></label>
+                <div class="id-two-columns">
+                    <label class="id-field"><span>Chiết khấu (%)</span><input id="distributionDiscount" type="number" min="0" max="100" step="0.01" value="0" /></label>
+                    <label class="id-field"><span>Chi phí vận chuyển</span><input id="distributionShipping" type="number" min="0" step="1000" value="0" /></label>
                 </div>
-                <div style="min-width: 150px;">
-                    <label style="display:block; font-size:11px; font-weight:700; color:#6B7280; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.3px;">Thương hiệu</label>
-                    <select id="filterBrand" onchange="filterProductList()" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; background:#FFF; outline:none;">
-                        <option value="">Tất cả thương hiệu</option>
-                        @if (ViewBag.Brands != null)
-                        {
-                            foreach (var b in ViewBag.Brands)
-                            {
-                                <option value="@b.BrandId">@b.BrandName</option>
-                            }
-                        }
-                    </select>
+                <label class="id-field"><span>Ghi chú</span><textarea id="distributionNotes" rows="3" maxlength="500" placeholder="Điều kiện giao hàng, người nhận..."></textarea></label>
+
+                <div class="id-summary">
+                    <div><span>Doanh thu trước VAT</span><strong id="summaryNetRevenue">—</strong></div>
+                    <div><span>VAT đầu ra</span><strong id="summaryTax">—</strong></div>
+                    <div><span>Tổng hóa đơn</span><strong id="summaryInvoiceTotal">—</strong></div>
+                    <div><span>FIFO COGS</span><strong id="summaryCogs">—</strong></div>
+                    <div><span>Chi phí vận chuyển</span><strong id="summaryShipping">—</strong></div>
+                    <div class="id-summary-profit"><span>Lợi nhuận ghi nhận</span><strong id="summaryProfit">—</strong></div>
+                    <div><span>Biên lợi nhuận</span><strong id="summaryMargin">—</strong></div>
                 </div>
-                <div style="min-width: 130px;">
-                    <label style="display:block; font-size:11px; font-weight:700; color:#6B7280; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.3px;">Trạng thái tồn</label>
-                    <select id="filterStockStatus" onchange="filterProductList()" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; background:#FFF; outline:none;">
-                        <option value="">Tất cả</option>
-                        <option value="in">Còn hàng (>0)</option>
-                        <option value="low">Sắp hết (≤5)</option>
-                        <option value="out">Hết hàng (=0)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- BỘ LỌC GIÁ -->
-            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size:12px; font-weight:600; color:#4B5563;">Giá bán:</label>
-                    <input type="number" id="filterPriceMin" placeholder="Từ" onchange="filterProductList()" style="width:90px; padding:6px 10px; border-radius:6px; border:1px solid #D1D5DB; font-size:12px; outline:none;" />
-                    <span style="color:#9CA3AF;">-</span>
-                    <input type="number" id="filterPriceMax" placeholder="Đến" onchange="filterProductList()" style="width:90px; padding:6px 10px; border-radius:6px; border:1px solid #D1D5DB; font-size:12px; outline:none;" />
-                </div>
-                <button onclick="resetFilters()" style="padding:6px 16px; background:#F3F4F6; border:1px solid #E5E7EB; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; color:#374151;">Xóa bộ lọc</button>
-                <span style="font-size:12px; color:#6B7280;" id="productCountLabel">Đang hiển thị: 0 sản phẩm</span>
-            </div>
-        </div>
-
-        <!-- DANH SÁCH SẢN PHẨM KHẢ DỤNG XUẤT KHO -->
-        <div style="background:#FFF; border-radius:12px; margin-top:16px; border:1px solid #E5E7EB; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-            <div style="padding: 14px 20px; font-weight:700; font-size:13px; color:#111827; border-bottom:1px solid #F3F4F6; background:#FAFAFA; display:flex; justify-content:space-between; align-items:center;">
-                <span>DANH SÁCH SẢN PHẨM KHẢ DỤNG XUẤT KHO</span>
-                <span style="font-weight:400; font-size:12px; color:#6B7280;">Chọn sản phẩm để thêm vào phiếu xuất</span>
-            </div>
-            <div class="product-list-container" id="productListContainer">
-                <div style="text-align:center; padding:30px; color:#9CA3AF;">Đang tải danh sách sản phẩm...</div>
-            </div>
-        </div>
-
-        <!-- DANH SÁCH HÀNG HÓA TRONG PHIẾU XUẤT -->
-        <div style="padding: 0; background:#FFF; border-radius:12px; margin-top:20px; overflow:hidden; border: 1px solid #E5E7EB; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-            <div style="padding: 14px 20px; font-weight:700; font-size:13px; color:#111827; border-bottom:1px solid #F3F4F6; background:#FAFAFA; display:flex; justify-content:space-between; align-items:center;">
-                <span>DANH SÁCH HÀNG HÓA TRONG PHIẾU XUẤT</span>
-                <span style="font-weight:400; font-size:12px; color:#6B7280;" id="soItemCount">0 mặt hàng</span>
-            </div>
-            <table style="width:100%; border-collapse:collapse; text-align: left; font-size: 13px;">
-                <thead>
-                    <tr style="background:#FAFAFA; border-bottom:2px solid #E5E7EB; color: #4B5563; font-weight: 600;">
-                        <th style="width: 35%; padding:12px 14px;">Sản phẩm thiết bị</th>
-                        <th style="width: 12%; padding:12px; text-align: center;">Số lượng</th>
-                        <th style="width: 15%; padding:12px;">Giá xuất kho</th>
-                        <th style="width: 12%; padding:12px;">Thuế suất</th>
-                        <th style="width: 14%; padding:12px; text-align: right;">Thành tiền</th>
-                        <th style="width: 12%; padding:12px; text-align: center;">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="soTableBody">
-                    <tr>
-                        <td colspan="6" style="text-align:center; padding: 40px; color: #9CA3AF; font-style:italic;">Chưa có sản phẩm nào được chọn vào phiếu xuất.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- PANEL THÔNG TIN CHỨNG TỪ XUẤT -->
-    <div style="background:#FFF; padding:24px; border-radius:12px; border: 1px solid #E5E7EB; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; margin-top: 0; margin-bottom: 15px; color:#111827; text-transform: uppercase; letter-spacing: 0.5px;">Thông tin chứng từ xuất</h3>
-
-        <div style="margin-bottom:12px;">
-            <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:#374151; text-transform:uppercase;">Đại lý / Cửa hàng tiếp nhận (*)</label>
-            <select id="soStore" style="background:#FFF; width:100%; padding:9px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; cursor:pointer; color:#111827; outline:none;" required>
-                <option value="">-- Chọn chi nhánh nhận điều phối --</option>
-                @if (ViewBag.Stores != null)
-                {
-                    foreach (var s in ViewBag.Stores)
-                    {
-                        <option value="@s.StoreId">@s.StoreName</option>
-                    }
-                }
-            </select>
-        </div>
-
-        <div style="margin-bottom:12px;">
-            <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:#374151; text-transform:uppercase;">Kho xuất hàng (*)</label>
-            <select id="soWarehouse" style="background:#FFF; width:100%; padding:9px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; cursor:pointer; color:#111827; outline:none;">
-                <option value="1">Kho HCM - Cơ sở chính Quận 1</option>
-                <option value="2">Kho HN - Cơ sở chính Hoàn Kiếm</option>
-            </select>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-            <div>
-                <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:#374151; text-transform:uppercase;">Số chứng từ xuất</label>
-                <input type="text" id="soInvoiceNumber" placeholder="VD: XK-2026-01" style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; outline:none;" />
-            </div>
-            <div>
-                <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:#374151; text-transform:uppercase;">Chiết khấu (%)</label>
-                <input type="number" id="soDiscount" value="0" min="0" max="100" onchange="renderTable()" style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; outline:none;" />
-            </div>
-        </div>
-
-        <div style="margin-bottom:16px;">
-            <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:#374151; text-transform:uppercase;">Ghi chú điều động</label>
-            <textarea id="soNotes" style="width:100%; height: 50px; padding:8px 12px; border-radius:6px; border:1px solid #D1D5DB; font-size:13px; resize:none; outline:none;" placeholder="Xuất phân phối định kỳ cho chuỗi đại lý..."></textarea>
-        </div>
-
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 16px; border-radius: 8px; margin-bottom: 20px; font-size:13px; color:#334155;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span>Tổng số lượng thiết bị:</span>
-                <strong id="summaryQty" style="color:#111827; font-weight: 700;">0 máy</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span>Tổng tiền hàng xuất:</span>
-                <strong id="summaryRawSub" style="color:#111827; font-weight: 600;">0 đ</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span>Tổng thuế GTGT (VAT):</span>
-                <strong id="summaryTaxTotal" style="color:#111827; font-weight: 600;">0 đ</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span>Chiết khấu:</span>
-                <strong id="summaryDiscount" style="color:#DC2626; font-weight: 600;">0 đ</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 14px; border-top: 1px dashed #D1D5DB; padding-top: 10px; margin-top:6px;">
-                <span style="font-weight:700; color:#111827;">TỔNG GIÁ TRỊ XUẤT KHO:</span>
-                <strong id="summaryTotal" style="color: #2563EB; font-weight: 800; font-size:16px;">0 đ</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px solid #F1F5F9; color:#10B981; font-size: 13px;">
-                <span>Ước tính lợi nhuận gộp dự kiến:</span>
-                <strong id="summaryProfit" style="color:#10B981; font-weight: 700;">0 đ</strong>
-            </div>
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:10px;">
-            <button type="button" id="btnSubmitSO" onclick="submitSO()" style="width: 100%; padding: 12px; background:#111827; color:#FFF; border:none; border-radius:6px; font-size:13px; text-transform:uppercase; font-weight:700; cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='#1F2937'" onmouseout="this.style.background='#111827'">
-                Xác nhận xuất kho chính thức
-            </button>
-            <a href="/Admin/Inventory/Index" style="text-align:center; padding:10px; font-size:13px; text-decoration:none; border:1px solid #D1D5DB; border-radius:6px; color:#374151; font-weight: 600; background:#FFF; transition: background 0.2s;" onmouseover="this.style.background='#F9FAFB'" onmouseout="this.style.background='#FFF'">Hủy bỏ chứng từ</a>
-        </div>
+                <div class="id-alert" id="distributionPreviewStatus">Thêm sản phẩm và preview trước khi ghi sổ.</div>
+                <button type="button" class="id-button id-button-light id-button-block" id="previewDistributionButton"><i class="fa-solid fa-calculator"></i> Preview FIFO & tài chính</button>
+                <button type="button" class="id-button id-button-success id-button-block" id="submitDistributionButton" disabled><i class="fa-solid fa-check"></i> Ghi sổ xuất kho</button>
+                <small class="id-submit-note">Sau khi ghi sổ, tồn lô và serial được trừ theo FIFO; không thể sửa trực tiếp phiếu bằng giao diện legacy.</small>
+            </section>
+        </aside>
     </div>
 </div>
 
-<!-- MODAL THÔNG BÁO THÀNH CÔNG -->
-<div id="successModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; justify-content: center; align-items: center; font-family: 'Segoe UI', sans-serif; backdrop-filter: blur(4px);">
-    <div style="background: #FFF; border-radius: 12px; width: 420px; padding: 30px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-        <div style="font-size: 48px; color: #10B981; margin-bottom: 15px;"></div>
-        <h3 style="margin: 0 0 10px 0; color: #111827;" id="successTitle">Xuất kho thành công!</h3>
-        <p style="color: #6B7280; font-size: 14px; margin-bottom: 10px;" id="successMessage">Đã tạo phiếu xuất kho và cập nhật tồn kho thành công.</p>
-        <p style="color: #6B7280; font-size: 13px; margin-bottom: 20px;" id="successDetail"></p>
-        <button onclick="goToIndex()" style="padding: 10px 30px; background: #2563EB; color: #FFF; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">Quay lại trang kiểm soát kho</button>
-    </div>
-</div>
-
-<!-- MODAL THÔNG BÁO LỖI -->
-<div id="errorModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; justify-content: center; align-items: center; font-family: 'Segoe UI', sans-serif; backdrop-filter: blur(4px);">
-    <div style="background: #FFF; border-radius: 12px; width: 420px; padding: 30px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-        <div style="font-size: 48px; color: #EF4444; margin-bottom: 15px;"></div>
-        <h3 style="margin: 0 0 10px 0; color: #111827;" id="errorTitle">Lỗi!</h3>
-        <p style="color: #6B7280; font-size: 14px; margin-bottom: 20px;" id="errorMessage">Có lỗi xảy ra trong quá trình xử lý.</p>
-        <button onclick="closeErrorModal()" style="padding: 10px 30px; background: #EF4444; color: #FFF; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">Đóng</button>
-    </div>
-</div>
+<div class="id-toast-stack" id="distributionToastStack" aria-live="polite"></div>
 
 @section Scripts {
-    <script>
-        const formatter = new Intl.NumberFormat('vi-VN');
-        let soItems = [];
-        let allProducts = [];
-        let searchTimeout = null;
-        let isSubmitting = false;
-
-        // ============================================================
-        // 1. LẤY DANH SÁCH SẢN PHẨM TỪ SERVER
-        // ============================================================
-        async function loadProductList() {
-            try {
-                const res = await fetch('/Admin/Inventory/GetAllProductsWithStock');
-                const data = await res.json();
-                allProducts = data;
-                renderProductList(allProducts);
-                document.getElementById('productCountLabel').textContent = `Đang hiển thị: ${allProducts.length} sản phẩm`;
-            } catch (error) {
-                console.error('Lỗi tải danh sách sản phẩm:', error);
-                document.getElementById('productListContainer').innerHTML = `
-                    <div style="text-align:center; padding:30px; color:#EF4444;">
-                        Lỗi tải danh sách sản phẩm. Vui lòng thử lại.
-                    </div>
-                `;
-            }
-        }
-
-        // ============================================================
-        // 2. RENDER DANH SÁCH SẢN PHẨM
-        // ============================================================
-        function renderProductList(products) {
-            const container = document.getElementById('productListContainer');
-            if (!products || products.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align:center; padding:30px; color:#9CA3AF;">
-                        Không tìm thấy sản phẩm nào phù hợp với bộ lọc.
-                    </div>
-                `;
-                return;
-            }
-
-            let html = '';
-            products.forEach(p => {
-                const stockStatus = p.stock > 5 ? 'in-stock' : (p.stock > 0 ? 'low-stock' : 'out-stock');
-                const stockLabel = p.stock > 5 ? 'Còn hàng' : (p.stock > 0 ? 'Sắp hết' : 'Hết hàng');
-                const imgUrl = p.imageUrl || '/images/products/default-product.png';
-                const isInSO = soItems.some(item => item.variantId === p.variantId);
-
-                html += `
-                    <div class="product-card ${isInSO ? 'selected' : ''}" data-variantid="${p.variantId}" onclick="selectProduct(${p.variantId})">
-                        <img src="${imgUrl}" alt="${p.productName}" onerror="this.src='/images/products/default-product.png'" />
-                        <div class="product-info">
-                            <div class="name">${p.productName}</div>
-                            <div class="specs">Màu: ${p.color} | Bản: ${p.storage || 'N/A'} | SKU: #${p.variantId}</div>
-                            <div class="specs">Thương hiệu: ${p.brandName || 'N/A'} | Danh mục: ${p.categoryName || 'N/A'}</div>
-                            <div class="price">${formatter.format(p.price || 0)} đ</div>
-                        </div>
-                        <div>
-                            <span class="badge-stock ${stockStatus}">${stockLabel}: ${p.stock || 0}</span>
-                            ${isInSO ? '<div style="font-size:11px; color:#2563EB; font-weight:600; margin-top:4px;">✓ Đã thêm vào phiếu</div>' : ''}
-                        </div>
-                        <button class="btn-add-lot" ${isInSO ? 'disabled' : ''} onclick="event.stopPropagation(); addProductToSO(${p.variantId})">
-                            ${isInSO ? 'Đã thêm' : '+ Thêm xuất'}
-                        </button>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-            document.getElementById('productCountLabel').textContent = `Đang hiển thị: ${products.length} sản phẩm`;
-        }
-
-        // ============================================================
-        // 3. BỘ LỌC SẢN PHẨM
-        // ============================================================
-        function filterProductList() {
-            const keyword = document.getElementById('searchProductInput').value.toLowerCase().trim();
-            const categoryId = document.getElementById('filterCategory').value;
-            const brandId = document.getElementById('filterBrand').value;
-            const stockStatus = document.getElementById('filterStockStatus').value;
-            const priceMin = parseFloat(document.getElementById('filterPriceMin').value) || 0;
-            const priceMax = parseFloat(document.getElementById('filterPriceMax').value) || Infinity;
-
-            let filtered = allProducts.filter(p => {
-                if (keyword) {
-                    const searchText = (p.productName + ' ' + p.color + ' ' + (p.storage || '') + ' ' + (p.brandName || '') + ' ' + (p.categoryName || '')).toLowerCase();
-                    if (!searchText.includes(keyword)) return false;
-                }
-                if (categoryId && p.categoryId !== parseInt(categoryId)) return false;
-                if (brandId && p.brandId !== parseInt(brandId)) return false;
-                if (stockStatus === 'in' && (p.stock || 0) <= 0) return false;
-                if (stockStatus === 'low' && ((p.stock || 0) > 5 || (p.stock || 0) <= 0)) return false;
-                if (stockStatus === 'out' && (p.stock || 0) > 0) return false;
-                const price = p.price || 0;
-                if (price < priceMin || (priceMax < Infinity && price > priceMax)) return false;
-                return true;
-            });
-
-            renderProductList(filtered);
-        }
-
-        function resetFilters() {
-            document.getElementById('searchProductInput').value = '';
-            document.getElementById('filterCategory').value = '';
-            document.getElementById('filterBrand').value = '';
-            document.getElementById('filterStockStatus').value = '';
-            document.getElementById('filterPriceMin').value = '';
-            document.getElementById('filterPriceMax').value = '';
-            filterProductList();
-        }
-
-        // ============================================================
-        // 4. CHỌN SẢN PHẨM
-        // ============================================================
-        function selectProduct(variantId) {
-            const product = allProducts.find(p => p.variantId === variantId);
-            if (!product) return;
-
-            // Kiểm tra tồn kho
-            if (product.stock <= 0) {
-                alert('Sản phẩm này đã hết hàng, không thể xuất kho!');
-                return;
-            }
-
-            const existing = soItems.find(i => i.variantId === variantId);
-            if (existing) {
-                // Kiểm tra không vượt quá tồn kho
-                if (existing.qty + 1 > product.stock) {
-                    alert(`Số lượng xuất vượt quá tồn kho (Tồn: ${product.stock})`);
-                    return;
-                }
-                existing.qty += 1;
-                renderTable();
-                filterProductList();
-                return;
-            }
-
-            soItems.push({
-                variantId: product.variantId,
-                name: product.productName,
-                desc: `Màu ${product.color} | Bản ${product.storage || 'N/A'}`,
-                qty: 1,
-                price: product.price || 1000000,
-                taxRate: 0.1,
-                imageUrl: product.imageUrl || '/images/products/default-product.png',
-                maxStock: product.stock || 0
-            });
-            renderTable();
-            filterProductList();
-        }
-
-        function addProductToSO(variantId) {
-            selectProduct(variantId);
-        }
-
-        // ============================================================
-        // 5. CẬP NHẬT TABLE
-        // ============================================================
-        function updateItem(index, field, value) {
-            if(soItems[index]) {
-                const oldValue = soItems[index][field];
-                soItems[index][field] = parseFloat(value) || 0;
-
-                // Kiểm tra số lượng không vượt quá tồn kho
-                if (field === 'qty') {
-                    const product = allProducts.find(p => p.variantId === soItems[index].variantId);
-                    if (product && soItems[index].qty > product.stock) {
-                        alert(`Số lượng xuất vượt quá tồn kho (Tồn: ${product.stock})`);
-                        soItems[index].qty = product.stock;
-                    }
-                }
-                renderTable();
-            }
-        }
-
-        function removeItem(index) {
-            soItems.splice(index, 1);
-            renderTable();
-            filterProductList();
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('soTableBody');
-            let totalQty = 0;
-            let rawSubTotal = 0;
-            let taxTotal = 0;
-
-            document.getElementById('soItemCount').textContent = `${soItems.length} mặt hàng`;
-
-            if(soItems.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px; color: #9CA3AF; font-style:italic;">Chưa có sản phẩm nào được chọn vào phiếu xuất.</td></tr>';
-            } else {
-                tbody.innerHTML = '';
-                soItems.forEach((item, index) => {
-                    totalQty += item.qty;
-                    const lineRaw = item.qty * item.price;
-                    const lineTax = lineRaw * item.taxRate;
-                    rawSubTotal += lineRaw;
-                    taxTotal += lineTax;
-
-                    const tr = document.createElement('tr');
-                    tr.style.borderBottom = '1px solid #F3F4F6';
-                    tr.innerHTML = `
-                        <td style="padding:12px 14px;">
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <img src="${item.imageUrl || '/images/products/default-product.png'}" style="width:36px; height:36px; object-fit:cover; border-radius:4px; border:1px solid #E5E7EB;" onerror="this.src='/images/products/default-product.png'" />
-                                <div>
-                                    <strong style="color: #111827; font-size:13px;">${item.name}</strong>
-                                    <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">Cấu hình: ${item.desc}</div>
-                                    <div style="font-size: 10px; color: #9CA3AF; margin-top: 2px;">Tồn kho: ${item.maxStock || 0} máy</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td style="padding:12px; text-align:center;">
-                            <input type="number" value="${item.qty}" min="1" max="${item.maxStock || 999}" onchange="updateItem(${index}, 'qty', this.value)" style="width: 60px; padding: 5px; border:1px solid #D1D5DB; border-radius:6px; text-align: center;" />
-                        </td>
-                        <td style="padding:12px;">
-                            <input type="number" value="${item.price}" min="0" onchange="updateItem(${index}, 'price', this.value)" style="width: 110px; padding: 5px; border:1px solid #D1D5DB; border-radius:6px; font-weight:600;" />
-                        </td>
-                        <td style="padding:12px;">
-                            <select onchange="updateItem(${index}, 'taxRate', this.value)" style="padding:5px; border-radius:6px; border:1px solid #D1D5DB; background:#FFF; font-size:12px; cursor:pointer;">
-                                <option value="0" ${item.taxRate === 0 ? 'selected' : ''}>0% VAT</option>
-                                <option value="0.08" ${item.taxRate === 0.08 ? 'selected' : ''}>8% VAT</option>
-                                <option value="0.1" ${item.taxRate === 0.1 ? 'selected' : ''}>10% VAT</option>
-                            </select>
-                        </td>
-                        <td style="padding:12px; text-align: right; font-weight: 700; color:#2563EB;">${formatter.format(lineRaw + lineTax)} đ</td>
-                        <td style="padding:12px; text-align: center;">
-                            <button type="button" onclick="removeItem(${index})" style="background:#FFF; border:1px solid #FEE2E2; border-radius:6px; padding:5px 10px; cursor:pointer; color:#EF4444; font-weight:600; font-size:12px; transition:all 0.2s;" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FFF'">Xóa</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-
-            const discountPercent = parseFloat(document.getElementById('soDiscount').value) || 0;
-            const discountAmount = rawSubTotal * (discountPercent / 100);
-            const absoluteTotal = rawSubTotal + taxTotal - discountAmount;
-
-            document.getElementById('summaryQty').innerText = totalQty + " máy";
-            document.getElementById('summaryRawSub').innerText = formatter.format(rawSubTotal) + ' đ';
-            document.getElementById('summaryTaxTotal').innerText = formatter.format(taxTotal) + ' đ';
-            document.getElementById('summaryDiscount').innerText = formatter.format(discountAmount) + ' đ';
-            document.getElementById('summaryTotal').innerText = formatter.format(absoluteTotal) + ' đ';
-
-            // Ước tính lợi nhuận gộp (giả định biên độ 25%)
-            const estimatedProfit = absoluteTotal * 0.25;
-            document.getElementById('summaryProfit').innerText = formatter.format(estimatedProfit) + ' đ';
-        }
-
-        // ============================================================
-        // 6. GỬI PHIẾU XUẤT KHO - CÓ MODAL THÔNG BÁO
-        // ============================================================
-        async function submitSO() {
-            if (isSubmitting) return;
-            if(soItems.length === 0) { alert("Vui lòng thêm sản phẩm vào phiếu xuất."); return; }
-
-            const storeId = document.getElementById('soStore').value;
-            if(!storeId) { alert("Vui lòng chỉ định cửa hàng chi nhánh nhận bàn giao."); return; }
-
-            // Hiển thị loading
-            isSubmitting = true;
-            const btn = document.getElementById('btnSubmitSO');
-            btn.innerHTML = '<span class="loading-spinner"></span> Đang xử lý...';
-            btn.classList.add('btn-submit-loading');
-
-            const payload = {
-                storeId: parseInt(storeId),
-                fromWarehouseId: parseInt(document.getElementById('soWarehouse').value),
-                invoiceNumber: document.getElementById('soInvoiceNumber').value,
-                discountPercent: parseFloat(document.getElementById('soDiscount').value) || 0,
-                shippingCost: 0,
-                notes: document.getElementById('soNotes').value,
-                items: soItems.map(i => ({
-                    variantId: parseInt(i.variantId),
-                    quantity: parseInt(i.qty),
-                    exportPrice: parseFloat(i.price),
-                    taxRate: parseFloat(i.taxRate)
-                }))
-            };
-
-            try {
-                const res = await fetch('/Admin/Inventory/SubmitSO', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const response = await res.json();
-
-                // Reset button
-                isSubmitting = false;
-                btn.innerHTML = 'Xác nhận xuất kho chính thức';
-                btn.classList.remove('btn-submit-loading');
-
-                if(response.success) {
-                    // HIỂN THỊ MODAL THÀNH CÔNG
-                    const totalItems = soItems.reduce((sum, i) => sum + i.qty, 0);
-                    const totalAmount = document.getElementById('summaryTotal').innerText;
-                    document.getElementById('successDetail').innerHTML = `
-                        <strong>Mã phiếu:</strong> ${response.soCode || '#SO-0000'}<br>
-                        <strong>Số lượng:</strong> ${totalItems} sản phẩm<br>
-                        <strong>Tổng giá trị:</strong> ${totalAmount}<br>
-                        <strong>Lợi nhuận gộp:</strong> ${formatter.format(response.profit || 0)} đ
-                    `;
-                    document.getElementById('successModal').style.display = 'flex';
-                } else {
-                    showErrorModal('Lỗi xuất kho', response.message || 'Có lỗi xảy ra khi xuất kho.');
-                }
-            } catch (error) {
-                isSubmitting = false;
-                btn.innerHTML = 'Xác nhận xuất kho chính thức';
-                btn.classList.remove('btn-submit-loading');
-                console.error('Lỗi submit SO:', error);
-                showErrorModal('Lỗi kết nối', 'Không thể kết nối đến máy chủ. Vui lòng thử lại.');
-            }
-        }
-
-        // ============================================================
-        // 7. MODAL THÔNG BÁO
-        // ============================================================
-        function showSuccessModal(title, message) {
-            document.getElementById('successTitle').innerText = title || 'Thành công!';
-            document.getElementById('successMessage').innerText = message || 'Thao tác đã được thực hiện thành công.';
-            document.getElementById('successModal').style.display = 'flex';
-        }
-
-        function closeSuccessModal() {
-            document.getElementById('successModal').style.display = 'none';
-        }
-
-        function showErrorModal(title, message) {
-            document.getElementById('errorTitle').innerText = title || 'Lỗi!';
-            document.getElementById('errorMessage').innerText = message || 'Có lỗi xảy ra trong quá trình xử lý.';
-            document.getElementById('errorModal').style.display = 'flex';
-        }
-
-        function closeErrorModal() {
-            document.getElementById('errorModal').style.display = 'none';
-        }
-
-        function goToIndex() {
-            window.location.href = '/Admin/Inventory/Index';
-        }
-
-        // ============================================================
-        // 8. KHỞI TẠO TRANG
-        // ============================================================
-        document.addEventListener('DOMContentLoaded', function() {
-            // Tải danh sách sản phẩm
-            loadProductList();
-
-            // Sự kiện Enter cho ô tìm kiếm
-            document.getElementById('searchProductInput').addEventListener('keyup', function(e) {
-                if (e.key === 'Enter') filterProductList();
-            });
-        });
-    </script>
+    <script src="~/js/admin/inventory-distribution-phase-d3.js" asp-append-version="true"></script>
 }

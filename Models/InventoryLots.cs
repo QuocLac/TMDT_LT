@@ -59,8 +59,5 @@ namespace TMDT_LT.Models
 
         public virtual ICollection<OrderInventoryAllocations> OrderInventoryAllocations { get; set; }
             = new List<OrderInventoryAllocations>();
-
-        public virtual ICollection<InventoryTransactions> InventoryTransactions { get; set; }
-            = new List<InventoryTransactions>();
     }
 }

@@ -1,0 +1,140 @@
+@{
+    Layout = "_LayoutAdmin";
+    ViewData["Title"] = "Vận hành kho";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin/inventory-operations-phase-d3.css" asp-append-version="true" />
+}
+
+@Html.AntiForgeryToken()
+
+<div class="io-page" id="inventoryOperationsApp">
+    <header class="io-header">
+        <div>
+            <div class="io-eyebrow">WAREHOUSE OPERATIONS · PHASE D3</div>
+            <h1>Trung tâm vận hành kho</h1>
+            <p>Bổ sung hàng, cân bằng tồn giữa kho, giám sát sức khỏe dữ liệu và truy vết giao dịch.</p>
+        </div>
+        <nav class="io-header-actions" aria-label="Điều hướng module kho">
+            <a class="io-button io-button-light" href="/Admin/Inventory"><i class="fa-solid fa-chart-column"></i> Tồn & kiểm kê</a>
+            <a class="io-button io-button-light" href="/Admin/Inventory/CreatePO"><i class="fa-solid fa-truck-ramp-box"></i> Nhận hàng</a>
+            <a class="io-button io-button-primary" href="/Admin/Inventory/CreateSO"><i class="fa-solid fa-arrow-up-from-bracket"></i> Xuất phân phối</a>
+        </nav>
+    </header>
+
+    <div class="io-tabs" role="tablist">
+        <button type="button" class="io-tab is-active" data-tab="replenishment"><i class="fa-solid fa-boxes-packing"></i> Đề xuất bổ sung</button>
+        <button type="button" class="io-tab" data-tab="transfer"><i class="fa-solid fa-right-left"></i> Điều chuyển kho</button>
+        <button type="button" class="io-tab" data-tab="health"><i class="fa-solid fa-shield-heart"></i> Đối soát hệ thống</button>
+    </div>
+
+    <section class="io-panel" data-panel="replenishment">
+        <div class="io-panel-heading">
+            <div>
+                <h2>Kế hoạch bổ sung tồn</h2>
+                <p>Dựa trên nhu cầu đã hoàn thành, tồn khả dụng, lead time và safety stock.</p>
+            </div>
+            <button type="button" class="io-button io-button-primary" id="refreshReplenishmentButton"><i class="fa-solid fa-rotate"></i> Tính lại</button>
+        </div>
+
+        <div class="io-filter-grid">
+            <label class="io-field"><span>Kho cần bổ sung</span><select id="replenishmentWarehouse"></select></label>
+            <label class="io-field"><span>Cửa sổ nhu cầu</span><select id="demandWindowDays"><option value="14">14 ngày</option><option value="30" selected>30 ngày</option><option value="60">60 ngày</option><option value="90">90 ngày</option></select></label>
+            <label class="io-field"><span>Lead time</span><input id="leadTimeDays" type="number" min="1" max="60" value="7" /></label>
+            <label class="io-field"><span>Safety days</span><input id="safetyDays" type="number" min="0" max="30" value="3" /></label>
+            <label class="io-field"><span>Mục tiêu khi chưa có cầu</span><input id="fallbackTargetQuantity" type="number" min="5" max="5000" value="10" /></label>
+        </div>
+
+        <div class="io-kpi-grid io-kpi-grid-compact">
+            <article class="io-kpi"><span>SKU cần bổ sung</span><strong id="replenishmentSkuCount">—</strong></article>
+            <article class="io-kpi"><span>Tổng số lượng đề xuất</span><strong id="replenishmentQuantity">—</strong></article>
+            <article class="io-kpi"><span>Giá trị mua ước tính</span><strong id="replenishmentValue">—</strong></article>
+            <article class="io-kpi"><span>Kỳ bao phủ</span><strong id="replenishmentPlanningDays">—</strong></article>
+        </div>
+
+        <div class="io-table-wrap">
+            <table class="io-table">
+                <thead><tr><th>SKU / Sản phẩm</th><th>Tồn</th><th>Nhu cầu</th><th>Độ phủ</th><th>Mục tiêu</th><th>Đề xuất</th><th>Giá trị ước tính</th><th>Ưu tiên</th></tr></thead>
+                <tbody id="replenishmentTableBody"></tbody>
+            </table>
+        </div>
+        <p class="io-basis" id="replenishmentBasis"></p>
+    </section>
+
+    <section class="io-panel" data-panel="transfer" hidden>
+        <div class="io-panel-heading">
+            <div>
+                <h2>Điều chuyển tồn giữa kho</h2>
+                <p>Xuất FIFO ở kho nguồn, tạo lô tại kho đích, di chuyển serial và giữ nguyên tuổi hàng.</p>
+            </div>
+            <button type="button" class="io-button io-button-primary" id="previewTransferButton"><i class="fa-solid fa-list-check"></i> Kiểm tra phiếu</button>
+        </div>
+
+        <div class="io-transfer-layout">
+            <div class="io-transfer-main">
+                <div class="io-filter-grid io-transfer-filters">
+                    <label class="io-field"><span>Kho nguồn</span><select id="transferSourceWarehouse"></select></label>
+                    <label class="io-field"><span>Kho đích</span><select id="transferTargetWarehouse"></select></label>
+                    <label class="io-field io-field-wide"><span>Tìm SKU</span><input id="transferProductSearch" type="search" placeholder="Tên sản phẩm, biến thể hoặc Variant ID" /></label>
+                    <label class="io-field"><span>Trạng thái</span><select id="transferStockScope"><option value="available">Còn tồn</option><option value="low">Sắp hết</option><option value="all">Tất cả</option></select></label>
+                </div>
+                <div class="io-product-grid" id="transferProductGrid"></div>
+                <div class="io-pagination">
+                    <span id="transferPageMeta">Trang 1 / 1</span>
+                    <div><button type="button" id="transferPrevPage"><i class="fa-solid fa-chevron-left"></i></button><button type="button" id="transferNextPage"><i class="fa-solid fa-chevron-right"></i></button></div>
+                </div>
+            </div>
+
+            <aside class="io-transfer-cart">
+                <div class="io-cart-header"><div><span class="io-eyebrow">TRANSFER DRAFT</span><h3>Phiếu điều chuyển</h3></div><button type="button" class="io-link-button" id="clearTransferButton">Xóa hết</button></div>
+                <div id="transferCartLines" class="io-cart-lines"></div>
+                <label class="io-field"><span>Lý do điều chuyển</span><textarea id="transferReason" rows="3" maxlength="500" placeholder="Cân bằng tồn, bổ sung kho chi nhánh..."></textarea></label>
+                <div class="io-cart-summary"><div><span>Số SKU</span><strong id="transferLineCount">0</strong></div><div><span>Tổng số lượng</span><strong id="transferTotalQuantity">0</strong></div><div><span>Giá trị ước tính</span><strong id="transferEstimatedValue">0 đ</strong></div></div>
+                <div class="io-alert" id="transferPreviewResult" hidden></div>
+                <button type="button" class="io-button io-button-success io-button-block" id="submitTransferButton" disabled><i class="fa-solid fa-check"></i> Ghi sổ điều chuyển</button>
+            </aside>
+        </div>
+
+        <div class="io-subpanel">
+            <div class="io-panel-heading io-panel-heading-small"><div><h3>Điều chuyển gần đây</h3><p>Giao dịch OUT/IN dùng chung một mã tham chiếu.</p></div><button class="io-icon-button" type="button" id="refreshTransfersButton"><i class="fa-solid fa-rotate"></i></button></div>
+            <div class="io-table-wrap"><table class="io-table"><thead><tr><th>Mã</th><th>Thời gian</th><th>Kho nguồn → đích</th><th>Sản phẩm</th><th>Số lượng</th><th>Giá trị</th></tr></thead><tbody id="recentTransferTableBody"></tbody></table></div>
+        </div>
+    </section>
+
+    <section class="io-panel" data-panel="health" hidden>
+        <div class="io-panel-heading">
+            <div><h2>Sức khỏe dữ liệu tồn kho</h2><p>Đối chiếu snapshot, lô, serial, reservation và phiên kiểm kê đang mở.</p></div>
+            <button type="button" class="io-button io-button-light" id="refreshHealthButton"><i class="fa-solid fa-rotate"></i> Quét lại</button>
+        </div>
+
+        <div class="io-health-banner" id="healthBanner">Đang quét dữ liệu...</div>
+        <div class="io-kpi-grid">
+            <article class="io-kpi"><span>Lệch tồn tổng</span><strong id="healthStockDrift">—</strong><small>Variant snapshot ≠ tổng lô</small></article>
+            <article class="io-kpi"><span>Lệch serial</span><strong id="healthSerialMismatch">—</strong><small>InStock serial ≠ tồn lô</small></article>
+            <article class="io-kpi"><span>Lô bất hợp lệ</span><strong id="healthInvalidLots">—</strong><small>Âm, vượt nhập hoặc thiếu kho</small></article>
+            <article class="io-kpi"><span>Lô tồn lâu</span><strong id="healthAgedLots">—</strong><small>Trên 90 ngày</small></article>
+            <article class="io-kpi"><span>Kiểm kê đang mở</span><strong id="healthOpenCounts">—</strong></article>
+            <article class="io-kpi"><span>Reservation hoạt động</span><strong id="healthReservations">—</strong></article>
+        </div>
+
+        <div class="io-health-columns">
+            <div class="io-subpanel">
+                <div class="io-panel-heading io-panel-heading-small"><div><h3>Lệch snapshot tồn tổng</h3><p>Có thể sửa tự động từ tổng RemainingQuantity của lô.</p></div></div>
+                <div class="io-table-wrap"><table class="io-table"><thead><tr><th>SKU</th><th>Sản phẩm</th><th>Snapshot</th><th>Tổng lô</th><th>Lệch</th></tr></thead><tbody id="stockDriftTableBody"></tbody></table></div>
+                <label class="io-field"><span>Lý do đồng bộ</span><input id="repairReason" maxlength="300" placeholder="Đối soát định kỳ..." /></label>
+                <button type="button" class="io-button io-button-primary" id="repairSnapshotsButton"><i class="fa-solid fa-screwdriver-wrench"></i> Đồng bộ snapshot theo lô</button>
+            </div>
+            <div class="io-subpanel">
+                <div class="io-panel-heading io-panel-heading-small"><div><h3>Lệch serial cần xử lý vật lý</h3><p>Không tự sửa để tránh tạo/xóa IMEI ngoài kiểm kê.</p></div></div>
+                <div class="io-table-wrap"><table class="io-table"><thead><tr><th>Lô</th><th>SKU</th><th>Kho</th><th>Tồn lô</th><th>Serial</th><th>Lệch</th></tr></thead><tbody id="serialMismatchTableBody"></tbody></table></div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="io-toast-stack" id="operationsToastStack" aria-live="polite"></div>
+
+@section Scripts {
+    <script src="~/js/admin/inventory-operations-phase-d3.js" asp-append-version="true"></script>
+}
