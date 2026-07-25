@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using TMDT_LT.Models;
 
 namespace TMDT_LT.Data;
@@ -21,7 +21,7 @@ public partial class ApplicationDbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
-        ConfigureInventoryPhaseB(modelBuilder);
+        ConfigureInventory(modelBuilder);
 
         modelBuilder.Entity<OrderDetails>(entity =>
         {
@@ -79,13 +79,13 @@ public partial class ApplicationDbContext
 
         modelBuilder.Entity<Promotions>(entity =>
         {
-            // Checkout tăng UsedCount theo mô hình optimistic concurrency.
-            // Hai request cùng đọc một quota chỉ có một request cập nhật thành công.
+            // Checkout tÄƒng UsedCount theo mÃ´ hÃ¬nh optimistic concurrency.
+            // Hai request cÃ¹ng Ä‘á»c má»™t quota chá»‰ cÃ³ má»™t request cáº­p nháº­t thÃ nh cÃ´ng.
             entity.Property(e => e.UsedCount)
                 .IsConcurrencyToken();
 
-            // Ngăn claim bằng cấu hình cũ nếu Admin đổi quota hoặc tắt voucher
-            // đúng lúc khách đang checkout.
+            // NgÄƒn claim báº±ng cáº¥u hÃ¬nh cÅ© náº¿u Admin Ä‘á»•i quota hoáº·c táº¯t voucher
+            // Ä‘Ãºng lÃºc khÃ¡ch Ä‘ang checkout.
             entity.Property(e => e.UsageLimit)
                 .IsConcurrencyToken();
             entity.Property(e => e.IsActive)
@@ -98,8 +98,8 @@ public partial class ApplicationDbContext
 
         modelBuilder.Entity<CustomerWallet>(entity =>
         {
-            // Một voucher trong ví chỉ được chuyển từ Saved (0) sang Used (1)
-            // bởi một checkout duy nhất.
+            // Má»™t voucher trong vÃ­ chá»‰ Ä‘Æ°á»£c chuyá»ƒn tá»« Saved (0) sang Used (1)
+            // bá»Ÿi má»™t checkout duy nháº¥t.
             entity.Property(e => e.Status)
                 .IsConcurrencyToken();
         });
@@ -567,3 +567,4 @@ public partial class ApplicationDbContext
         });
     }
 }
+

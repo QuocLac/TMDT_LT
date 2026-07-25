@@ -1,7 +1,8 @@
 (() => {
     'use strict';
 
-    const apiBase = '/Admin/Inventory/PhaseD/Control';
+    const inventoryApi = '/Admin/Inventory';
+    const countApi = '/Admin/Inventory/Counts';
     const state = {
         bootstrap: null,
         warehouseId: 0,
@@ -141,7 +142,7 @@
     }
 
     async function loadBootstrap() {
-        const data = await getJson(`${apiBase}/Bootstrap`);
+        const data = await getJson(`${inventoryApi}/Bootstrap`);
         state.bootstrap = data;
         const warehouses = data.warehouses || [];
         if (warehouses.length === 0) {
@@ -187,7 +188,7 @@
         const sequence = ++state.loadingStockSequence;
         renderStockLoading();
         try {
-            const data = await getJson(`${apiBase}/Stock?${stockQueryString()}`);
+            const data = await getJson(`${inventoryApi}/Stock?${stockQueryString()}`);
             if (sequence !== state.loadingStockSequence) return;
             state.stockItems = data.items || [];
             state.page = Number(data.page || 1);
@@ -202,7 +203,7 @@
 
     function renderStockError(error) {
         const migrationHint = String(error.message || '').toLowerCase().includes('invalid object name')
-            ? ' Chưa có bảng kiểm kê D2; hãy tạo và chạy migration theo tài liệu trong ZIP.'
+            ? ' Chưa có bảng kiểm kê; hãy kiểm tra migration của module tồn kho.'
             : '';
         byId('stockTableBody').innerHTML = `
             <tr class="ic-empty-row"><td colspan="9">${escapeHtml((error.message || 'Không tải được tồn kho.') + migrationHint)}</td></tr>`;
@@ -309,7 +310,7 @@
         const status = byId('sessionStatusFilter').value;
         if (status) params.set('status', status);
         try {
-            const data = await getJson(`${apiBase}/Sessions?${params}`);
+            const data = await getJson(`${countApi}?${params}`);
             state.sessions = data.sessions || [];
             renderSessions();
         } catch (error) {
@@ -344,7 +345,7 @@
 
     async function loadTransactions() {
         try {
-            const data = await getJson(`${apiBase}/Transactions?warehouseId=${state.warehouseId}&take=30`);
+            const data = await getJson(`${inventoryApi}/Transactions?warehouseId=${state.warehouseId}&take=30`);
             state.transactions = data.transactions || [];
             renderTransactions();
         } catch (error) {
@@ -355,7 +356,7 @@
     function renderTransactions() {
         const body = byId('transactionTableBody');
         if (state.transactions.length === 0) {
-            body.innerHTML = '<tr class="ic-empty-row"><td colspan="7">Chưa có giao dịch D2 theo kho này.</td></tr>';
+            body.innerHTML = '<tr class="ic-empty-row"><td colspan="7">Chưa có giao dịch kho tại kho này.</td></tr>';
             return;
         }
         body.innerHTML = state.transactions.map(item => {
@@ -393,7 +394,7 @@
         const button = byId('createCountButton');
         button.disabled = true;
         try {
-            const data = await postJson(`${apiBase}/Sessions/Create`, {
+            const data = await postJson(`${countApi}`, {
                 warehouseId,
                 scopeType,
                 notes: byId('countNotes').value.trim(),
@@ -416,7 +417,7 @@
 
     async function openSession(sessionId) {
         try {
-            const data = await getJson(`${apiBase}/Sessions/${sessionId}`);
+            const data = await getJson(`${countApi}/${sessionId}`);
             state.currentSession = data;
             state.dirtyLineIds.clear();
             renderSessionDetail();
@@ -573,7 +574,7 @@
                 const row = document.querySelector(`.ic-count-row[data-line-id="${lineId}"]`);
                 if (!row) continue;
                 const payload = linePayload(row);
-                await postJson(`${apiBase}/Sessions/${sessionId}/Lines/${lineId}/Count`, payload);
+                await postJson(`${countApi}/${sessionId}/lines/${lineId}`, payload);
                 state.dirtyLineIds.delete(lineId);
                 row.classList.remove('is-dirty');
             }
@@ -592,7 +593,7 @@
     async function refreshCurrentSession(reopen = true) {
         const sessionId = state.currentSession?.session?.countSessionId;
         if (!sessionId) return;
-        const data = await getJson(`${apiBase}/Sessions/${sessionId}`);
+        const data = await getJson(`${countApi}/${sessionId}`);
         state.currentSession = data;
         state.dirtyLineIds.clear();
         renderSessionDetail();
@@ -606,7 +607,7 @@
         const button = byId('submitSessionButton');
         button.disabled = true;
         try {
-            const data = await postJson(`${apiBase}/Sessions/${sessionId}/Submit`, {});
+            const data = await postJson(`${countApi}/${sessionId}/submit`, {});
             toast(data.message, 'success');
             await Promise.all([refreshCurrentSession(false), loadSessions(), loadStock()]);
         } catch (error) {
@@ -623,7 +624,7 @@
         const button = byId('postSessionButton');
         button.disabled = true;
         try {
-            const data = await postJson(`${apiBase}/Sessions/${sessionId}/Post`, {});
+            const data = await postJson(`${countApi}/${sessionId}/post`, {});
             toast(`${data.message} Giá trị chênh lệch: ${formatMoney(data.varianceValue)}.`, 'success');
             await Promise.all([refreshCurrentSession(false), loadSessions(), loadStock(), loadTransactions()]);
         } catch (error) {
@@ -646,7 +647,7 @@
         const button = byId('cancelSessionButton');
         button.disabled = true;
         try {
-            const data = await postJson(`${apiBase}/Sessions/${sessionId}/Cancel`, { reason });
+            const data = await postJson(`${countApi}/${sessionId}/cancel`, { reason });
             toast(data.message, 'success');
             await Promise.all([refreshCurrentSession(false), loadSessions(), loadStock()]);
         } catch (error) {

@@ -1,7 +1,8 @@
 (() => {
     'use strict';
 
-    const api = '/Admin/Inventory/PhaseD/Operations';
+    const operationsApi = '/Admin/Inventory/Operations';
+    const distributionApi = '/Admin/Inventory/Distribution';
     const state = {
         bootstrap: null,
         page: 1,
@@ -56,7 +57,7 @@
     }
 
     async function loadBootstrap() {
-        const data = await getJson(`${api}/Bootstrap`);
+        const data = await getJson(`${operationsApi}/Bootstrap`);
         state.bootstrap = data;
         fillSelect('distributionWarehouse', data.warehouses, 'warehouseId', item => `${item.warehouseCode} · ${item.warehouseName}${item.isPrimary ? ' (Chính)' : ''}`);
         fillSelect('distributionStore', data.stores, 'storeId', item => `${item.storeCode} · ${item.storeName} (${item.storeType})`);
@@ -81,7 +82,7 @@
         const grid = $('distributionProductGrid');
         grid.innerHTML = '<div class="id-empty">Đang tải sản phẩm...</div>';
         try {
-            const data = await getJson(`${api}/Products?${queryString()}`);
+            const data = await getJson(`${operationsApi}/Products?${queryString()}`);
             state.products = data.items;
             state.page = data.page;
             state.totalPages = data.totalPages;
@@ -185,7 +186,7 @@
         box.className = 'id-alert';
         box.textContent = 'Đang lập kế hoạch FIFO và tính tài chính...';
         try {
-            const result = await postJson(`${api}/Distribution/Preview`, data);
+            const result = await postJson(`${distributionApi}/Preview`, data);
             state.previewValid = true;
             state.preview = result;
             $('summaryNetRevenue').textContent = money(result.netRevenue);
@@ -213,7 +214,7 @@
         const button = $('submitDistributionButton');
         button.disabled = true;
         try {
-            const result = await postJson(`${api}/Distribution/Submit`, payload());
+            const result = await postJson(`${distributionApi}/Submit`, payload());
             toast(`${result.soCode}: xuất kho thành công, lợi nhuận ${money(result.realizedProfit)}.`, 'success');
             state.lines.clear();
             renderLines();
@@ -233,7 +234,7 @@
         const body = $('recentDistributionTableBody');
         body.innerHTML = '<tr><td class="id-empty" colspan="7">Đang tải...</td></tr>';
         try {
-            const data = await getJson(`${api}/Distribution/Recent?take=12`);
+            const data = await getJson(`${distributionApi}/Recent?take=12`);
             if (!data.distributions.length) {
                 body.innerHTML = '<tr><td class="id-empty" colspan="7">Chưa có phiếu phân phối.</td></tr>';
                 return;

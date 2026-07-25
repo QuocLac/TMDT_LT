@@ -3,351 +3,35 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Security.Claims;
+using TMDT_LT.Services.Inventory.Contracts;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
 
 namespace TMDT_LT.Areas.Admin.Controllers;
 
 /// <summary>
-/// Phase D2 - Warehouse inventory control and auditable cycle counts.
-/// Tách kiểm kê khỏi thao tác sửa lô trực tiếp. Mọi chênh lệch được snapshot,
-/// duyệt, post theo kho và ghi lịch sử trước/sau.
+/// Auditable warehouse counting workflow: snapshot, count, submit, approve,
+/// post variances and cancel open sessions.
 /// </summary>
 [Area("Admin")]
 [Authorize(Roles = "Admin")]
-[Route("Admin/Inventory/PhaseD/Control")]
-public sealed class InventoryControlPhaseDController : Controller
+[Route("Admin/Inventory/Counts")]
+public sealed class InventoryCountingController : Controller
 {
-    private const int DefaultPageSize = 20;
-    private const int MaxPageSize = 100;
     private const int MaxCountLines = 500;
-    private const int LowStockThreshold = 5;
 
     private readonly ApplicationDbContext _context;
-    private readonly ILogger<InventoryControlPhaseDController> _logger;
+    private readonly ILogger<InventoryCountingController> _logger;
 
-    public InventoryControlPhaseDController(
+    public InventoryCountingController(
         ApplicationDbContext context,
-        ILogger<InventoryControlPhaseDController> logger)
+        ILogger<InventoryCountingController> logger)
     {
         _context = context;
         _logger = logger;
     }
 
-    [HttpGet("~/Admin/Inventory", Order = -300)]
-    [HttpGet("~/Admin/Inventory/Index", Order = -300)]
-    public IActionResult Dashboard()
-    {
-        return View("~/Areas/Admin/Views/Inventory/Index.cshtml");
-    }
-
-    [HttpGet("Bootstrap")]
-    public async Task<IActionResult> Bootstrap(CancellationToken cancellationToken)
-    {
-        var warehouses = await _context.Warehouses
-            .AsNoTracking()
-            .Where(item => item.IsActive)
-            .OrderByDescending(item => item.IsPrimary)
-            .ThenBy(item => item.WarehouseName)
-            .Select(item => new
-            {
-                warehouseId = item.WarehouseId,
-                warehouseCode = item.WarehouseCode,
-                warehouseName = item.WarehouseName,
-                address = item.Address,
-                isPrimary = item.IsPrimary
-            })
-            .ToListAsync(cancellationToken);
-
-        var reasons = InventoryCountReasonCodes.Labels
-            .Select(item => new { code = item.Key, label = item.Value })
-            .ToList();
-
-        return Json(new
-        {
-            success = true,
-            warehouses,
-            reasons,
-            statuses = new[]
-            {
-                new { code = InventoryCountSessionStatuses.Counting, label = "Đang kiểm đếm" },
-                new { code = InventoryCountSessionStatuses.PendingApproval, label = "Chờ duyệt" },
-                new { code = InventoryCountSessionStatuses.Posted, label = "Đã ghi sổ" },
-                new { code = InventoryCountSessionStatuses.Cancelled, label = "Đã hủy" }
-            },
-            generatedAt = DateTime.Now
-        });
-    }
-
-    [HttpGet("Stock")]
-    public async Task<IActionResult> Stock(
-        int? warehouseId,
-        string? q,
-        string? stockScope,
-        int page = 1,
-        int pageSize = DefaultPageSize,
-        CancellationToken cancellationToken = default)
-    {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 10, MaxPageSize);
-
-        Warehouses warehouse;
-        try
-        {
-            warehouse = await ResolveWarehouseAsync(warehouseId, cancellationToken);
-        }
-        catch (InvalidOperationException exception)
-        {
-            return BadRequest(Fail(exception.Message));
-        }
-
-        string keyword = (q ?? string.Empty).Trim();
-        int? exactVariantId = int.TryParse(keyword, out int parsedVariantId)
-            ? parsedVariantId
-            : null;
-
-        var variantsQuery = _context.ProductVariants
-            .AsNoTracking()
-            .Where(item => item.IsActive == true && item.Product != null);
-
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            variantsQuery = variantsQuery.Where(item =>
-                (exactVariantId.HasValue && item.VariantId == exactVariantId.Value)
-                || item.Product.Name.Contains(keyword)
-                || (item.Color != null && item.Color.Contains(keyword))
-                || (item.Storage != null && item.Storage.Contains(keyword))
-                || (item.Ram != null && item.Ram.Contains(keyword))
-                || item.Product.Brand.BrandName.Contains(keyword)
-                || item.Product.Category.CategoryName.Contains(keyword));
-        }
-
-        string normalizedScope = (stockScope ?? "all").Trim().ToLowerInvariant();
-        if (normalizedScope is "available" or "low" or "out" or "drift")
-        {
-            variantsQuery = normalizedScope switch
-            {
-                "available" => variantsQuery.Where(item =>
-                    (_context.InventoryLots
-                        .Where(lot => lot.WarehouseId == warehouse.WarehouseId
-                            && lot.VariantId == item.VariantId
-                            && lot.IsActive
-                            && !lot.IsDeleted)
-                        .Sum(lot => (int?)lot.RemainingQuantity) ?? 0) > 0),
-                "low" => variantsQuery.Where(item =>
-                    (_context.InventoryLots
-                        .Where(lot => lot.WarehouseId == warehouse.WarehouseId
-                            && lot.VariantId == item.VariantId
-                            && lot.IsActive
-                            && !lot.IsDeleted)
-                        .Sum(lot => (int?)lot.RemainingQuantity) ?? 0) > 0
-                    && (_context.InventoryLots
-                        .Where(lot => lot.WarehouseId == warehouse.WarehouseId
-                            && lot.VariantId == item.VariantId
-                            && lot.IsActive
-                            && !lot.IsDeleted)
-                        .Sum(lot => (int?)lot.RemainingQuantity) ?? 0) <= LowStockThreshold),
-                "out" => variantsQuery.Where(item =>
-                    !(_context.InventoryLots.Any(lot => lot.WarehouseId == warehouse.WarehouseId
-                        && lot.VariantId == item.VariantId
-                        && lot.RemainingQuantity > 0
-                        && lot.IsActive
-                        && !lot.IsDeleted))),
-                "drift" => variantsQuery.Where(item =>
-                    (_context.InventoryLots
-                        .Where(lot => lot.VariantId == item.VariantId
-                            && lot.IsActive
-                            && !lot.IsDeleted)
-                        .Sum(lot => (int?)lot.RemainingQuantity) ?? 0) != (item.Stock ?? 0)),
-                _ => variantsQuery
-            };
-        }
-
-        int totalItems = await variantsQuery.CountAsync(cancellationToken);
-        int totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)pageSize));
-        page = Math.Min(page, totalPages);
-
-        var pageItems = await variantsQuery
-            .OrderBy(item => item.Product.Name)
-            .ThenBy(item => item.VariantId)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(item => new
-            {
-                item.VariantId,
-                ProductName = item.Product.Name,
-                item.Color,
-                item.Storage,
-                item.Ram,
-                Price = item.Price ?? 0m,
-                ImageUrl = item.ImageUrl ?? item.Product.MainImage,
-                BrandName = item.Product.Brand.BrandName,
-                CategoryName = item.Product.Category.CategoryName,
-                AggregateStockSnapshot = item.Stock ?? 0
-            })
-            .ToListAsync(cancellationToken);
-
-        var variantIds = pageItems.Select(item => item.VariantId).ToList();
-        DateTime now = DateTime.Now;
-
-        var warehouseLotRows = variantIds.Count == 0
-            ? new List<WarehouseLotSummaryRow>()
-            : await _context.InventoryLots
-                .AsNoTracking()
-                .Where(lot => lot.WarehouseId == warehouse.WarehouseId
-                    && variantIds.Contains(lot.VariantId)
-                    && lot.IsActive
-                    && !lot.IsDeleted)
-                .GroupBy(lot => lot.VariantId)
-                .Select(group => new WarehouseLotSummaryRow
-                {
-                    VariantId = group.Key,
-                    OnHand = group.Sum(lot => lot.RemainingQuantity),
-                    InventoryValue = group.Sum(lot => lot.RemainingQuantity * lot.UnitCost),
-                    LotCount = group.Count(lot => lot.RemainingQuantity > 0),
-                    OldestReceivedDate = group
-                        .Where(lot => lot.RemainingQuantity > 0)
-                        .Min(lot => (DateTime?)lot.ReceivedDate)
-                })
-                .ToListAsync(cancellationToken);
-
-        var lotByVariant = warehouseLotRows.ToDictionary(item => item.VariantId);
-
-        // Reservation hiện tại chưa lưu WarehouseId. Trong giai đoạn chuyển tiếp,
-        // chỉ quy reservation đang hoạt động về kho chính để không trừ lặp ở nhiều kho.
-        var reservationByVariant = variantIds.Count == 0 || !warehouse.IsPrimary
-            ? new Dictionary<int, int>()
-            : await _context.Set<OrderReservations>()
-                .AsNoTracking()
-                .Where(item => variantIds.Contains(item.VariantId)
-                    && item.Status == OrderReservationStatuses.Reserved
-                    && (!item.ExpiresAt.HasValue || item.ExpiresAt > now))
-                .GroupBy(item => item.VariantId)
-                .Select(group => new
-                {
-                    VariantId = group.Key,
-                    Quantity = group.Sum(item => item.Quantity)
-                })
-                .ToDictionaryAsync(item => item.VariantId, item => item.Quantity, cancellationToken);
-
-        var aggregateByVariant = variantIds.Count == 0
-            ? new Dictionary<int, int>()
-            : await _context.InventoryLots
-                .AsNoTracking()
-                .Where(lot => variantIds.Contains(lot.VariantId)
-                    && lot.IsActive
-                    && !lot.IsDeleted)
-                .GroupBy(lot => lot.VariantId)
-                .Select(group => new
-                {
-                    VariantId = group.Key,
-                    Quantity = group.Sum(lot => lot.RemainingQuantity)
-                })
-                .ToDictionaryAsync(item => item.VariantId, item => item.Quantity, cancellationToken);
-
-        var items = pageItems.Select(item =>
-        {
-            lotByVariant.TryGetValue(item.VariantId, out WarehouseLotSummaryRow? lot);
-            int onHand = Math.Max(0, lot?.OnHand ?? 0);
-            int reserved = Math.Max(0, reservationByVariant.GetValueOrDefault(item.VariantId));
-            int available = Math.Max(0, onHand - reserved);
-            decimal inventoryValue = Math.Max(0m, lot?.InventoryValue ?? 0m);
-            decimal averageCost = onHand > 0 ? inventoryValue / onHand : 0m;
-            int aggregateOnHand = Math.Max(0, aggregateByVariant.GetValueOrDefault(item.VariantId));
-            int stockDrift = aggregateOnHand - Math.Max(0, item.AggregateStockSnapshot);
-
-            return new
-            {
-                variantId = item.VariantId,
-                sku = $"SKU-{item.VariantId:D6}",
-                productName = item.ProductName,
-                variantLabel = BuildVariantLabel(item.Color, item.Storage, item.Ram),
-                imageUrl = string.IsNullOrWhiteSpace(item.ImageUrl)
-                    ? "/images/products/default-product.png"
-                    : item.ImageUrl,
-                item.BrandName,
-                item.CategoryName,
-                item.Price,
-                onHand,
-                reserved,
-                available,
-                averageCost,
-                inventoryValue,
-                lotCount = lot?.LotCount ?? 0,
-                oldestStockDays = lot?.OldestReceivedDate.HasValue == true
-                    ? Math.Max(0, (now.Date - lot.OldestReceivedDate.Value.Date).Days)
-                    : 0,
-                aggregateOnHand,
-                aggregateStockSnapshot = Math.Max(0, item.AggregateStockSnapshot),
-                stockDrift
-            };
-        }).ToList();
-
-        var allWarehouseLots = await _context.InventoryLots
-            .AsNoTracking()
-            .Where(lot => lot.WarehouseId == warehouse.WarehouseId
-                && lot.IsActive
-                && !lot.IsDeleted)
-            .GroupBy(lot => lot.VariantId)
-            .Select(group => new
-            {
-                VariantId = group.Key,
-                OnHand = group.Sum(lot => lot.RemainingQuantity),
-                InventoryValue = group.Sum(lot => lot.RemainingQuantity * lot.UnitCost)
-            })
-            .ToListAsync(cancellationToken);
-
-        int totalOnHand = allWarehouseLots.Sum(item => Math.Max(0, item.OnHand));
-        decimal totalInventoryValue = allWarehouseLots.Sum(item => Math.Max(0m, item.InventoryValue));
-        int lowStockCount = allWarehouseLots.Count(item => item.OnHand > 0 && item.OnHand <= LowStockThreshold);
-
-        int totalReserved = warehouse.IsPrimary
-            ? await _context.Set<OrderReservations>()
-                .AsNoTracking()
-                .Where(item => item.Status == OrderReservationStatuses.Reserved
-                    && (!item.ExpiresAt.HasValue || item.ExpiresAt > now))
-                .SumAsync(item => (int?)item.Quantity, cancellationToken) ?? 0
-            : 0;
-
-        int pendingCounts = await _context.Set<InventoryCountSessions>()
-            .AsNoTracking()
-            .CountAsync(item => item.WarehouseId == warehouse.WarehouseId
-                && (item.Status == InventoryCountSessionStatuses.Counting
-                    || item.Status == InventoryCountSessionStatuses.PendingApproval),
-                cancellationToken);
-
-        return Json(new
-        {
-            success = true,
-            warehouse = new
-            {
-                warehouse.WarehouseId,
-                warehouse.WarehouseCode,
-                warehouse.WarehouseName,
-                warehouse.IsPrimary
-            },
-            page,
-            pageSize,
-            totalItems,
-            totalPages,
-            items,
-            summary = new
-            {
-                totalOnHand,
-                totalReserved = Math.Max(0, totalReserved),
-                totalAvailable = Math.Max(0, totalOnHand - Math.Max(0, totalReserved)),
-                totalInventoryValue,
-                lowStockCount,
-                pendingCounts,
-                activeVariantCount = allWarehouseLots.Count(item => item.OnHand > 0)
-            },
-            reservationNote = warehouse.IsPrimary
-                ? "Reservation hiện tại chưa có WarehouseId và được quy về kho chính trong giai đoạn chuyển tiếp."
-                : "Reservation chưa phân bổ theo kho nên không bị trừ lặp tại kho phụ."
-        });
-    }
-
-    [HttpGet("Sessions")]
+    [HttpGet("")]
     public async Task<IActionResult> Sessions(
         int? warehouseId,
         string? status,
@@ -355,7 +39,7 @@ public sealed class InventoryControlPhaseDController : Controller
         CancellationToken cancellationToken = default)
     {
         take = Math.Clamp(take, 1, 100);
-        var query = _context.Set<InventoryCountSessions>()
+        var query = _context.Set<InventoryCountSession>()
             .AsNoTracking()
             .AsQueryable();
 
@@ -397,12 +81,12 @@ public sealed class InventoryControlPhaseDController : Controller
         return Json(new { success = true, sessions });
     }
 
-    [HttpGet("Sessions/{countSessionId:int}")]
+    [HttpGet("{countSessionId:int}")]
     public async Task<IActionResult> Session(
         int countSessionId,
         CancellationToken cancellationToken)
     {
-        var session = await _context.Set<InventoryCountSessions>()
+        var session = await _context.Set<InventoryCountSession>()
             .AsNoTracking()
             .Where(item => item.CountSessionId == countSessionId)
             .Select(item => new
@@ -427,7 +111,7 @@ public sealed class InventoryControlPhaseDController : Controller
             return NotFound(Fail("Không tìm thấy phiên kiểm kê."));
         }
 
-        var lines = await _context.Set<InventoryCountLines>()
+        var lines = await _context.Set<InventoryCountLine>()
             .AsNoTracking()
             .Where(item => item.CountSessionId == countSessionId)
             .OrderBy(item => item.Variant.Product.Name)
@@ -481,7 +165,7 @@ public sealed class InventoryControlPhaseDController : Controller
         });
     }
 
-    [HttpPost("Sessions/Create")]
+    [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateSession(
         [FromBody] CreateInventoryCountRequest? request,
@@ -548,7 +232,7 @@ public sealed class InventoryControlPhaseDController : Controller
             return BadRequest(Fail("Danh sách có SKU không tồn tại hoặc đã ngừng kinh doanh."));
         }
 
-        bool hasOverlappingOpenSession = await _context.Set<InventoryCountSessions>()
+        bool hasOverlappingOpenSession = await _context.Set<InventoryCountSession>()
             .AsNoTracking()
             .AnyAsync(session => session.WarehouseId == warehouse.WarehouseId
                 && (session.Status == InventoryCountSessionStatuses.Counting
@@ -577,7 +261,7 @@ public sealed class InventoryControlPhaseDController : Controller
             .ToDictionaryAsync(item => item.VariantId, cancellationToken);
 
         int accountId = GetCurrentAccountId();
-        var session = new InventoryCountSessions
+        var session = new InventoryCountSession
         {
             CountCode = $"CNT-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8]}".ToUpperInvariant(),
             WarehouseId = warehouse.WarehouseId,
@@ -593,7 +277,7 @@ public sealed class InventoryControlPhaseDController : Controller
             snapshots.TryGetValue(variantId, out var snapshot);
             int quantity = Math.Max(0, snapshot?.Quantity ?? 0);
             decimal value = Math.Max(0m, snapshot?.InventoryValue ?? 0m);
-            session.Lines.Add(new InventoryCountLines
+            session.Lines.Add(new InventoryCountLine
             {
                 VariantId = variantId,
                 SystemQuantity = quantity,
@@ -601,7 +285,7 @@ public sealed class InventoryControlPhaseDController : Controller
             });
         }
 
-        _context.Set<InventoryCountSessions>().Add(session);
+        _context.Set<InventoryCountSession>().Add(session);
         await _context.SaveChangesAsync(cancellationToken);
 
         return Json(new
@@ -613,7 +297,7 @@ public sealed class InventoryControlPhaseDController : Controller
         });
     }
 
-    [HttpPost("Sessions/{countSessionId:int}/Lines/{countLineId:int}/Count")]
+    [HttpPost("{countSessionId:int}/lines/{countLineId:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveCountLine(
         int countSessionId,
@@ -626,7 +310,7 @@ public sealed class InventoryControlPhaseDController : Controller
             return BadRequest(Fail("Số lượng kiểm đếm không hợp lệ."));
         }
 
-        var line = await _context.Set<InventoryCountLines>()
+        var line = await _context.Set<InventoryCountLine>()
             .Include(item => item.CountSession)
             .FirstOrDefaultAsync(item => item.CountLineId == countLineId
                 && item.CountSessionId == countSessionId,
@@ -687,13 +371,13 @@ public sealed class InventoryControlPhaseDController : Controller
         });
     }
 
-    [HttpPost("Sessions/{countSessionId:int}/Submit")]
+    [HttpPost("{countSessionId:int}/submit")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SubmitSession(
         int countSessionId,
         CancellationToken cancellationToken)
     {
-        var session = await _context.Set<InventoryCountSessions>()
+        var session = await _context.Set<InventoryCountSession>()
             .Include(item => item.Lines)
             .FirstOrDefaultAsync(item => item.CountSessionId == countSessionId, cancellationToken);
 
@@ -727,7 +411,7 @@ public sealed class InventoryControlPhaseDController : Controller
         return Json(new { success = true, message = "Phiên kiểm kê đã được chuyển sang chờ duyệt." });
     }
 
-    [HttpPost("Sessions/{countSessionId:int}/Post")]
+    [HttpPost("{countSessionId:int}/post")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PostSession(
         int countSessionId,
@@ -739,7 +423,7 @@ public sealed class InventoryControlPhaseDController : Controller
 
         try
         {
-            var session = await _context.Set<InventoryCountSessions>()
+            var session = await _context.Set<InventoryCountSession>()
                 .Include(item => item.Lines)
                 .FirstOrDefaultAsync(item => item.CountSessionId == countSessionId,
                     cancellationToken);
@@ -763,7 +447,7 @@ public sealed class InventoryControlPhaseDController : Controller
             }
 
             var staleItems = new List<object>();
-            foreach (InventoryCountLines line in session.Lines)
+            foreach (InventoryCountLine line in session.Lines)
             {
                 int currentQuantity = await _context.InventoryLots
                     .Where(item => item.WarehouseId == session.WarehouseId
@@ -798,7 +482,7 @@ public sealed class InventoryControlPhaseDController : Controller
             DateTime postedAt = DateTime.Now;
             var affectedVariantIds = new HashSet<int>();
 
-            foreach (InventoryCountLines line in session.Lines)
+            foreach (InventoryCountLine line in session.Lines)
             {
                 int beforeQuantity = line.SystemQuantity;
                 int countedQuantity = line.CountedQuantity!.Value;
@@ -1004,14 +688,14 @@ public sealed class InventoryControlPhaseDController : Controller
         }
     }
 
-    [HttpPost("Sessions/{countSessionId:int}/Cancel")]
+    [HttpPost("{countSessionId:int}/cancel")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CancelSession(
         int countSessionId,
         [FromBody] CancelInventoryCountRequest? request,
         CancellationToken cancellationToken)
     {
-        var session = await _context.Set<InventoryCountSessions>()
+        var session = await _context.Set<InventoryCountSession>()
             .FirstOrDefaultAsync(item => item.CountSessionId == countSessionId,
                 cancellationToken);
 
@@ -1046,51 +730,6 @@ public sealed class InventoryControlPhaseDController : Controller
         return Json(new { success = true, message = "Đã hủy phiên kiểm kê." });
     }
 
-    [HttpGet("Transactions")]
-    public async Task<IActionResult> Transactions(
-        int? warehouseId,
-        int take = 15,
-        CancellationToken cancellationToken = default)
-    {
-        take = Math.Clamp(take, 1, 50);
-        var query = _context.InventoryTransactions
-            .AsNoTracking()
-            .Where(item => item.WarehouseId.HasValue);
-
-        if (warehouseId.HasValue && warehouseId.Value > 0)
-        {
-            query = query.Where(item => item.WarehouseId == warehouseId.Value);
-        }
-
-        var transactions = await query
-            .OrderByDescending(item => item.TransactionDate)
-            .ThenByDescending(item => item.TransactionId)
-            .Take(take)
-            .Select(item => new
-            {
-                transactionId = item.TransactionId,
-                variantId = item.VariantId,
-                sku = $"SKU-{item.VariantId:D6}",
-                productName = item.Variant.Product.Name,
-                transactionType = item.TransactionType,
-                quantity = item.Quantity,
-                quantityBefore = item.QuantityBefore,
-                quantityAfter = item.QuantityAfter,
-                reasonCode = item.ReasonCode,
-                valueImpact = item.ValueImpact,
-                transactionDate = item.TransactionDate,
-                warehouseId = item.WarehouseId,
-                warehouseName = item.Warehouse != null
-                    ? item.Warehouse.WarehouseName
-                    : "Kho chưa xác định",
-                referenceType = item.ReferenceType,
-                referenceId = item.ReferenceId,
-                note = item.Note
-            })
-            .ToListAsync(cancellationToken);
-
-        return Json(new { success = true, transactions });
-    }
 
     private async Task<Warehouses> ResolveWarehouseAsync(
         int? warehouseId,
@@ -1173,34 +812,4 @@ public sealed class InventoryControlPhaseDController : Controller
     }
 
     private static object Fail(string message) => new { success = false, message };
-
-    private sealed class WarehouseLotSummaryRow
-    {
-        public int VariantId { get; set; }
-        public int OnHand { get; set; }
-        public decimal InventoryValue { get; set; }
-        public int LotCount { get; set; }
-        public DateTime? OldestReceivedDate { get; set; }
-    }
-}
-
-public sealed class CreateInventoryCountRequest
-{
-    public int WarehouseId { get; set; }
-    public string? ScopeType { get; set; }
-    public string? Notes { get; set; }
-    public List<int> VariantIds { get; set; } = new();
-}
-
-public sealed class SaveInventoryCountLineRequest
-{
-    public int CountedQuantity { get; set; }
-    public string? ReasonCode { get; set; }
-    public decimal? AdjustmentUnitCost { get; set; }
-    public string? Note { get; set; }
-}
-
-public sealed class CancelInventoryCountRequest
-{
-    public string? Reason { get; set; }
 }

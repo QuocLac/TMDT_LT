@@ -1,7 +1,9 @@
 (() => {
     'use strict';
 
-    const api = '/Admin/Inventory/PhaseD/Operations';
+    const operationsApi = '/Admin/Inventory/Operations';
+    const transferApi = '/Admin/Inventory/Transfers';
+    const reconciliationApi = '/Admin/Inventory/Reconciliation';
     const state = {
         bootstrap: null,
         transferPage: 1,
@@ -79,7 +81,7 @@
     }
 
     async function loadBootstrap() {
-        const data = await getJson(`${api}/Bootstrap`);
+        const data = await getJson(`${operationsApi}/Bootstrap`);
         state.bootstrap = data;
         ['replenishmentWarehouse', 'transferSourceWarehouse', 'transferTargetWarehouse'].forEach(id => fillWarehouseSelect(id, data.warehouses));
         ensureDifferentTransferWarehouses('source');
@@ -104,7 +106,7 @@
             fallbackTargetQuantity: $('fallbackTargetQuantity').value
         });
         try {
-            const data = await getJson(`${api}/Replenishment?${query}`);
+            const data = await getJson(`${operationsApi}/Replenishment?${query}`);
             $('replenishmentSkuCount').textContent = formatNumber(data.suggestionCount);
             $('replenishmentQuantity').textContent = formatNumber(data.totalRecommendedQuantity);
             $('replenishmentValue').textContent = formatMoney(data.estimatedPurchaseValue);
@@ -162,7 +164,7 @@
         state.transferPreviewValid = false;
         $('submitTransferButton').disabled = true;
         try {
-            const data = await getJson(`${api}/Products?${transferProductQuery()}`);
+            const data = await getJson(`${operationsApi}/Products?${transferProductQuery()}`);
             state.transferProducts = data.items;
             state.transferTotalPages = data.totalPages;
             state.transferPage = data.page;
@@ -243,7 +245,7 @@
         box.className = 'io-alert';
         box.textContent = 'Đang kiểm tra tồn khả dụng...';
         try {
-            const data = await postJson(`${api}/Transfers/Preview`, payload);
+            const data = await postJson(`${transferApi}/Preview`, payload);
             state.transferPreview = data;
             state.transferPreviewValid = data.success && data.lines.every(item => item.valid);
             box.className = `io-alert ${state.transferPreviewValid ? 'is-success' : 'is-error'}`;
@@ -264,7 +266,7 @@
         const button = $('submitTransferButton');
         button.disabled = true;
         try {
-            const data = await postJson(`${api}/Transfers/Submit`, transferPayload());
+            const data = await postJson(`${transferApi}/Submit`, transferPayload());
             toast(`${data.transferCode}: ${data.message}`, 'success');
             state.transferCart.clear();
             $('transferReason').value = '';
@@ -281,9 +283,9 @@
         const body = $('recentTransferTableBody');
         body.innerHTML = '<tr><td class="io-empty" colspan="6">Đang tải...</td></tr>';
         try {
-            const data = await getJson(`${api}/Transfers/Recent?take=15`);
+            const data = await getJson(`${transferApi}/Recent?take=15`);
             if (!data.transfers.length) {
-                body.innerHTML = '<tr><td class="io-empty" colspan="6">Chưa có điều chuyển Phase D3.</td></tr>';
+                body.innerHTML = '<tr><td class="io-empty" colspan="6">Chưa có phiếu điều chuyển.</td></tr>';
                 return;
             }
             body.innerHTML = data.transfers.map(item => `
@@ -298,7 +300,7 @@
         banner.className = 'io-health-banner';
         banner.textContent = 'Đang quét dữ liệu tồn kho...';
         try {
-            const data = await getJson(`${api}/Health`);
+            const data = await getJson(`${reconciliationApi}/Health`);
             banner.className = `io-health-banner ${data.healthy ? 'is-healthy' : 'is-danger'}`;
             banner.textContent = data.healthy
                 ? `Hệ thống khỏe tại ${formatDate(data.generatedAt)}. Không phát hiện lỗi trọng yếu.`
@@ -337,7 +339,7 @@
         if (reason.length < 5) return toast('Nhập lý do tối thiểu 5 ký tự.', 'error');
         if (!window.confirm('Đồng bộ ProductVariants.Stock theo tổng tồn lô hoạt động?')) return;
         try {
-            const data = await postJson(`${api}/RepairVariantSnapshots`, { reason });
+            const data = await postJson(`${reconciliationApi}/RepairVariantSnapshots`, { reason });
             toast(data.message, 'success');
             await loadHealth();
         } catch (error) {

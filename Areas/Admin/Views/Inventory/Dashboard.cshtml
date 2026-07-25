@@ -4,7 +4,7 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/admin/inventory-control-phase-d2.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin/inventory-dashboard.css" asp-append-version="true" />
 }
 
 @Html.AntiForgeryToken()
@@ -12,7 +12,7 @@
 <div class="ic-page" id="inventoryControlApp">
     <header class="ic-page-header">
         <div>
-            <div class="ic-eyebrow">WAREHOUSE CONTROL CENTER · PHASE D3</div>
+            <div class="ic-eyebrow">WAREHOUSE CONTROL CENTER</div>
             <h1>Kiểm soát tồn kho</h1>
             <p>Theo dõi On hand, Reserved, Available và kiểm kê có audit theo từng kho.</p>
         </div>
@@ -21,11 +21,11 @@
                 <i class="fa-solid fa-gears"></i>
                 Vận hành kho
             </a>
-            <a class="ic-button ic-button-light" href="/Admin/Inventory/CreateSO">
+            <a class="ic-button ic-button-light" href="/Admin/Inventory/Distribution">
                 <i class="fa-solid fa-arrow-up-from-bracket"></i>
                 Phiếu xuất
             </a>
-            <a class="ic-button ic-button-light" href="/Admin/Inventory/CreatePO">
+            <a class="ic-button ic-button-light" href="/Admin/Inventory/Receiving">
                 <i class="fa-solid fa-truck-ramp-box"></i>
                 Nhận hàng
             </a>
@@ -311,5 +311,5 @@
 <div class="ic-toast-stack" id="toastStack" aria-live="polite"></div>
 
 @section Scripts {
-    <script src="~/js/admin/inventory-control-phase-d2.js" asp-append-version="true"></script>
+    <script src="~/js/admin/inventory-dashboard.js" asp-append-version="true"></script>
 }

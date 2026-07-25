@@ -4,7 +4,7 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/admin/inventory-operations-phase-d3.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin/inventory-operations.css" asp-append-version="true" />
 }
 
 @Html.AntiForgeryToken()
@@ -12,14 +12,14 @@
 <div class="io-page" id="inventoryOperationsApp">
     <header class="io-header">
         <div>
-            <div class="io-eyebrow">WAREHOUSE OPERATIONS · PHASE D3</div>
+            <div class="io-eyebrow">WAREHOUSE OPERATIONS</div>
             <h1>Trung tâm vận hành kho</h1>
             <p>Bổ sung hàng, cân bằng tồn giữa kho, giám sát sức khỏe dữ liệu và truy vết giao dịch.</p>
         </div>
         <nav class="io-header-actions" aria-label="Điều hướng module kho">
             <a class="io-button io-button-light" href="/Admin/Inventory"><i class="fa-solid fa-chart-column"></i> Tồn & kiểm kê</a>
-            <a class="io-button io-button-light" href="/Admin/Inventory/CreatePO"><i class="fa-solid fa-truck-ramp-box"></i> Nhận hàng</a>
-            <a class="io-button io-button-primary" href="/Admin/Inventory/CreateSO"><i class="fa-solid fa-arrow-up-from-bracket"></i> Xuất phân phối</a>
+            <a class="io-button io-button-light" href="/Admin/Inventory/Receiving"><i class="fa-solid fa-truck-ramp-box"></i> Nhận hàng</a>
+            <a class="io-button io-button-primary" href="/Admin/Inventory/Distribution"><i class="fa-solid fa-arrow-up-from-bracket"></i> Xuất phân phối</a>
         </nav>
     </header>
 
@@ -136,5 +136,5 @@
 <div class="io-toast-stack" id="operationsToastStack" aria-live="polite"></div>
 
 @section Scripts {
-    <script src="~/js/admin/inventory-operations-phase-d3.js" asp-append-version="true"></script>
+    <script src="~/js/admin/inventory-operations.js" asp-append-version="true"></script>
 }

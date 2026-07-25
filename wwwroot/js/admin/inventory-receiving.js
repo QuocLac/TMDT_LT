@@ -105,7 +105,7 @@
     }
 
     async function loadBootstrap() {
-        const data = await getJson('/Admin/Inventory/PhaseD/Bootstrap');
+        const data = await getJson('/Admin/Inventory/Receiving/Bootstrap');
         state.bootstrap = data;
 
         fillSelect(
@@ -198,7 +198,7 @@
         renderProductSkeleton();
 
         try {
-            const data = await getJson(`/Admin/Inventory/PhaseD/Products?${productQueryString()}`);
+            const data = await getJson(`/Admin/Inventory/Receiving/Products?${productQueryString()}`);
             if (sequence !== state.requestSequence) return;
             state.products = data.items || [];
             state.page = data.page || 1;
@@ -473,7 +473,7 @@
         button.disabled = true;
         button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Đang kiểm tra';
         try {
-            const data = await postJson('/Admin/Inventory/PhaseD/PreviewReceipt', payload);
+            const data = await postJson('/Admin/Inventory/Receiving/Preview', payload);
             byId('goodsSubtotal').textContent = formatMoney(data.goodsSubtotal);
             byId('inputVatAmount').textContent = formatMoney(data.inputVatAmount);
             byId('allocatedFeeTotal').textContent = formatMoney(Number(data.shippingFee) + Number(data.otherFee));
@@ -514,7 +514,7 @@
         button.disabled = true;
         button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Đang ghi nhận transaction';
         try {
-            const data = await postJson('/Admin/Inventory/PhaseD/SubmitReceipt', payload);
+            const data = await postJson('/Admin/Inventory/Receiving/Submit', payload);
             byId('resultModalMessage').textContent = data.message || 'Đã cập nhật tồn kho.';
             byId('resultModalDetail').innerHTML = `
                 <strong>Mã phiếu:</strong> ${escapeHtml(data.poCode)}<br>
@@ -536,7 +536,7 @@
     async function loadRecentReceipts() {
         const container = byId('recentReceiptList');
         try {
-            const data = await getJson('/Admin/Inventory/PhaseD/RecentReceipts?take=8');
+            const data = await getJson('/Admin/Inventory/Receiving/Recent?take=8');
             const receipts = data.receipts || [];
             if (receipts.length === 0) {
                 container.innerHTML = '<div class="ir-empty-state" style="min-height:150px">Chưa có phiếu nhập.</div>';
@@ -647,7 +647,7 @@
         } catch (error) {
             setStatus('Không thể khởi tạo workspace', 'is-error');
             showPageWarning(
-                `${error.message || 'Lỗi tải dữ liệu.'} Có thể quay lại màn hình kiểm soát kho và kiểm tra migration Phase B.`);
+                `${error.message || 'Lỗi tải dữ liệu.'} Có thể quay lại màn hình kiểm soát kho và kiểm tra migration tồn kho hiện hành.`);
         }
     }
 

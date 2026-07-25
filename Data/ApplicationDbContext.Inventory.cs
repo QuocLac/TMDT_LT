@@ -9,7 +9,11 @@ public partial class ApplicationDbContext
 
     public DbSet<OrderInventoryAllocations> OrderInventoryAllocations { get; set; } = null!;
 
-    private static void ConfigureInventoryPhaseB(ModelBuilder modelBuilder)
+    public DbSet<InventoryCountSession> InventoryCountSessions { get; set; } = null!;
+
+    public DbSet<InventoryCountLine> InventoryCountLines { get; set; } = null!;
+
+    private static void ConfigureInventory(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Warehouses>(entity =>
         {
@@ -117,7 +121,6 @@ public partial class ApplicationDbContext
             entity.HasIndex(item => item.FulfillmentWarehouseId);
         });
 
-
         modelBuilder.Entity<SalesOrders>(entity =>
         {
             entity.HasOne(item => item.FromWarehouse)
@@ -155,7 +158,11 @@ public partial class ApplicationDbContext
                 .WithMany()
                 .HasForeignKey(item => item.LotId)
                 .OnDelete(DeleteBehavior.Restrict);
-            entity.HasIndex(item => new { item.WarehouseId, item.TransactionDate });
+            entity.HasIndex(item => new
+            {
+                item.WarehouseId,
+                item.TransactionDate
+            });
             entity.HasIndex(item => item.LotId);
         });
 

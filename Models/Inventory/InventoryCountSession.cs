@@ -4,30 +4,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TMDT_LT.Models;
 
-public static class InventoryCountSessionStatuses
-{
-    public const string Counting = "Counting";
-    public const string PendingApproval = "PendingApproval";
-    public const string Posted = "Posted";
-    public const string Cancelled = "Cancelled";
-
-    public static readonly string[] OpenStatuses =
-    [
-        Counting,
-        PendingApproval
-    ];
-}
-
-public static class InventoryCountScopeTypes
-{
-    public const string Cycle = "Cycle";
-    public const string Full = "Full";
-}
-
 [Index(nameof(CountCode), IsUnique = true)]
 [Index(nameof(WarehouseId), nameof(Status), nameof(CreatedAt))]
 [Table("InventoryCountSessions")]
-public sealed class InventoryCountSessions
+public sealed class InventoryCountSession
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -48,19 +28,13 @@ public sealed class InventoryCountSessions
     public string? Notes { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
-
     public DateTime? SubmittedAt { get; set; }
-
     public DateTime? PostedAt { get; set; }
-
     public DateTime? CancelledAt { get; set; }
 
     public int? CreatedByAccountId { get; set; }
-
     public int? SubmittedByAccountId { get; set; }
-
     public int? PostedByAccountId { get; set; }
-
     public int? CancelledByAccountId { get; set; }
 
     [Timestamp]
@@ -69,7 +43,7 @@ public sealed class InventoryCountSessions
     [ForeignKey(nameof(WarehouseId))]
     public Warehouses Warehouse { get; set; } = null!;
 
-    [InverseProperty(nameof(InventoryCountLines.CountSession))]
-    public ICollection<InventoryCountLines> Lines { get; set; }
-        = new List<InventoryCountLines>();
+    [InverseProperty(nameof(InventoryCountLine.CountSession))]
+    public ICollection<InventoryCountLine> Lines { get; set; }
+        = new List<InventoryCountLine>();
 }

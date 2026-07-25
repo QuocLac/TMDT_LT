@@ -85,7 +85,7 @@ namespace TMDT_LT.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
                 new Claim(ClaimTypes.Email, account.Email),
-                new Claim(ClaimTypes.Role, account.Role ?? "Customer"),
+                new Claim(ClaimTypes.Role, string.Equals(account.Role?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Customer"),
                 new Claim("CustomerId", customerId)
             };
 
@@ -104,7 +104,7 @@ namespace TMDT_LT.Controllers
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
 
-            return account.Role == "Admin"
+            return string.Equals(account.Role?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase)
                 ? RedirectToAction("Index", "Dashboard", new { area = "Admin" })
                 : RedirectToAction("Index", "Home");
         }

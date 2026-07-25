@@ -4,7 +4,7 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/admin/inventory-distribution-phase-d3.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin/inventory-distribution.css" asp-append-version="true" />
 }
 
 @Html.AntiForgeryToken()
@@ -12,14 +12,14 @@
 <div class="id-page" id="inventoryDistributionApp">
     <header class="id-header">
         <div>
-            <div class="id-eyebrow">FIFO DISTRIBUTION · PHASE D3</div>
+            <div class="id-eyebrow">FIFO DISTRIBUTION</div>
             <h1>Xuất kho phân phối</h1>
             <p>Chọn đúng kho nguồn, bảo vệ reservation, preview giá vốn FIFO và lợi nhuận trước khi ghi sổ.</p>
         </div>
         <nav class="id-header-actions">
             <a class="id-button id-button-light" href="/Admin/Inventory"><i class="fa-solid fa-chart-column"></i> Kiểm soát tồn</a>
             <a class="id-button id-button-light" href="/Admin/Inventory/Operations"><i class="fa-solid fa-right-left"></i> Vận hành kho</a>
-            <a class="id-button id-button-light" href="/Admin/Inventory/CreatePO"><i class="fa-solid fa-truck-ramp-box"></i> Nhận hàng</a>
+            <a class="id-button id-button-light" href="/Admin/Inventory/Receiving"><i class="fa-solid fa-truck-ramp-box"></i> Nhận hàng</a>
         </nav>
     </header>
 
@@ -71,7 +71,7 @@
                 <div class="id-alert" id="distributionPreviewStatus">Thêm sản phẩm và preview trước khi ghi sổ.</div>
                 <button type="button" class="id-button id-button-light id-button-block" id="previewDistributionButton"><i class="fa-solid fa-calculator"></i> Preview FIFO & tài chính</button>
                 <button type="button" class="id-button id-button-success id-button-block" id="submitDistributionButton" disabled><i class="fa-solid fa-check"></i> Ghi sổ xuất kho</button>
-                <small class="id-submit-note">Sau khi ghi sổ, tồn lô và serial được trừ theo FIFO; không thể sửa trực tiếp phiếu bằng giao diện legacy.</small>
+                <small class="id-submit-note">Sau khi ghi sổ, tồn lô và serial được trừ theo FIFO; không cho phép sửa trực tiếp số liệu đã ghi sổ.</small>
             </section>
         </aside>
     </div>
@@ -80,5 +80,5 @@
 <div class="id-toast-stack" id="distributionToastStack" aria-live="polite"></div>
 
 @section Scripts {
-    <script src="~/js/admin/inventory-distribution-phase-d3.js" asp-append-version="true"></script>
+    <script src="~/js/admin/inventory-distribution.js" asp-append-version="true"></script>
 }

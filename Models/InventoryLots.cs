@@ -51,8 +51,8 @@ namespace TMDT_LT.Models
         public virtual Warehouses? Warehouse { get; set; }
 
         [ForeignKey(nameof(InventoryCountLineId))]
-        [InverseProperty(nameof(InventoryCountLines.AdjustmentLots))]
-        public virtual InventoryCountLines? AdjustmentLine { get; set; }
+        [InverseProperty(nameof(InventoryCountLine.AdjustmentLots))]
+        public virtual InventoryCountLine? AdjustmentLine { get; set; }
 
         public virtual ICollection<ProductSerials> ProductSerials { get; set; }
             = new List<ProductSerials>();

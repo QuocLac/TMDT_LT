@@ -1,0 +1,138 @@
+@{
+    Layout = null;
+    string? returnUrl = ViewBag.ReturnUrl as string;
+    string? reason = ViewBag.Reason as string;
+    string currentRole = ViewBag.CurrentRole as string ?? "Chưa xác định";
+    bool isAuthenticated = ViewBag.IsAuthenticated is bool value && value;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Không có quyền truy cập</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+            background: #f4f7fb;
+            color: #172033;
+        }
+        * { box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background:
+                radial-gradient(circle at top left, #dbeafe 0, transparent 34%),
+                radial-gradient(circle at bottom right, #e0e7ff 0, transparent 30%),
+                #f4f7fb;
+        }
+        .card {
+            width: min(620px, 100%);
+            padding: 34px;
+            border: 1px solid #dfe6f0;
+            border-radius: 18px;
+            background: rgba(255,255,255,.96);
+            box-shadow: 0 24px 65px rgba(32, 52, 89, .13);
+        }
+        .code {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: #fff1f2;
+            color: #be123c;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: .08em;
+        }
+        h1 { margin: 18px 0 10px; font-size: clamp(28px, 5vw, 40px); line-height: 1.1; }
+        p { margin: 8px 0; color: #596579; line-height: 1.65; }
+        .meta {
+            margin: 22px 0;
+            padding: 16px;
+            border: 1px solid #e4e9f1;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+        .meta strong { color: #26344d; }
+        .reason {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 14px;
+        }
+        .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+        button, a {
+            min-height: 42px;
+            padding: 0 17px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            font: inherit;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .primary { border-color: #2563eb; background: #2563eb; color: #fff; }
+        .secondary { border-color: #cbd5e1; background: #fff; color: #334155; }
+        .hint { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e8edf4; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <span class="code">HTTP 403</span>
+        <h1>Không có quyền truy cập</h1>
+        <p>Trang này yêu cầu quyền quản trị và không mở cho tài khoản khách hàng.</p>
+
+        <div class="meta">
+            <p><strong>Đăng nhập:</strong> @(isAuthenticated ? "Có" : "Chưa")</p>
+            <p><strong>Role hiện tại:</strong> @currentRole</p>
+            @if (!string.IsNullOrWhiteSpace(returnUrl))
+            {
+                <p><strong>Trang yêu cầu:</strong> @returnUrl</p>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(reason))
+        {
+            <div class="reason">@reason</div>
+        }
+
+        <div class="actions">
+            @if (isAuthenticated)
+            {
+                <form method="post" action="/Home/RefreshAccess">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="primary" type="submit">
+                        Làm mới quyền từ tài khoản
+                    </button>
+                </form>
+            }
+            else
+            {
+                <a class="primary"
+                   href="/Auth/Login?returnUrl=@Uri.EscapeDataString(returnUrl ?? "/Admin/Inventory")">
+                    Đăng nhập
+                </a>
+            }
+            <a class="secondary" href="/">Về trang chủ</a>
+        </div>
+
+        <p class="hint">
+            Tài khoản quản trị phải có <strong>ACCOUNT.Role = Admin</strong>.
+            Việc làm mới chỉ đọc lại quyền hiện có, không tự nâng quyền.
+        </p>
+    </main>
+</body>
+</html>

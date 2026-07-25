@@ -4,8 +4,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace TMDT_LT.Models;
 
 /// <summary>
-/// Phase D2 audit fields. Các trường FIFO/kho/lô và snapshot giá vốn
-/// vẫn được giữ nguyên từ partial model của Phase B.
+/// Audit fields used by the inventory ledger. FIFO, warehouse, lot and
+/// cost-snapshot fields remain in the inventory entity extension model.
 /// </summary>
 public partial class InventoryTransactions
 {
@@ -13,7 +13,6 @@ public partial class InventoryTransactions
     public string? ReferenceType { get; set; }
 
     public int? QuantityBefore { get; set; }
-
     public int? QuantityAfter { get; set; }
 
     [MaxLength(40)]

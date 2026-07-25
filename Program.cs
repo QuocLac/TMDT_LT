@@ -1,17 +1,18 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
 using TMDT_LT.Data;
 using TMDT_LT.Filters;
 using TMDT_LT.Services;
+using TMDT_LT.Services.Inventory;
 using TMDT_LT.Services.AI;
 
 var builder =
     WebApplication.CreateBuilder(args);
 
 // ====================================================================
-// 1. KẾT NỐI DATABASE
+// 1. Káº¾T Ná»I DATABASE
 // ====================================================================
 builder.Services.AddScoped<
     CommerceOrderSaveChangesInterceptor>();
@@ -37,7 +38,7 @@ builder.Services.AddDbContext<
     });
 
 // ====================================================================
-// 2. CẤU HÌNH DỊCH VỤ CỐT LÕI (MVC, HttpContext)
+// 2. Cáº¤U HÃŒNH Dá»ŠCH Vá»¤ Cá»T LÃ•I (MVC, HttpContext)
 // ====================================================================
 builder.Services.AddScoped<
     CheckoutIdempotencyFilter>();
@@ -65,7 +66,7 @@ builder.Services
     .AddHttpContextAccessor();
 
 // ====================================================================
-// 3. CẤU HÌNH LƯU TRỮ TRẠNG THÁI (CACHE & SESSION GIỎ HÀNG)
+// 3. Cáº¤U HÃŒNH LÆ¯U TRá»® TRáº NG THÃI (CACHE & SESSION GIá»Ž HÃ€NG)
 // ====================================================================
 builder.Services
     .AddDistributedMemoryCache();
@@ -82,7 +83,7 @@ builder.Services.AddSession(
     });
 
 // ====================================================================
-// 4. CẤU HÌNH ĐĂNG NHẬP & PHÂN QUYỀN (COOKIE AUTHENTICATION)
+// 4. Cáº¤U HÃŒNH ÄÄ‚NG NHáº¬P & PHÃ‚N QUYá»€N (COOKIE AUTHENTICATION)
 // ====================================================================
 builder.Services
     .AddAuthentication(
@@ -105,7 +106,7 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// Giới hạn tần suất riêng cho AI để bảo vệ hạn mức và tránh spam.
+// Giá»›i háº¡n táº§n suáº¥t riÃªng cho AI Ä‘á»ƒ báº£o vá»‡ háº¡n má»©c vÃ  trÃ¡nh spam.
 builder.Services.AddRateLimiter(
     options =>
     {
@@ -154,12 +155,12 @@ builder.Services.AddRateLimiter(
     });
 
 // ====================================================================
-// 5. CẤU HÌNH SIGNALR (CHAT TRỰC TUYẾN)
+// 5. Cáº¤U HÃŒNH SIGNALR (CHAT TRá»°C TUYáº¾N)
 // ====================================================================
 builder.Services.AddSignalR();
 
 // ====================================================================
-// 6. ĐĂNG KÝ CÁC DỊCH VỤ TÙY CHỈNH (SERVICES & CONFIG)
+// 6. ÄÄ‚NG KÃ CÃC Dá»ŠCH Vá»¤ TÃ™Y CHá»ˆNH (SERVICES & CONFIG)
 // ====================================================================
 builder.Services
     .AddScoped<
@@ -171,6 +172,8 @@ builder.Services
 builder.Services.AddScoped<
     IOrderInventoryService,
     OrderInventoryService>();
+
+builder.Services.AddInventoryModule();
 
 builder.Services.AddScoped<
     IOrderStateService,
@@ -247,8 +250,8 @@ builder.Services.AddScoped<
     IKingPhoneAiToolService,
     KingPhoneAiToolService>();
 
-// Chỉ đọc section AI. User Secrets AI:ApiKey sẽ ghi đè
-// giá trị ApiKey rỗng trong appsettings.Development.json.
+// Chá»‰ Ä‘á»c section AI. User Secrets AI:ApiKey sáº½ ghi Ä‘Ã¨
+// giÃ¡ trá»‹ ApiKey rá»—ng trong appsettings.Development.json.
 builder.Services
     .AddOptions<
         KingPhoneAiOptions>()
@@ -299,7 +302,7 @@ builder.Services.AddScoped<
 
 var app = builder.Build();
 
-// Ghi trạng thái cấu hình, tuyệt đối không ghi API key.
+// Ghi tráº¡ng thÃ¡i cáº¥u hÃ¬nh, tuyá»‡t Ä‘á»‘i khÃ´ng ghi API key.
 using (var scope =
        app.Services.CreateScope())
 {
@@ -362,3 +365,4 @@ app.MapControllerRoute(
         "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
+

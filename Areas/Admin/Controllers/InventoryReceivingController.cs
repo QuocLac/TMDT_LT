@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Security.Claims;
+using TMDT_LT.Services.Inventory.Contracts;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
 using TMDT_LT.Services;
@@ -10,26 +11,32 @@ using TMDT_LT.Services;
 namespace TMDT_LT.Areas.Admin.Controllers;
 
 /// <summary>
-/// Phase D1 - Receiving workspace.
-/// Tách luồng nhận hàng khỏi controller Inventory cũ, bổ sung phân trang,
-/// kiểm tra trùng chứng từ, preview landed cost và ghi nhận nhập kho an toàn.
-/// Không thay đổi schema database.
+/// Supplier receiving workspace. Validates supplier invoices, previews landed
+/// cost and posts purchase receipt, lots, serials and ledger entries atomically.
 /// </summary>
 [Area("Admin")]
 [Authorize(Roles = "Admin")]
-[Route("Admin/Inventory/PhaseD")]
-public sealed class InventoryReceivingPhaseDController : Controller
+[Route("Admin/Inventory/Receiving")]
+public sealed class InventoryReceivingController : Controller
 {
     private const int MaxPageSize = 50;
-    private readonly ApplicationDbContext _context;
-    private readonly ILogger<InventoryReceivingPhaseDController> _logger;
 
-    public InventoryReceivingPhaseDController(
+    private readonly ApplicationDbContext _context;
+    private readonly ILogger<InventoryReceivingController> _logger;
+
+    public InventoryReceivingController(
         ApplicationDbContext context,
-        ILogger<InventoryReceivingPhaseDController> logger)
+        ILogger<InventoryReceivingController> logger)
     {
         _context = context;
         _logger = logger;
+    }
+
+    [HttpGet("")]
+    [HttpGet("~/Admin/Inventory/CreatePO")]
+    public IActionResult Workspace()
+    {
+        return View("~/Areas/Admin/Views/Inventory/Receiving.cshtml");
     }
 
     [HttpGet("Bootstrap")]
@@ -295,7 +302,7 @@ public sealed class InventoryReceivingPhaseDController : Controller
         });
     }
 
-    [HttpGet("RecentReceipts")]
+    [HttpGet("Recent")]
     public async Task<IActionResult> RecentReceipts(
         int take = 8,
         CancellationToken cancellationToken = default)
@@ -338,7 +345,7 @@ public sealed class InventoryReceivingPhaseDController : Controller
         return Json(new { success = true, receipts });
     }
 
-    [HttpPost("PreviewReceipt")]
+    [HttpPost("Preview")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PreviewReceipt(
         [FromBody] InventoryReceivingRequest? request,
@@ -406,7 +413,7 @@ public sealed class InventoryReceivingPhaseDController : Controller
         });
     }
 
-    [HttpPost("SubmitReceipt")]
+    [HttpPost("Submit")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SubmitReceipt(
         [FromBody] InventoryReceivingRequest? request,
@@ -598,7 +605,7 @@ public sealed class InventoryReceivingPhaseDController : Controller
             await transaction.RollbackAsync(cancellationToken);
             _logger.LogError(
                 exception,
-                "Phase D inventory receipt failed for invoice {InvoiceNumber}.",
+                "inventory inventory receipt failed for invoice {InvoiceNumber}.",
                 request?.InvoiceNumber);
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
@@ -606,19 +613,19 @@ public sealed class InventoryReceivingPhaseDController : Controller
         }
     }
 
-    private async Task<InventoryValidationResult> ValidateRequestAsync(
+    private async Task<InventoryReceivingValidationResult> ValidateRequestAsync(
         InventoryReceivingRequest? request,
         bool checkDuplicateInvoice,
         CancellationToken cancellationToken)
     {
         if (request == null)
         {
-            return InventoryValidationResult.Invalid("Dữ liệu phiếu nhập không hợp lệ.");
+            return InventoryReceivingValidationResult.Invalid("Dữ liệu phiếu nhập không hợp lệ.");
         }
 
         if (request.SupplierId <= 0 || request.WarehouseId <= 0)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Nhà cung cấp và kho nhận là thông tin bắt buộc.");
         }
 
@@ -626,44 +633,44 @@ public sealed class InventoryReceivingPhaseDController : Controller
             || request.InvoiceNumber.Trim().Length < 3
             || request.InvoiceNumber.Trim().Length > 100)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Số hóa đơn/chứng từ nhà cung cấp phải từ 3 đến 100 ký tự.");
         }
 
         DateTime today = DateTime.Today;
         if (!request.InvoiceDate.HasValue || request.InvoiceDate.Value.Date > today)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Ngày hóa đơn/chứng từ không hợp lệ hoặc nằm trong tương lai.");
         }
 
         if (!request.ReceivedDate.HasValue || request.ReceivedDate.Value.Date > today)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Ngày nhận hàng không hợp lệ hoặc nằm trong tương lai.");
         }
 
         if (request.ReceivedDate.Value.Date < request.InvoiceDate.Value.Date.AddDays(-30))
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Ngày nhận hàng cách ngày chứng từ quá xa về phía trước. Hãy kiểm tra lại dữ liệu.");
         }
 
         if (request.ShippingFee < 0m || request.OtherFee < 0m)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Phí vận chuyển và chi phí khác không được âm.");
         }
 
         if (request.Items == null || request.Items.Count == 0)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Phiếu nhập phải có ít nhất một mặt hàng.");
         }
 
         if (request.Items.Count > 200)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Một phiếu nhập không được vượt quá 200 dòng hàng.");
         }
 
@@ -676,14 +683,14 @@ public sealed class InventoryReceivingPhaseDController : Controller
                 || item.TaxRate < 0m
                 || item.TaxRate > 100m))
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Có dòng hàng chứa biến thể, số lượng, giá nhập hoặc thuế suất không hợp lệ.");
         }
 
         var grouped = request.Items.GroupBy(item => item.VariantId).ToList();
         if (grouped.Any(group => group.Count() > 1))
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Mỗi biến thể chỉ được xuất hiện một lần trong phiếu nhập.");
         }
 
@@ -695,7 +702,7 @@ public sealed class InventoryReceivingPhaseDController : Controller
             cancellationToken);
         if (!supplierExists)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Nhà cung cấp không tồn tại, không đúng loại hoặc đã ngừng hoạt động.");
         }
 
@@ -704,7 +711,7 @@ public sealed class InventoryReceivingPhaseDController : Controller
             cancellationToken);
         if (!warehouseExists)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Kho nhận không tồn tại hoặc đã ngừng hoạt động.");
         }
 
@@ -714,7 +721,7 @@ public sealed class InventoryReceivingPhaseDController : Controller
             cancellationToken);
         if (activeVariantCount != variantIds.Count)
         {
-            return InventoryValidationResult.Invalid(
+            return InventoryReceivingValidationResult.Invalid(
                 "Có biến thể không tồn tại hoặc đã ngừng hoạt động.");
         }
 
@@ -731,12 +738,12 @@ public sealed class InventoryReceivingPhaseDController : Controller
                     cancellationToken);
             if (duplicateInvoice)
             {
-                return InventoryValidationResult.Invalid(
+                return InventoryReceivingValidationResult.Invalid(
                     "Số hóa đơn/chứng từ này đã tồn tại với nhà cung cấp đã chọn.");
             }
         }
 
-        return InventoryValidationResult.Valid();
+        return InventoryReceivingValidationResult.Valid();
     }
 
     private static PurchaseCostSummary CalculateSummary(InventoryReceivingRequest request)
@@ -812,7 +819,7 @@ public sealed class InventoryReceivingPhaseDController : Controller
             " | ",
             new[]
             {
-                "Phase D1 receiving",
+                "Nhận hàng nhà cung cấp",
                 request.InputVatDeductible
                     ? "VAT đầu vào khấu trừ, không vốn hóa"
                     : "VAT đầu vào không khấu trừ, đã vốn hóa",
@@ -863,30 +870,9 @@ public sealed class InventoryReceivingPhaseDController : Controller
     };
 }
 
-public sealed class InventoryReceivingRequest
+internal sealed record InventoryReceivingValidationResult(bool Success, string Message)
 {
-    public int SupplierId { get; set; }
-    public int WarehouseId { get; set; }
-    public string? InvoiceNumber { get; set; }
-    public DateTime? InvoiceDate { get; set; }
-    public DateTime? ReceivedDate { get; set; }
-    public decimal ShippingFee { get; set; }
-    public decimal OtherFee { get; set; }
-    public bool InputVatDeductible { get; set; } = true;
-    public string? Note { get; set; }
-    public List<InventoryReceivingLineRequest> Items { get; set; } = new();
+    public static InventoryReceivingValidationResult Valid() => new(true, string.Empty);
+    public static InventoryReceivingValidationResult Invalid(string message) => new(false, message);
 }
 
-public sealed class InventoryReceivingLineRequest
-{
-    public int VariantId { get; set; }
-    public int Quantity { get; set; }
-    public decimal ImportPrice { get; set; }
-    public decimal TaxRate { get; set; }
-}
-
-internal sealed record InventoryValidationResult(bool Success, string Message)
-{
-    public static InventoryValidationResult Valid() => new(true, string.Empty);
-    public static InventoryValidationResult Invalid(string message) => new(false, message);
-}
