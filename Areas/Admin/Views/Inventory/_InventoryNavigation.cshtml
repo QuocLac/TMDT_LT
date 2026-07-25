@@ -1,0 +1,12 @@
+@{
+    string active = (ViewData["InventorySection"] as string ?? "Overview").Trim();
+    string overviewClass = active == "Overview" ? "is-active" : string.Empty;
+    string receivingClass = active == "Receiving" ? "is-active" : string.Empty;
+    string operationsClass = active == "Operations" ? "is-active" : string.Empty;
+}
+
+<nav class="inventory-nav" aria-label="Điều hướng quản lý kho">
+    <a class="inventory-nav-link @overviewClass" href="/Admin/Inventory">Tổng quan</a>
+    <a class="inventory-nav-link @receivingClass" href="/Admin/Inventory/Receiving">Nhập kho</a>
+    <a class="inventory-nav-link @operationsClass" href="/Admin/Inventory/Operations">Hoạt động kho</a>
+</nav>

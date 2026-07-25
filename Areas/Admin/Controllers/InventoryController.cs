@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TMDT_LT.Data;
 using TMDT_LT.Models;
+using TMDT_LT.Services.Inventory;
 
 namespace TMDT_LT.Areas.Admin.Controllers;
 
@@ -21,10 +22,14 @@ public sealed class InventoryController : Controller
     private const int LowStockThreshold = 5;
 
     private readonly ApplicationDbContext _context;
+    private readonly InventoryDashboardService _dashboardService;
 
-    public InventoryController(ApplicationDbContext context)
+    public InventoryController(
+        ApplicationDbContext context,
+        InventoryDashboardService dashboardService)
     {
         _context = context;
+        _dashboardService = dashboardService;
     }
 
     [HttpGet("")]
@@ -70,6 +75,32 @@ public sealed class InventoryController : Controller
             },
             generatedAt = DateTime.Now
         });
+    }
+
+    [HttpGet("Overview")]
+    public async Task<IActionResult> Overview(
+        int? warehouseId,
+        DateTime? fromDate,
+        DateTime? toDate,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var overview = await _dashboardService.GetOverviewAsync(
+                warehouseId,
+                fromDate,
+                toDate,
+                cancellationToken);
+            return Json(overview);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(Fail(exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(Fail(exception.Message));
+        }
     }
 
     [HttpGet("Stock")]

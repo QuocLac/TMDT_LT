@@ -12,6 +12,7 @@ public static class InventoryServiceCollectionExtensions
     public static IServiceCollection AddInventoryModule(
         this IServiceCollection services)
     {
+        services.AddScoped<InventoryDashboardService>();
         services.AddScoped<
             IInventoryDistributionService,
             InventoryDistributionService>();

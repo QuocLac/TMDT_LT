@@ -1,315 +1,169 @@
 @{
     Layout = "_LayoutAdmin";
-    ViewData["Title"] = "Kiểm soát tồn kho";
+    ViewData["Title"] = "Tổng quan kho";
+    ViewData["InventorySection"] = "Overview";
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/admin/inventory-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin/inventory.css" asp-append-version="true" />
 }
 
-@Html.AntiForgeryToken()
+<div class="inventory-page" id="inventoryDashboardApp">
+    @await Html.PartialAsync("~/Areas/Admin/Views/Inventory/_InventoryNavigation.cshtml")
 
-<div class="ic-page" id="inventoryControlApp">
-    <header class="ic-page-header">
+    <header class="inventory-page-head">
         <div>
-            <div class="ic-eyebrow">WAREHOUSE CONTROL CENTER</div>
-            <h1>Kiểm soát tồn kho</h1>
-            <p>Theo dõi On hand, Reserved, Available và kiểm kê có audit theo từng kho.</p>
+            <h1>Tổng quan kho</h1>
+            <p>Theo dõi lượng hàng, giá trị tồn, tiền nhập và kết quả bán hàng trong cùng một màn hình.</p>
         </div>
-        <div class="ic-header-actions">
-            <a class="ic-button ic-button-light" href="/Admin/Inventory/Operations">
-                <i class="fa-solid fa-gears"></i>
-                Vận hành kho
-            </a>
-            <a class="ic-button ic-button-light" href="/Admin/Inventory/Distribution">
-                <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                Phiếu xuất
-            </a>
-            <a class="ic-button ic-button-light" href="/Admin/Inventory/Receiving">
-                <i class="fa-solid fa-truck-ramp-box"></i>
-                Nhận hàng
-            </a>
-            <button class="ic-button ic-button-primary" type="button" id="openCountModalButton">
-                <i class="fa-solid fa-clipboard-check"></i>
-                Tạo phiên kiểm kê
-            </button>
+        <div class="inventory-head-actions">
+            <a class="inventory-button inventory-button-secondary" href="/Admin/Inventory/Receiving">Tạo phiếu nhập</a>
+            <a class="inventory-button inventory-button-primary" href="/Admin/Inventory/Operations">Mở hoạt động kho</a>
         </div>
     </header>
 
-    <section class="ic-toolbar" aria-label="Bộ lọc tồn kho">
-        <label class="ic-field ic-field-warehouse">
-            <span>Kho vận hành</span>
-            <select id="warehouseFilter"></select>
-            <small id="warehouseMeta">Đang tải danh sách kho...</small>
-        </label>
-        <label class="ic-field ic-field-search">
-            <span>Tìm SKU / sản phẩm</span>
-            <div class="ic-input-icon">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input id="stockSearch" type="search" placeholder="Tên sản phẩm, biến thể hoặc Variant ID" autocomplete="off" />
-            </div>
-        </label>
-        <label class="ic-field">
-            <span>Trạng thái tồn</span>
-            <select id="stockScopeFilter">
-                <option value="all">Tất cả SKU</option>
-                <option value="available">Đang có tồn</option>
-                <option value="low">Sắp hết (≤ 5)</option>
-                <option value="out">Hết hàng</option>
-                <option value="drift">Lệch tồn tổng</option>
+    <section class="inventory-filter-card" aria-label="Bộ lọc tổng quan kho">
+        <label class="inventory-field inventory-field-wide">
+            <span>Kho</span>
+            <select id="warehouseFilter">
+                <option value="">Đang tải danh sách kho...</option>
             </select>
+            <small id="warehouseMeta"></small>
         </label>
-        <button class="ic-icon-button" type="button" id="refreshButton" title="Tải lại dữ liệu">
-            <i class="fa-solid fa-rotate"></i>
-        </button>
+        <label class="inventory-field">
+            <span>Từ ngày</span>
+            <input id="fromDateFilter" type="date" />
+        </label>
+        <label class="inventory-field">
+            <span>Đến ngày</span>
+            <input id="toDateFilter" type="date" />
+        </label>
+        <button class="inventory-button inventory-button-primary" type="button" id="applyOverviewFilterButton">Cập nhật</button>
     </section>
 
-    <section class="ic-kpi-grid" aria-label="Tổng quan tồn kho">
-        <article class="ic-kpi-card">
-            <div class="ic-kpi-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
-            <div>
-                <span>On hand</span>
-                <strong id="totalOnHand">—</strong>
-                <small>Hàng vật lý trong kho</small>
-            </div>
+    <section class="inventory-highlight-grid" aria-label="Chỉ số chính">
+        <article class="inventory-highlight inventory-highlight-dark">
+            <span>Tiền thực thu trong kỳ</span>
+            <strong id="actualCashReceived">—</strong>
+            <small>Tiền thanh toán thành công sau khi trừ khoản đã hoàn</small>
         </article>
-        <article class="ic-kpi-card">
-            <div class="ic-kpi-icon"><i class="fa-solid fa-lock"></i></div>
-            <div>
-                <span>Reserved</span>
-                <strong id="totalReserved">—</strong>
-                <small>Đã giữ cho đơn hàng</small>
-            </div>
+        <article class="inventory-highlight">
+            <span>Giá trị hàng trong kho</span>
+            <strong id="totalInventoryValue">—</strong>
+            <small>Tính theo giá vốn của lượng hàng còn lại</small>
         </article>
-        <article class="ic-kpi-card ic-kpi-accent">
-            <div class="ic-kpi-icon"><i class="fa-solid fa-cart-flatbed"></i></div>
-            <div>
-                <span>Available</span>
-                <strong id="totalAvailable">—</strong>
-                <small>Có thể tiếp tục bán</small>
-            </div>
-        </article>
-        <article class="ic-kpi-card">
-            <div class="ic-kpi-icon"><i class="fa-solid fa-coins"></i></div>
-            <div>
-                <span>Giá trị tồn</span>
-                <strong id="totalInventoryValue">—</strong>
-                <small>Theo giá vốn từng lô</small>
-            </div>
-        </article>
-        <article class="ic-kpi-card">
-            <div class="ic-kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            <div>
-                <span>SKU sắp hết</span>
-                <strong id="lowStockCount">—</strong>
-                <small>On hand từ 1 đến 5</small>
-            </div>
-        </article>
-        <article class="ic-kpi-card">
-            <div class="ic-kpi-icon"><i class="fa-solid fa-list-check"></i></div>
-            <div>
-                <span>Phiên đang mở</span>
-                <strong id="pendingCountCount">—</strong>
-                <small>Đang đếm hoặc chờ duyệt</small>
-            </div>
+        <article class="inventory-highlight">
+            <span>Lợi nhuận tạm tính</span>
+            <strong id="tentativeProfit">—</strong>
+            <small>Đã trừ giá vốn và các khoản chi hiện có</small>
         </article>
     </section>
 
-    <div class="ic-tabs" role="tablist">
-        <button type="button" class="ic-tab is-active" data-tab="stock" role="tab">
-            <i class="fa-solid fa-warehouse"></i>
-            Tồn theo SKU
-        </button>
-        <button type="button" class="ic-tab" data-tab="counts" role="tab">
-            <i class="fa-solid fa-clipboard-list"></i>
-            Phiên kiểm kê
-        </button>
-        <button type="button" class="ic-tab" data-tab="ledger" role="tab">
-            <i class="fa-solid fa-clock-rotate-left"></i>
-            Sổ biến động
-        </button>
-    </div>
+    <section class="inventory-kpi-grid" aria-label="Tình hình kho">
+        <article class="inventory-kpi"><span>Có thể bán</span><strong id="totalAvailable">—</strong><small>Sau khi trừ hàng đang giữ cho đơn</small></article>
+        <article class="inventory-kpi"><span>Tiền nhập trong kỳ</span><strong id="inboundSpend">—</strong><small>Tổng phải trả cho các phiếu nhập</small></article>
+        <article class="inventory-kpi"><span>Giá vốn đã xuất</span><strong id="soldStockCost">—</strong><small>Giá vốn của hàng đã bán và phân phối</small></article>
+        <article class="inventory-kpi"><span>Chưa thu</span><strong id="outstandingAmount">—</strong><small>Giá trị đơn hàng còn chờ thanh toán</small></article>
+        <article class="inventory-kpi"><span>Sắp hết hàng</span><strong id="lowStockCount">—</strong><small>Mặt hàng còn tối đa 5 sản phẩm</small></article>
+        <article class="inventory-kpi"><span>Tồn lâu</span><strong id="agedStockCount">—</strong><small>Mặt hàng có lô cũ trên 90 ngày</small></article>
+    </section>
 
-    <section class="ic-panel" data-panel="stock">
-        <div class="ic-panel-heading">
-            <div>
-                <h2>Tồn kho theo biến thể</h2>
-                <p id="stockResultMeta">Đang tải dữ liệu...</p>
+    <p class="inventory-note" id="financeScopeNote"></p>
+
+    <section class="inventory-grid inventory-grid-main">
+        <article class="inventory-panel">
+            <div class="inventory-panel-head">
+                <div><h2>Nhập và xuất hàng</h2><p>Số lượng phát sinh theo ngày trong khoảng đã chọn.</p></div>
             </div>
-            <div class="ic-selection-summary">
-                <span id="selectedSkuCount">0 SKU đã chọn</span>
-                <button type="button" class="ic-link-button" id="clearSelectionButton">Bỏ chọn</button>
+            <div class="inventory-chart"><canvas id="stockMovementChart"></canvas></div>
+        </article>
+        <article class="inventory-panel">
+            <div class="inventory-panel-head">
+                <div><h2>Giá trị tồn theo kho</h2><p>So sánh lượng vốn đang nằm tại từng kho.</p></div>
+            </div>
+            <div class="inventory-chart"><canvas id="warehouseValueChart"></canvas></div>
+        </article>
+    </section>
+
+    <section class="inventory-grid inventory-grid-main">
+        <article class="inventory-panel">
+            <div class="inventory-panel-head">
+                <div><h2>Sản phẩm nổi bật</h2><p>Xếp theo số lượng đã bán và phân phối trong kỳ.</p></div>
+            </div>
+            <div class="inventory-table-wrap">
+                <table class="inventory-table">
+                    <thead><tr><th>Sản phẩm</th><th class="is-number">Đã xuất</th><th class="is-number">Doanh thu</th><th class="is-number">Lợi nhuận</th></tr></thead>
+                    <tbody id="topProductTableBody"></tbody>
+                </table>
+            </div>
+        </article>
+        <article class="inventory-panel">
+            <div class="inventory-panel-head">
+                <div><h2>Cần chú ý</h2><p>Các mặt hàng sắp hết hoặc nằm trong kho quá lâu.</p></div>
+            </div>
+            <div class="inventory-attention-tabs">
+                <button class="inventory-tab is-active" type="button" data-attention-tab="low">Sắp hết</button>
+                <button class="inventory-tab" type="button" data-attention-tab="aged">Tồn lâu</button>
+            </div>
+            <div class="inventory-attention-list" id="lowStockList"></div>
+            <div class="inventory-attention-list" id="agedStockList" hidden></div>
+        </article>
+    </section>
+
+    <section class="inventory-panel">
+        <div class="inventory-panel-head inventory-panel-head-toolbar">
+            <div><h2>Tồn kho theo sản phẩm</h2><p id="stockResultMeta">Đang tải dữ liệu...</p></div>
+            <div class="inventory-stock-filters">
+                <input id="stockSearch" type="search" placeholder="Tìm tên sản phẩm hoặc biến thể" autocomplete="off" />
+                <select id="stockScopeFilter">
+                    <option value="all">Tất cả</option>
+                    <option value="available">Còn hàng</option>
+                    <option value="low">Sắp hết</option>
+                    <option value="out">Hết hàng</option>
+                </select>
             </div>
         </div>
-
-        <div class="ic-table-wrap">
-            <table class="ic-table">
+        <div class="inventory-table-wrap">
+            <table class="inventory-table inventory-stock-table">
                 <thead>
                     <tr>
-                        <th class="ic-checkbox-column"><input type="checkbox" id="selectPageCheckbox" aria-label="Chọn toàn bộ trang" /></th>
-                        <th>SKU / Sản phẩm</th>
-                        <th class="ic-number-column">On hand</th>
-                        <th class="ic-number-column">Reserved</th>
-                        <th class="ic-number-column">Available</th>
-                        <th class="ic-number-column">Giá vốn TB</th>
-                        <th class="ic-number-column">Giá trị tồn</th>
-                        <th>Tuổi tồn</th>
-                        <th>Kiểm soát</th>
+                        <th>Sản phẩm</th>
+                        <th class="is-number">Tồn thực tế</th>
+                        <th class="is-number">Đang giữ</th>
+                        <th class="is-number">Có thể bán</th>
+                        <th class="is-number">Giá vốn trung bình</th>
+                        <th class="is-number">Giá trị tồn</th>
+                        <th>Trạng thái</th>
                     </tr>
                 </thead>
                 <tbody id="stockTableBody"></tbody>
             </table>
         </div>
-
-        <div class="ic-pagination">
+        <div class="inventory-pagination">
             <span id="pageIndicator">Trang 1 / 1</span>
             <div>
-                <button type="button" class="ic-page-button" id="previousPageButton"><i class="fa-solid fa-chevron-left"></i></button>
-                <button type="button" class="ic-page-button" id="nextPageButton"><i class="fa-solid fa-chevron-right"></i></button>
+                <button type="button" id="previousPageButton">Trang trước</button>
+                <button type="button" id="nextPageButton">Trang sau</button>
             </div>
         </div>
     </section>
 
-    <section class="ic-panel" data-panel="counts" hidden>
-        <div class="ic-panel-heading">
-            <div>
-                <h2>Phiên kiểm kê</h2>
-                <p>Snapshot → kiểm đếm → gửi duyệt → ghi sổ chênh lệch.</p>
-            </div>
-            <label class="ic-inline-filter">
-                <span>Trạng thái</span>
-                <select id="sessionStatusFilter">
-                    <option value="">Tất cả</option>
-                    <option value="Counting">Đang kiểm đếm</option>
-                    <option value="PendingApproval">Chờ duyệt</option>
-                    <option value="Posted">Đã ghi sổ</option>
-                    <option value="Cancelled">Đã hủy</option>
-                </select>
-            </label>
+    <section class="inventory-panel">
+        <div class="inventory-panel-head">
+            <div><h2>Hoạt động gần đây</h2><p>Những thay đổi mới nhất tại kho đang chọn.</p></div>
         </div>
-        <div class="ic-table-wrap">
-            <table class="ic-table">
-                <thead>
-                    <tr>
-                        <th>Mã phiên</th>
-                        <th>Kho</th>
-                        <th>Phạm vi</th>
-                        <th>Tiến độ</th>
-                        <th>Chênh lệch</th>
-                        <th>Giá trị</th>
-                        <th>Trạng thái</th>
-                        <th>Ngày tạo</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody id="sessionTableBody"></tbody>
-            </table>
-        </div>
-    </section>
-
-    <section class="ic-panel" data-panel="ledger" hidden>
-        <div class="ic-panel-heading">
-            <div>
-                <h2>Sổ biến động tồn</h2>
-                <p>Lịch sử trước–sau theo kho, SKU, lý do và giá trị ảnh hưởng.</p>
-            </div>
-        </div>
-        <div class="ic-table-wrap">
-            <table class="ic-table">
-                <thead>
-                    <tr>
-                        <th>Thời gian</th>
-                        <th>SKU / Sản phẩm</th>
-                        <th>Loại giao dịch</th>
-                        <th>Trước → Sau</th>
-                        <th>Biến động</th>
-                        <th>Giá trị</th>
-                        <th>Lý do / Tham chiếu</th>
-                    </tr>
-                </thead>
-                <tbody id="transactionTableBody"></tbody>
+        <div class="inventory-table-wrap">
+            <table class="inventory-table">
+                <thead><tr><th>Thời gian</th><th>Sản phẩm</th><th>Hoạt động</th><th class="is-number">Số lượng</th><th>Ghi chú</th></tr></thead>
+                <tbody id="recentActivityTableBody"></tbody>
             </table>
         </div>
     </section>
 </div>
 
-<div class="ic-modal" id="createCountModal" hidden>
-    <div class="ic-modal-card ic-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="createCountTitle">
-        <div class="ic-modal-header">
-            <div>
-                <div class="ic-eyebrow">NEW COUNT SESSION</div>
-                <h2 id="createCountTitle">Tạo phiên kiểm kê</h2>
-            </div>
-            <button type="button" class="ic-modal-close" data-close-modal="createCountModal" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="ic-modal-body">
-            <div class="ic-info-box" id="countSelectionInfo">Chưa chọn SKU.</div>
-            <label class="ic-field">
-                <span>Kho kiểm kê</span>
-                <select id="countWarehouseId"></select>
-            </label>
-            <label class="ic-field">
-                <span>Phạm vi</span>
-                <select id="countScopeType">
-                    <option value="Cycle">Kiểm kê chu kỳ — các SKU đã chọn</option>
-                    <option value="Full">Kiểm kê toàn kho — tối đa 500 SKU có tồn</option>
-                </select>
-            </label>
-            <label class="ic-field">
-                <span>Ghi chú</span>
-                <textarea id="countNotes" rows="3" maxlength="500" placeholder="Khu vực, ca làm việc, người phụ trách..."></textarea>
-            </label>
-        </div>
-        <div class="ic-modal-footer">
-            <button type="button" class="ic-button ic-button-light" data-close-modal="createCountModal">Hủy</button>
-            <button type="button" class="ic-button ic-button-primary" id="createCountButton">Tạo phiên</button>
-        </div>
-    </div>
-</div>
-
-<div class="ic-modal" id="sessionDetailModal" hidden>
-    <div class="ic-modal-card ic-modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="sessionDetailTitle">
-        <div class="ic-modal-header">
-            <div>
-                <div class="ic-eyebrow" id="sessionWarehouseLabel">INVENTORY COUNT</div>
-                <h2 id="sessionDetailTitle">Chi tiết phiên kiểm kê</h2>
-                <p id="sessionDetailMeta"></p>
-            </div>
-            <button type="button" class="ic-modal-close" data-close-modal="sessionDetailModal" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="ic-modal-body ic-session-body">
-            <div class="ic-session-alert" id="sessionAlert"></div>
-            <div class="ic-table-wrap ic-count-lines-wrap">
-                <table class="ic-table ic-count-table">
-                    <thead>
-                        <tr>
-                            <th>SKU / Sản phẩm</th>
-                            <th class="ic-number-column">Hệ thống</th>
-                            <th class="ic-number-column">Thực đếm</th>
-                            <th class="ic-number-column">Chênh lệch</th>
-                            <th>Lý do</th>
-                            <th class="ic-number-column">Giá vốn tăng</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody id="countLineTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-        <div class="ic-modal-footer ic-session-footer">
-            <div class="ic-session-total" id="sessionTotal"></div>
-            <div class="ic-session-actions">
-                <button type="button" class="ic-button ic-button-danger" id="cancelSessionButton">Hủy phiên</button>
-                <button type="button" class="ic-button ic-button-light" id="saveLinesButton">Lưu các dòng</button>
-                <button type="button" class="ic-button ic-button-primary" id="submitSessionButton">Gửi duyệt</button>
-                <button type="button" class="ic-button ic-button-success" id="postSessionButton">Duyệt & ghi sổ</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="ic-toast-stack" id="toastStack" aria-live="polite"></div>
+<div class="inventory-toast-stack" id="inventoryToastStack" aria-live="polite"></div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="~/js/admin/inventory-dashboard.js" asp-append-version="true"></script>
 }

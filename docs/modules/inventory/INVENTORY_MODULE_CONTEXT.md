@@ -4,8 +4,8 @@
 >
 > Repository: `QuocLac/TMDT_LT`  
 > Nhánh làm việc: `stabilize-lac12`  
-> Commit nền trước khi làm sạch cấu trúc: `b7be36d389f649b7125759093fef89694e754738`  
-> Cập nhật gần nhất: `2026-07-20`
+> Commit đã rà trước lượt đơn giản hóa: `4cf52a51891487a4703931cf9763f97e582f4d87`  
+> Cập nhật gần nhất: `2026-07-26`
 
 ## 1. Mục đích của tài liệu
 
@@ -17,17 +17,16 @@ Không dùng lịch sử hội thoại làm nguồn duy nhất để tiếp tụ
 
 ## 2. Phạm vi nghiệp vụ
 
-Module Inventory chịu trách nhiệm cho:
+Module Inventory vẫn chịu trách nhiệm bảo toàn tồn kho, lô, serial và giá vốn,
+nhưng giao diện quản trị được thu gọn còn ba điểm vào ổn định:
 
-- tổng quan tồn kho theo kho;
-- nhận hàng từ nhà cung cấp;
-- kiểm kê theo journal;
-- điều chuyển nội bộ giữa các kho;
-- phân phối hàng đến cửa hàng/đại lý;
-- quản lý lô và serial/IMEI;
-- phân bổ FIFO và snapshot giá vốn;
-- đề xuất bổ sung hàng;
-- sổ giao dịch và đối soát tồn kho.
+- `Tổng quan`: lượng hàng, giá trị tồn, tiền nhập, tiền thực thu và thống kê sản phẩm;
+- `Nhập kho`: nhận hàng nhà cung cấp và thêm nhanh sản phẩm/biến thể mới;
+- `Hoạt động kho`: xuất kho, chuyển kho và kiểm kê.
+
+FIFO, lô, serial, lịch sử và kiểm tra chênh lệch vẫn là quy tắc nền. Không đưa
+các thuật ngữ triển khai này lên giao diện nếu người dùng không cần quyết định dựa
+trên chúng.
 
 ## 3. Quy tắc nghiệp vụ không được phá vỡ
 
@@ -70,8 +69,10 @@ Areas/Admin/Views/Inventory/
 
 Services/Inventory/
 ├── InventoryServiceCollectionExtensions.cs
+├── InventoryDashboardService.cs
 ├── InventoryDistributionService.cs
 └── Contracts/
+    ├── InventoryDashboardResponse.cs
     ├── InventoryReceivingRequests.cs
     ├── InventoryCountRequests.cs
     ├── InventoryOperationRequests.cs
@@ -108,13 +109,14 @@ Tên migration lịch sử và lịch sử commit không được đổi sau khi
 
 ## 5. Ranh giới trách nhiệm
 
-- `InventoryController`: dashboard và read model tồn/sổ giao dịch.
+- `InventoryController`: endpoint trang tổng quan và danh sách tồn theo sản phẩm.
 - `InventoryReceivingController`: HTTP endpoints cho nhận hàng nhà cung cấp.
 - `InventoryCountingController`: HTTP endpoints cho count journal.
 - `InventoryOperationsController`: workspace, product query và replenishment query.
 - `InventoryTransferController`: preview và ghi nhận điều chuyển kho.
 - `InventoryDistributionController`: HTTP endpoints cho phân phối.
 - `InventoryReconciliationController`: health check và sửa snapshot tổng hợp có kiểm soát.
+- `InventoryDashboardService`: tổng hợp chỉ số kho, tài chính và thống kê sản phẩm cho Dashboard.
 - `InventoryServiceCollectionExtensions`: điểm đăng ký DI duy nhất của module.
 - `InventoryDistributionService`: availability validation, FIFO planning, COGS,
   serial dispatch và ghi sổ phiếu phân phối.
@@ -233,3 +235,53 @@ cập nhật checkout, fulfillment, expiration và toàn bộ inventory query li
 - Đã có script xóa implementation cũ có kiểm soát.
 - Không sửa/xóa migration lịch sử.
 - Cần chạy build và smoke test trên máy có .NET SDK sau khi áp dụng ZIP.
+
+## 14. Hướng đơn giản hóa giao diện đang triển khai
+
+### Ngôn ngữ giao diện
+
+- Chỉ dùng từ ngữ vận hành thông thường bằng tiếng Việt.
+- Không hiển thị các từ `preview`, `transaction`, `snapshot`, `reservation`,
+  `ledger`, `health check`, `reconciliation`, `landed cost`, `capitalized cost`
+  hoặc `COGS` cho người dùng cuối.
+- FIFO vẫn bắt buộc trong service nhưng giao diện chỉ mô tả: “Hệ thống tự xuất
+  từ lô nhập trước”.
+- Không dùng tiêu đề tiếng Anh, biểu tượng trang trí hoặc mô tả cách code hoạt động.
+
+### Phong cách giao diện
+
+- Dùng chung font, màu, card, bảng, form và nút của Admin hiện tại.
+- Màu chính `#111827`, nền `#F3F4F6`, card trắng, viền `#E5E7EB`.
+- Điều hướng Inventory chỉ còn `Tổng quan`, `Nhập kho`, `Hoạt động kho`.
+- Không tạo hệ component riêng cho từng màn hình.
+
+### Trạng thái triển khai hai lượt
+
+**Lượt 1/2 — đã bàn giao trong gói hiện tại**
+
+- Thêm partial điều hướng dùng chung `_InventoryNavigation.cshtml`.
+- Thêm stylesheet dùng chung `inventory.css`.
+- Làm lại Dashboard theo phong cách Admin.
+- Bổ sung bộ lọc kho và thời gian.
+- Bổ sung tiền nhập, tiền thực thu, giá vốn đã xuất, lợi nhuận tạm tính,
+  công nợ chưa thu, hàng sắp hết và hàng tồn lâu.
+- Bổ sung biểu đồ nhập/xuất, giá trị tồn theo kho, sản phẩm nổi bật và hoạt động gần đây.
+- Thu gọn bảng tồn về các cột phục vụ quyết định hằng ngày.
+
+**Lượt 2/2 — chưa triển khai trong gói này**
+
+- Làm lại Nhập kho và thêm nhanh sản phẩm/biến thể.
+- Gộp Xuất kho, Chuyển kho và Kiểm kê vào Hoạt động kho.
+- Xóa giao diện Operations/Distribution cũ sau khi chức năng đã chuyển đủ.
+- Áp dụng stylesheet và partial điều hướng chung cho hai màn hình còn lại.
+
+### Cách hiểu số liệu tài chính trên Dashboard
+
+- `Tiền nhập trong kỳ`: tổng phải trả của phiếu nhập thuộc kho và khoảng ngày đã chọn.
+- `Tiền thực thu`: thanh toán thành công trừ tiền đã hoàn của đơn bán lẻ toàn hệ thống.
+- `Giá vốn đã xuất`: giá vốn đơn bán lẻ cộng giá vốn phiếu phân phối tại kho đã chọn.
+- `Lợi nhuận tạm tính`: lợi nhuận tiền thu của đơn bán lẻ cộng lợi nhuận phân phối;
+  chưa phải lợi nhuận ròng nếu hệ thống chưa có đủ phí cổng thanh toán và hóa đơn
+  đối soát vận chuyển.
+
+Lượt 1 không thay đổi database schema và không yêu cầu migration.
