@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.IO;
 using System.Security.Claims;
 using TMDT_LT.Services.Inventory.Contracts;
 using TMDT_LT.Data;
@@ -20,16 +23,24 @@ namespace TMDT_LT.Areas.Admin.Controllers;
 public sealed class InventoryReceivingController : Controller
 {
     private const int MaxPageSize = 50;
+    private const long MaxProductImageBytes = 5 * 1024 * 1024;
+    private static readonly HashSet<string> AllowedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp"
+    };
 
     private readonly ApplicationDbContext _context;
     private readonly ILogger<InventoryReceivingController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     public InventoryReceivingController(
         ApplicationDbContext context,
-        ILogger<InventoryReceivingController> logger)
+        ILogger<InventoryReceivingController> logger,
+        IWebHostEnvironment environment)
     {
         _context = context;
         _logger = logger;
+        _environment = environment;
     }
 
     [HttpGet("")]
@@ -302,6 +313,222 @@ public sealed class InventoryReceivingController : Controller
         });
     }
 
+    [HttpGet("ProductOptions")]
+    public async Task<IActionResult> ProductOptions(
+        string? q,
+        int take = 20,
+        CancellationToken cancellationToken = default)
+    {
+        take = Math.Clamp(take, 5, 50);
+        string keyword = (q ?? string.Empty).Trim();
+
+        var query = _context.Products
+            .AsNoTracking()
+            .Where(item => item.IsActive == true);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            query = query.Where(item =>
+                item.Name.Contains(keyword)
+                || item.Brand.BrandName.Contains(keyword)
+                || item.Category.CategoryName.Contains(keyword));
+        }
+
+        var products = await query
+            .OrderBy(item => item.Name)
+            .Take(take)
+            .Select(item => new
+            {
+                productId = item.ProductId,
+                productName = item.Name,
+                categoryId = item.CategoryId,
+                categoryName = item.Category.CategoryName,
+                brandId = item.BrandId,
+                brandName = item.Brand.BrandName,
+                imageUrl = item.MainImage
+            })
+            .ToListAsync(cancellationToken);
+
+        return Json(new { success = true, products });
+    }
+
+    [HttpPost("QuickItem")]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxProductImageBytes + 512 * 1024)]
+    public async Task<IActionResult> QuickItem(
+        [FromForm] InventoryQuickItemRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request == null)
+        {
+            return BadRequest(Fail("Thông tin mặt hàng không hợp lệ."));
+        }
+
+        string color = NormalizeShortText(request.Color, 80);
+        string storage = NormalizeShortText(request.Storage, 80);
+        string ram = NormalizeShortText(request.Ram, 80);
+        if (string.IsNullOrWhiteSpace(color) || string.IsNullOrWhiteSpace(storage))
+        {
+            return BadRequest(Fail("Màu sắc và cấu hình chính là thông tin bắt buộc."));
+        }
+
+        if (request.ListPrice <= 0m || request.ListPrice > 1_000_000_000m)
+        {
+            return BadRequest(Fail("Giá bán dự kiến phải lớn hơn 0 và nằm trong giới hạn cho phép."));
+        }
+
+        if (request.InitialImportPrice <= 0m || request.InitialImportPrice > 1_000_000_000m)
+        {
+            return BadRequest(Fail("Giá nhập dự kiến phải lớn hơn 0 và nằm trong giới hạn cho phép."));
+        }
+
+        string productName = NormalizeShortText(request.ProductName, 200);
+        if (request.CreateNewProduct)
+        {
+            if (string.IsNullOrWhiteSpace(productName)
+                || !request.CategoryId.HasValue
+                || request.CategoryId.Value <= 0
+                || !request.BrandId.HasValue
+                || request.BrandId.Value <= 0)
+            {
+                return BadRequest(Fail("Tên sản phẩm, danh mục và thương hiệu là bắt buộc."));
+            }
+        }
+        else if (!request.ProductId.HasValue || request.ProductId.Value <= 0)
+        {
+            return BadRequest(Fail("Hãy chọn sản phẩm cần thêm biến thể."));
+        }
+
+        string? uploadedImage = null;
+        try
+        {
+            uploadedImage = await SaveProductImageAsync(request.ImageFile, cancellationToken);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(Fail(exception.Message));
+        }
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            Products product;
+            if (request.CreateNewProduct)
+            {
+                bool categoryExists = await _context.Categories.AnyAsync(
+                    item => item.CategoryId == request.CategoryId.Value && item.IsActive == true,
+                    cancellationToken);
+                bool brandExists = await _context.Brands.AnyAsync(
+                    item => item.BrandId == request.BrandId.Value,
+                    cancellationToken);
+                if (!categoryExists || !brandExists)
+                {
+                    throw new InvalidOperationException("Danh mục hoặc thương hiệu không còn hợp lệ.");
+                }
+
+                string imageUrl = uploadedImage
+                    ?? NormalizeImageUrl(request.ImageUrl)
+                    ?? "/images/products/default-product.png";
+                var now = DateTime.Now;
+                product = new Products
+                {
+                    Name = productName,
+                    CategoryId = request.CategoryId.Value,
+                    BrandId = request.BrandId.Value,
+                    MainImage = imageUrl,
+                    IsActive = true,
+                    CreatedDate = now,
+                    UpdatedDate = now
+                };
+                _context.Products.Add(product);
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                product = await _context.Products
+                    .FirstOrDefaultAsync(item =>
+                        item.ProductId == request.ProductId.Value
+                        && item.IsActive == true,
+                        cancellationToken)
+                    ?? throw new InvalidOperationException("Sản phẩm đã chọn không tồn tại hoặc đã ngừng kinh doanh.");
+            }
+
+            bool duplicateVariant = await _context.ProductVariants
+                .AsNoTracking()
+                .AnyAsync(item =>
+                    item.ProductId == product.ProductId
+                    && item.IsActive == true
+                    && (item.Color ?? string.Empty) == color
+                    && (item.Storage ?? string.Empty) == storage
+                    && (item.Ram ?? string.Empty) == ram,
+                    cancellationToken);
+            if (duplicateVariant)
+            {
+                throw new InvalidOperationException("Sản phẩm đã có biến thể trùng màu sắc và cấu hình.");
+            }
+
+            string variantImage = uploadedImage
+                ?? NormalizeImageUrl(request.ImageUrl)
+                ?? product.MainImage
+                ?? "/images/products/default-product.png";
+            var variant = new ProductVariants
+            {
+                ProductId = product.ProductId,
+                Color = color,
+                Storage = storage,
+                Ram = string.IsNullOrWhiteSpace(ram) ? null : ram,
+                Price = request.ListPrice,
+                CostPrice = null,
+                Stock = 0,
+                ImageUrl = variantImage,
+                IsActive = true,
+                CreatedDate = DateTime.Now,
+                UpdatedDate = DateTime.Now
+            };
+            _context.ProductVariants.Add(variant);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Json(new
+            {
+                success = true,
+                productId = product.ProductId,
+                variantId = variant.VariantId,
+                productName = product.Name,
+                variantLabel = BuildVariantLabel(
+                    variant.Color,
+                    variant.Storage,
+                    variant.Ram),
+                sku = $"SKU-{variant.VariantId:D6}",
+                imageUrl = variant.ImageUrl,
+                listPrice = variant.Price ?? 0m,
+                initialImportPrice = request.InitialImportPrice,
+                message = request.CreateNewProduct
+                    ? "Đã tạo sản phẩm và thêm vào phiếu nhập."
+                    : "Đã tạo biến thể và thêm vào phiếu nhập."
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(uploadedImage))
+            {
+                TryDeleteUploadedImage(uploadedImage);
+            }
+            return BadRequest(Fail(exception.Message));
+        }
+        catch (Exception exception)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(uploadedImage))
+            {
+                TryDeleteUploadedImage(uploadedImage);
+            }
+            _logger.LogError(exception, "Unable to create a quick inventory item.");
+            return StatusCode(500, Fail("Không thể tạo mặt hàng mới. Vui lòng thử lại."));
+        }
+    }
+
     [HttpGet("Recent")]
     public async Task<IActionResult> RecentReceipts(
         int take = 8,
@@ -399,7 +626,10 @@ public sealed class InventoryReceivingController : Controller
                 line.VariantId,
                 productName = names.GetValueOrDefault(line.VariantId)?.Name
                     ?? $"Biến thể #{line.VariantId}",
-                variantLabel = BuildVariantLabel(names.GetValueOrDefault(line.VariantId)),
+                variantLabel = BuildVariantLabel(
+                    names.GetValueOrDefault(line.VariantId)?.Color,
+                    names.GetValueOrDefault(line.VariantId)?.Storage,
+                    names.GetValueOrDefault(line.VariantId)?.Ram),
                 line.Quantity,
                 line.ImportPrice,
                 line.TaxRate,
@@ -804,6 +1034,98 @@ public sealed class InventoryReceivingController : Controller
             ?? 0;
     }
 
+    private async Task<string?> SaveProductImageAsync(
+        IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return null;
+        }
+
+        if (file.Length > MaxProductImageBytes)
+        {
+            throw new InvalidOperationException("Ảnh sản phẩm không được vượt quá 5 MB.");
+        }
+
+        string extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedImageExtensions.Contains(extension))
+        {
+            throw new InvalidOperationException("Ảnh sản phẩm chỉ hỗ trợ JPG, PNG hoặc WEBP.");
+        }
+
+        string webRoot = string.IsNullOrWhiteSpace(_environment.WebRootPath)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+            : _environment.WebRootPath;
+        string relativeFolder = Path.Combine("uploads", "products");
+        string physicalFolder = Path.Combine(webRoot, relativeFolder);
+        Directory.CreateDirectory(physicalFolder);
+
+        string fileName = $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
+        string physicalPath = Path.Combine(physicalFolder, fileName);
+        await using var stream = new FileStream(
+            physicalPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            81920,
+            useAsync: true);
+        await file.CopyToAsync(stream, cancellationToken);
+        return $"/uploads/products/{fileName}";
+    }
+
+    private void TryDeleteUploadedImage(string relativePath)
+    {
+        if (!relativePath.StartsWith("/uploads/products/", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            string webRoot = string.IsNullOrWhiteSpace(_environment.WebRootPath)
+                ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+                : _environment.WebRootPath;
+            string fullPath = Path.Combine(
+                webRoot,
+                relativePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+            if (System.IO.File.Exists(fullPath))
+            {
+                System.IO.File.Delete(fullPath);
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Could not remove an unused product image {ImagePath}.", relativePath);
+        }
+    }
+
+    private static string NormalizeShortText(string? value, int maxLength)
+    {
+        string normalized = (value ?? string.Empty).Trim();
+        return normalized.Length <= maxLength
+            ? normalized
+            : normalized[..maxLength];
+    }
+
+    private static string? NormalizeImageUrl(string? value)
+    {
+        string normalized = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        if (normalized.StartsWith("/", StringComparison.Ordinal)
+            || Uri.TryCreate(normalized, UriKind.Absolute, out Uri? uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            return normalized;
+        }
+
+        return null;
+    }
+
     private int GetCurrentAccountId()
     {
         string? value = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -827,16 +1149,14 @@ public sealed class InventoryReceivingController : Controller
             }.Where(item => !string.IsNullOrWhiteSpace(item)));
     }
 
-    private static string BuildVariantLabel(dynamic? item)
+    private static string BuildVariantLabel(
+        string? color,
+        string? storage,
+        string? ram)
     {
-        if (item == null)
-        {
-            return string.Empty;
-        }
-
         return string.Join(
             " / ",
-            new[] { (string?)item.Color, (string?)item.Storage, (string?)item.Ram }
+            new[] { color, storage, ram }
                 .Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 

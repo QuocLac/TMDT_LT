@@ -4,7 +4,7 @@
 >
 > Repository: `QuocLac/TMDT_LT`  
 > Nhánh làm việc: `stabilize-lac12`  
-> Commit đã rà trước lượt đơn giản hóa: `4cf52a51891487a4703931cf9763f97e582f4d87`  
+> Commit nền của lượt 2 đã rà: `29f8aa4cba0826e0ca90d86cb27d3d8d8f740d11`  
 > Cập nhật gần nhất: `2026-07-26`
 
 ## 1. Mục đích của tài liệu
@@ -268,12 +268,15 @@ cập nhật checkout, fulfillment, expiration và toàn bộ inventory query li
 - Bổ sung biểu đồ nhập/xuất, giá trị tồn theo kho, sản phẩm nổi bật và hoạt động gần đây.
 - Thu gọn bảng tồn về các cột phục vụ quyết định hằng ngày.
 
-**Lượt 2/2 — chưa triển khai trong gói này**
+**Lượt 2/2 — đã hoàn thành**
 
-- Làm lại Nhập kho và thêm nhanh sản phẩm/biến thể.
-- Gộp Xuất kho, Chuyển kho và Kiểm kê vào Hoạt động kho.
-- Xóa giao diện Operations/Distribution cũ sau khi chức năng đã chuyển đủ.
-- Áp dụng stylesheet và partial điều hướng chung cho hai màn hình còn lại.
+- Nhập kho dùng giao diện chung, ngôn ngữ thuần vận hành.
+- Có thể tạo sản phẩm mới kèm biến thể đầu tiên hoặc thêm biến thể cho sản phẩm hiện có.
+- Mặt hàng vừa tạo được thêm thẳng vào phiếu; tồn chỉ tăng khi xác nhận nhập kho.
+- Xuất kho, Chuyển kho và Kiểm kê được gộp vào một màn hình Hoạt động kho.
+- Quy tắc lấy hàng từ lô nhập trước vẫn nằm trong service và không bắt người dùng thao tác theo lô.
+- Route `/Admin/Inventory/Distribution` và `/Admin/Inventory/CreateSO` chuyển về tab Xuất kho của Hoạt động kho.
+- Asset và view riêng của giao diện cũ được xóa bằng script cleanup xác định.
 
 ### Cách hiểu số liệu tài chính trên Dashboard
 
@@ -284,4 +287,21 @@ cập nhật checkout, fulfillment, expiration và toàn bộ inventory query li
   chưa phải lợi nhuận ròng nếu hệ thống chưa có đủ phí cổng thanh toán và hóa đơn
   đối soát vận chuyển.
 
-Lượt 1 không thay đổi database schema và không yêu cầu migration.
+Hai lượt đơn giản hóa không thay đổi database schema và không yêu cầu migration.
+
+
+## 15. Cấu trúc giao diện sau khi hoàn tất đơn giản hóa
+
+- `Dashboard.cshtml`: tổng quan kho và số liệu tài chính vận hành.
+- `Receiving.cshtml`: phiếu nhập và thêm nhanh mặt hàng.
+- `Operations.cshtml`: ba tab Xuất kho, Chuyển kho và Kiểm kê.
+- `_InventoryNavigation.cshtml`: điều hướng chung ba điểm vào.
+- `inventory.css`: stylesheet duy nhất của giao diện Inventory.
+- `inventory-dashboard.js`, `inventory-receiving.js`, `inventory-operations.js`: script theo ba màn hình.
+
+Các file `Distribution.cshtml`, `inventory-dashboard.css`, `inventory-receiving.css`,
+`inventory-operations.css`, `inventory-distribution.css` và
+`inventory-distribution.js` không còn là production asset và phải được xóa khi áp dụng gói.
+
+Thêm nhanh mặt hàng không ghi giá nhập vào `ProductVariants.CostPrice`. Giá nhập chỉ
+được giữ trong dòng phiếu hiện tại; giá vốn được xác lập khi phiếu nhập được xác nhận.

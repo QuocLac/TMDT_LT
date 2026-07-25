@@ -1,251 +1,203 @@
 @{
     Layout = "_LayoutAdmin";
-    ViewData["Title"] = "Nhận hàng vào kho";
+    ViewData["Title"] = "Nhập kho";
+    ViewData["InventorySection"] = "Receiving";
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/admin/inventory-receiving.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin/inventory.css" asp-append-version="true" />
 }
 
-<div class="ir-page" id="inventoryReceivingApp">
+<div class="inventory-page" id="inventoryReceivingApp">
     @Html.AntiForgeryToken()
+    @await Html.PartialAsync("~/Areas/Admin/Views/Inventory/_InventoryNavigation.cshtml")
 
-    <header class="ir-page-header">
+    <header class="inventory-page-head">
         <div>
-            <a class="ir-back-link" asp-area="Admin" asp-controller="Inventory" asp-action="Index">
-                <i class="fa-solid fa-arrow-left"></i>
-                Kiểm soát tồn kho
-            </a>
-            <div class="ir-title-row">
-                <div>
-                    <p class="ir-eyebrow">INBOUND RECEIVING</p>
-                    <h1>Nhận hàng từ nhà cung cấp</h1>
-                    <p class="ir-subtitle">
-                        Chọn kho nhận, đối chiếu chứng từ và xem trước landed cost trước khi cập nhật tồn theo lô.
-                    </p>
-                </div>
-                <div class="ir-header-status" id="systemStatus">
-                    <span class="ir-status-dot"></span>
-                    Đang kết nối dữ liệu kho
-                </div>
-            </div>
+            <h1>Nhập kho</h1>
+            <p>Tạo phiếu nhận hàng, thêm nhanh mặt hàng mới và kiểm tra tổng tiền trước khi xác nhận.</p>
         </div>
+        <a class="inventory-button inventory-button-secondary" href="/Admin/Inventory">Về tổng quan</a>
     </header>
 
-    <div class="ir-alert ir-alert-warning" id="pageWarning" hidden></div>
+    <div class="inventory-alert inventory-alert-error" id="receivingPageAlert" hidden></div>
 
-    <section class="ir-context-grid">
-        <article class="ir-panel ir-document-panel">
-            <div class="ir-panel-heading">
-                <div>
-                    <span class="ir-step">01</span>
-                    <h2>Thông tin nhận hàng</h2>
-                </div>
-                <span class="ir-required-note">* Bắt buộc</span>
+    <section class="inventory-grid inventory-grid-document">
+        <article class="inventory-panel">
+            <div class="inventory-panel-head">
+                <div><h2>Thông tin phiếu nhập</h2><p>Chọn nhà cung cấp, kho nhận và ngày chứng từ.</p></div>
             </div>
-
-            <div class="ir-form-grid">
-                <label class="ir-field ir-field-span-2">
+            <div class="inventory-form-grid">
+                <label class="inventory-field inventory-field-span-2">
                     <span>Nhà cung cấp *</span>
-                    <select id="supplierId">
-                        <option value="">Đang tải nhà cung cấp...</option>
-                    </select>
-                    <small id="supplierMeta">Chọn đúng pháp nhân phát hành chứng từ.</small>
+                    <select id="supplierId"><option value="">Đang tải...</option></select>
+                    <small id="supplierMeta"></small>
                 </label>
-
-                <label class="ir-field ir-field-span-2">
+                <label class="inventory-field inventory-field-span-2">
                     <span>Kho nhận *</span>
-                    <select id="warehouseId">
-                        <option value="">Đang tải kho...</option>
-                    </select>
-                    <small id="warehouseMeta">Tồn hiển thị theo kho đang chọn.</small>
+                    <select id="warehouseId"><option value="">Đang tải...</option></select>
+                    <small id="warehouseMeta"></small>
                 </label>
-
-                <label class="ir-field">
-                    <span>Số hóa đơn / chứng từ NCC *</span>
-                    <input id="invoiceNumber" type="text" maxlength="100" autocomplete="off"
-                           placeholder="VD: INV-2026-000128" />
+                <label class="inventory-field">
+                    <span>Số hóa đơn / chứng từ *</span>
+                    <input id="invoiceNumber" type="text" maxlength="100" placeholder="Ví dụ: INV-2026-00128" autocomplete="off" />
                 </label>
-
-                <label class="ir-field">
+                <label class="inventory-field">
                     <span>Ngày chứng từ *</span>
                     <input id="invoiceDate" type="date" />
                 </label>
-
-                <label class="ir-field">
+                <label class="inventory-field">
                     <span>Ngày nhận hàng *</span>
                     <input id="receivedDate" type="date" />
                 </label>
-
-                <label class="ir-field ir-checkbox-field">
+                <label class="inventory-checkbox-field">
                     <input id="inputVatDeductible" type="checkbox" checked />
-                    <span>
-                        <strong>VAT đầu vào được khấu trừ</strong>
-                        <small>VAT vẫn thuộc công nợ NCC nhưng không cộng vào giá vốn tồn kho.</small>
-                    </span>
+                    <span><strong>Thuế đầu vào được khấu trừ</strong><small>Không cộng khoản thuế này vào giá trị hàng nhập.</small></span>
                 </label>
-
-                <label class="ir-field ir-field-span-2">
-                    <span>Ghi chú nội bộ</span>
-                    <textarea id="receiptNote" rows="3"
-                              placeholder="Tình trạng kiện hàng, người giao, biên bản kèm theo..."></textarea>
+                <label class="inventory-field inventory-field-span-2">
+                    <span>Ghi chú</span>
+                    <textarea id="receiptNote" rows="3" maxlength="500" placeholder="Tình trạng hàng, người giao hoặc thông tin cần lưu ý..."></textarea>
                 </label>
             </div>
         </article>
 
-        <aside class="ir-panel ir-recent-panel">
-            <div class="ir-panel-heading">
-                <div>
-                    <span class="ir-step">LIVE</span>
-                    <h2>Phiếu nhập gần đây</h2>
-                </div>
-                <button type="button" class="ir-icon-button" id="reloadRecentButton" title="Tải lại">
-                    <i class="fa-solid fa-rotate"></i>
-                </button>
+        <aside class="inventory-panel">
+            <div class="inventory-panel-head inventory-panel-head-toolbar">
+                <div><h2>Phiếu nhập gần đây</h2><p>Các lần nhận hàng mới nhất.</p></div>
+                <button class="inventory-icon-button" type="button" id="reloadRecentButton" title="Tải lại">↻</button>
             </div>
-            <div class="ir-recent-list" id="recentReceiptList">
-                <div class="ir-skeleton ir-skeleton-block"></div>
-                <div class="ir-skeleton ir-skeleton-block"></div>
-                <div class="ir-skeleton ir-skeleton-block"></div>
+            <div class="inventory-recent-list" id="recentReceiptList">
+                <div class="inventory-empty">Đang tải...</div>
             </div>
         </aside>
     </section>
 
-    <section class="ir-panel ir-catalog-panel">
-        <div class="ir-panel-heading ir-catalog-heading">
+    <section class="inventory-panel">
+        <div class="inventory-panel-head inventory-panel-head-toolbar">
             <div>
-                <span class="ir-step">02</span>
-                <h2>Chọn biến thể nhận kho</h2>
-                <p>Sản phẩm được tải theo trang để tránh treo giao diện khi danh mục lớn.</p>
+                <h2>Chọn mặt hàng</h2>
+                <p>Tìm sản phẩm đã có hoặc tạo nhanh sản phẩm, biến thể mới ngay trong phiếu nhập.</p>
             </div>
-            <div class="ir-result-count" id="productResultCount">0 biến thể</div>
+            <button class="inventory-button inventory-button-primary" type="button" id="openQuickItemButton">+ Thêm mặt hàng mới</button>
         </div>
 
-        <div class="ir-toolbar">
-            <div class="ir-search-box">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input id="productSearch" type="search"
-                       placeholder="Tên sản phẩm, biến thể, thương hiệu hoặc mã SKU..." />
-            </div>
-            <select id="categoryFilter" aria-label="Lọc danh mục">
-                <option value="">Tất cả danh mục</option>
-            </select>
-            <select id="brandFilter" aria-label="Lọc thương hiệu">
-                <option value="">Tất cả thương hiệu</option>
-            </select>
-            <select id="stockFilter" aria-label="Lọc tồn kho">
-                <option value="all">Mọi trạng thái tồn</option>
-                <option value="available">Đang có tồn</option>
-                <option value="low">Sắp hết (1–5)</option>
+        <div class="inventory-toolbar inventory-toolbar-catalog">
+            <label class="inventory-search-field">
+                <span class="visually-hidden">Tìm sản phẩm</span>
+                <input id="productSearch" type="search" placeholder="Tên sản phẩm, màu sắc, cấu hình hoặc mã sản phẩm..." />
+            </label>
+            <select id="categoryFilter" aria-label="Danh mục"><option value="">Tất cả danh mục</option></select>
+            <select id="brandFilter" aria-label="Thương hiệu"><option value="">Tất cả thương hiệu</option></select>
+            <select id="stockFilter" aria-label="Tình trạng tồn">
+                <option value="all">Tất cả</option>
+                <option value="available">Đang có hàng</option>
+                <option value="low">Sắp hết</option>
                 <option value="out">Hết hàng</option>
             </select>
-            <button type="button" class="ir-secondary-button" id="resetFilterButton">
-                Xóa lọc
-            </button>
+            <button class="inventory-button inventory-button-secondary" type="button" id="resetFilterButton">Xóa lọc</button>
         </div>
 
-        <div class="ir-product-grid" id="productGrid" aria-live="polite"></div>
-
-        <div class="ir-pagination">
-            <button type="button" class="ir-secondary-button" id="previousPageButton">
-                <i class="fa-solid fa-chevron-left"></i>
-                Trang trước
-            </button>
+        <div class="inventory-result-meta" id="productResultCount">0 mặt hàng</div>
+        <div class="inventory-product-grid" id="productGrid"></div>
+        <div class="inventory-pagination">
             <span id="pageIndicator">Trang 1 / 1</span>
-            <button type="button" class="ir-secondary-button" id="nextPageButton">
-                Trang sau
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
+            <div>
+                <button type="button" id="previousPageButton">Trước</button>
+                <button type="button" id="nextPageButton">Sau</button>
+            </div>
         </div>
     </section>
 
-    <section class="ir-receipt-layout">
-        <article class="ir-panel ir-lines-panel">
-            <div class="ir-panel-heading">
-                <div>
-                    <span class="ir-step">03</span>
-                    <h2>Chi tiết hàng nhận</h2>
-                    <p id="selectedLineCount">Chưa chọn mặt hàng</p>
-                </div>
-                <button type="button" class="ir-danger-text-button" id="clearLinesButton">
-                    Xóa toàn bộ
-                </button>
+    <section class="inventory-workspace-grid">
+        <article class="inventory-panel">
+            <div class="inventory-panel-head inventory-panel-head-toolbar">
+                <div><h2>Hàng nhận</h2><p id="selectedLineCount">Chưa chọn mặt hàng</p></div>
+                <button class="inventory-link-button inventory-link-danger" type="button" id="clearLinesButton">Xóa tất cả</button>
             </div>
-
-            <div class="ir-table-wrap">
-                <table class="ir-lines-table">
+            <div class="inventory-table-wrap">
+                <table class="inventory-table">
                     <thead>
-                        <tr>
-                            <th>Sản phẩm / SKU</th>
-                            <th>Số lượng</th>
-                            <th>Giá nhập chưa VAT</th>
-                            <th>VAT</th>
-                            <th>Tiền hàng</th>
-                            <th></th>
-                        </tr>
+                        <tr><th>Sản phẩm</th><th>Số lượng</th><th>Giá nhập</th><th>Thuế</th><th class="is-number">Tiền hàng</th><th></th></tr>
                     </thead>
                     <tbody id="receiptLineBody"></tbody>
                 </table>
             </div>
         </article>
 
-        <aside class="ir-panel ir-summary-panel">
-            <div class="ir-panel-heading">
-                <div>
-                    <span class="ir-step">04</span>
-                    <h2>Đối chiếu & ghi nhận</h2>
-                </div>
+        <aside class="inventory-panel inventory-sticky-panel">
+            <div class="inventory-panel-head"><div><h2>Tổng phiếu nhập</h2><p>Kiểm tra các khoản phải trả trước khi xác nhận.</p></div></div>
+            <div class="inventory-form-grid inventory-form-grid-compact">
+                <label class="inventory-field"><span>Phí vận chuyển</span><input id="shippingFee" type="number" min="0" step="1000" value="0" /></label>
+                <label class="inventory-field"><span>Chi phí khác</span><input id="otherFee" type="number" min="0" step="1000" value="0" /></label>
             </div>
-
-            <div class="ir-cost-fields">
-                <label class="ir-field">
-                    <span>Phí vận chuyển đầu vào</span>
-                    <input id="shippingFee" type="number" min="0" step="1000" value="0" />
-                </label>
-                <label class="ir-field">
-                    <span>Chi phí khác</span>
-                    <input id="otherFee" type="number" min="0" step="1000" value="0" />
-                </label>
-            </div>
-
-            <div class="ir-summary-list">
+            <div class="inventory-summary-list">
                 <div><span>Tiền hàng</span><strong id="goodsSubtotal">0 đ</strong></div>
-                <div><span>VAT đầu vào</span><strong id="inputVatAmount">0 đ</strong></div>
-                <div><span>Phí nhập phân bổ</span><strong id="allocatedFeeTotal">0 đ</strong></div>
-                <div class="ir-summary-emphasis"><span>Phải trả nhà cung cấp</span><strong id="supplierPayable">0 đ</strong></div>
-                <div class="ir-summary-capitalized"><span>Giá trị vốn hóa tồn kho</span><strong id="capitalizedCost">0 đ</strong></div>
+                <div><span>Thuế đầu vào</span><strong id="inputVatAmount">0 đ</strong></div>
+                <div><span>Phí nhập hàng</span><strong id="allocatedFeeTotal">0 đ</strong></div>
+                <div class="is-emphasis"><span>Tổng phải trả nhà cung cấp</span><strong id="supplierPayable">0 đ</strong></div>
+                <div><span>Giá trị nhập vào kho</span><strong id="capitalizedCost">0 đ</strong></div>
             </div>
-
-            <div class="ir-preview-state" id="previewState">
-                Thêm sản phẩm để xem trước landed cost.
-            </div>
-            <div class="ir-warning-list" id="previewWarnings"></div>
-
-            <button type="button" class="ir-primary-button" id="previewButton">
-                <i class="fa-solid fa-calculator"></i>
-                Kiểm tra & xem trước
-            </button>
-            <button type="button" class="ir-submit-button" id="submitButton" disabled>
-                <i class="fa-solid fa-boxes-stacked"></i>
-                Xác nhận nhận hàng vào kho
-            </button>
-
-            <p class="ir-submit-note">
-                Thao tác này tạo PO, lô tồn, mã định danh nội bộ và bút toán nhập kho trong một transaction.
-            </p>
+            <div class="inventory-alert" id="previewState">Thêm mặt hàng để bắt đầu.</div>
+            <div id="previewWarnings"></div>
+            <button class="inventory-button inventory-button-secondary inventory-button-block" type="button" id="previewButton">Kiểm tra phiếu</button>
+            <button class="inventory-button inventory-button-primary inventory-button-block" type="button" id="submitButton" disabled>Xác nhận nhập kho</button>
         </aside>
     </section>
 </div>
 
-<div class="ir-modal" id="resultModal" hidden>
-    <div class="ir-modal-card" role="dialog" aria-modal="true" aria-labelledby="resultModalTitle">
-        <div class="ir-modal-icon"><i class="fa-solid fa-check"></i></div>
-        <h2 id="resultModalTitle">Nhận hàng thành công</h2>
-        <p id="resultModalMessage"></p>
-        <div class="ir-modal-detail" id="resultModalDetail"></div>
-        <div class="ir-modal-actions">
-            <button type="button" class="ir-secondary-button" id="createAnotherButton">Tạo phiếu khác</button>
-            <a class="ir-primary-button" asp-area="Admin" asp-controller="Inventory" asp-action="Index">Về kiểm soát kho</a>
+<div class="inventory-modal" id="quickItemModal" hidden>
+    <div class="inventory-modal-card inventory-modal-large" role="dialog" aria-modal="true" aria-labelledby="quickItemTitle">
+        <div class="inventory-modal-head">
+            <div><h2 id="quickItemTitle">Thêm mặt hàng mới</h2><p>Sản phẩm vừa tạo sẽ được đưa ngay vào phiếu nhập hiện tại.</p></div>
+            <button class="inventory-modal-close" type="button" data-close-modal="quickItemModal" aria-label="Đóng">×</button>
+        </div>
+        <form id="quickItemForm" enctype="multipart/form-data">
+            <div class="inventory-modal-body">
+                <div class="inventory-choice-row">
+                    <label class="inventory-choice"><input type="radio" name="quickItemMode" value="new" checked /><span>Tạo sản phẩm mới</span></label>
+                    <label class="inventory-choice"><input type="radio" name="quickItemMode" value="variant" /><span>Thêm biến thể cho sản phẩm đã có</span></label>
+                </div>
+
+                <div id="newProductFields" class="inventory-form-grid">
+                    <label class="inventory-field inventory-field-span-2"><span>Tên sản phẩm *</span><input id="quickProductName" maxlength="200" /></label>
+                    <label class="inventory-field"><span>Danh mục *</span><select id="quickCategoryId"></select></label>
+                    <label class="inventory-field"><span>Thương hiệu *</span><select id="quickBrandId"></select></label>
+                </div>
+
+                <div id="existingProductFields" hidden>
+                    <label class="inventory-field"><span>Tìm sản phẩm *</span><input id="quickProductSearch" type="search" placeholder="Nhập tên sản phẩm..." autocomplete="off" /></label>
+                    <div class="inventory-option-list" id="quickProductOptions"></div>
+                    <input id="quickProductId" type="hidden" />
+                    <div class="inventory-selected-option" id="selectedQuickProduct" hidden></div>
+                </div>
+
+                <div class="inventory-divider"></div>
+                <div class="inventory-form-grid">
+                    <label class="inventory-field"><span>Màu sắc *</span><input id="quickColor" maxlength="80" placeholder="Ví dụ: Đen" /></label>
+                    <label class="inventory-field"><span>Cấu hình chính *</span><input id="quickStorage" maxlength="80" placeholder="Ví dụ: 256 GB hoặc Size M" /></label>
+                    <label class="inventory-field"><span>Thông tin bổ sung</span><input id="quickRam" maxlength="80" placeholder="Ví dụ: 8 GB RAM" /></label>
+                    <label class="inventory-field"><span>Giá bán dự kiến *</span><input id="quickListPrice" type="number" min="1" step="1000" /></label>
+                    <label class="inventory-field"><span>Giá nhập lần này *</span><input id="quickImportPrice" type="number" min="1" step="1000" /></label>
+                    <label class="inventory-field"><span>Đường dẫn ảnh</span><input id="quickImageUrl" maxlength="500" placeholder="Có thể để trống" /></label>
+                    <label class="inventory-field inventory-field-span-2"><span>Hoặc tải ảnh lên</span><input id="quickImageFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" /><small>Tối đa 5 MB.</small></label>
+                </div>
+                <div class="inventory-alert inventory-alert-error" id="quickItemError" hidden></div>
+            </div>
+            <div class="inventory-modal-foot">
+                <button class="inventory-button inventory-button-secondary" type="button" data-close-modal="quickItemModal">Hủy</button>
+                <button class="inventory-button inventory-button-primary" type="submit" id="saveQuickItemButton">Tạo và thêm vào phiếu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="inventory-modal" id="resultModal" hidden>
+    <div class="inventory-modal-card" role="dialog" aria-modal="true" aria-labelledby="resultModalTitle">
+        <div class="inventory-modal-head"><div><h2 id="resultModalTitle">Nhập kho thành công</h2><p id="resultModalMessage"></p></div></div>
+        <div class="inventory-modal-body"><div class="inventory-result-box" id="resultModalDetail"></div></div>
+        <div class="inventory-modal-foot">
+            <button class="inventory-button inventory-button-secondary" type="button" id="createAnotherButton">Tạo phiếu khác</button>
+            <a class="inventory-button inventory-button-primary" href="/Admin/Inventory">Về tổng quan</a>
         </div>
     </div>
 </div>

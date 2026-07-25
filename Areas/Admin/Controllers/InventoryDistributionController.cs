@@ -35,7 +35,7 @@ public sealed class InventoryDistributionController : Controller
     [HttpGet("~/Admin/Inventory/CreateSO")]
     public IActionResult Workspace()
     {
-        return View("~/Areas/Admin/Views/Inventory/Distribution.cshtml");
+        return Redirect("/Admin/Inventory/Operations?tab=outbound");
     }
 
     [HttpPost("Preview")]

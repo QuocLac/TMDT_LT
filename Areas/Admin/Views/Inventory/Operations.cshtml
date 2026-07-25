@@ -1,139 +1,158 @@
 @{
     Layout = "_LayoutAdmin";
-    ViewData["Title"] = "Vận hành kho";
+    ViewData["Title"] = "Hoạt động kho";
+    ViewData["InventorySection"] = "Operations";
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/admin/inventory-operations.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin/inventory.css" asp-append-version="true" />
 }
 
-@Html.AntiForgeryToken()
+<div class="inventory-page" id="inventoryOperationsApp">
+    @Html.AntiForgeryToken()
+    @await Html.PartialAsync("~/Areas/Admin/Views/Inventory/_InventoryNavigation.cshtml")
 
-<div class="io-page" id="inventoryOperationsApp">
-    <header class="io-header">
+    <header class="inventory-page-head">
         <div>
-            <div class="io-eyebrow">WAREHOUSE OPERATIONS</div>
-            <h1>Trung tâm vận hành kho</h1>
-            <p>Bổ sung hàng, cân bằng tồn giữa kho, giám sát sức khỏe dữ liệu và truy vết giao dịch.</p>
+            <h1>Hoạt động kho</h1>
+            <p>Xuất hàng, chuyển hàng giữa các kho và kiểm kê trong một màn hình thống nhất.</p>
         </div>
-        <nav class="io-header-actions" aria-label="Điều hướng module kho">
-            <a class="io-button io-button-light" href="/Admin/Inventory"><i class="fa-solid fa-chart-column"></i> Tồn & kiểm kê</a>
-            <a class="io-button io-button-light" href="/Admin/Inventory/Receiving"><i class="fa-solid fa-truck-ramp-box"></i> Nhận hàng</a>
-            <a class="io-button io-button-primary" href="/Admin/Inventory/Distribution"><i class="fa-solid fa-arrow-up-from-bracket"></i> Xuất phân phối</a>
-        </nav>
+        <a class="inventory-button inventory-button-secondary" href="/Admin/Inventory">Về tổng quan</a>
     </header>
 
-    <div class="io-tabs" role="tablist">
-        <button type="button" class="io-tab is-active" data-tab="replenishment"><i class="fa-solid fa-boxes-packing"></i> Đề xuất bổ sung</button>
-        <button type="button" class="io-tab" data-tab="transfer"><i class="fa-solid fa-right-left"></i> Điều chuyển kho</button>
-        <button type="button" class="io-tab" data-tab="health"><i class="fa-solid fa-shield-heart"></i> Đối soát hệ thống</button>
+    <div class="inventory-operation-tabs" role="tablist">
+        <button class="inventory-operation-tab is-active" type="button" data-operation-tab="outbound">Xuất kho</button>
+        <button class="inventory-operation-tab" type="button" data-operation-tab="transfer">Chuyển kho</button>
+        <button class="inventory-operation-tab" type="button" data-operation-tab="counting">Kiểm kê</button>
     </div>
 
-    <section class="io-panel" data-panel="replenishment">
-        <div class="io-panel-heading">
-            <div>
-                <h2>Kế hoạch bổ sung tồn</h2>
-                <p>Dựa trên nhu cầu đã hoàn thành, tồn khả dụng, lead time và safety stock.</p>
-            </div>
-            <button type="button" class="io-button io-button-primary" id="refreshReplenishmentButton"><i class="fa-solid fa-rotate"></i> Tính lại</button>
-        </div>
+    <section data-operation-panel="outbound">
+        <div class="inventory-workspace-grid inventory-workspace-wide">
+            <main>
+                <article class="inventory-panel">
+                    <div class="inventory-panel-head"><div><h2>Chọn hàng xuất</h2><p>Hệ thống tự lấy từ lô nhập trước và giữ lại đúng giá vốn của từng lô.</p></div></div>
+                    <div class="inventory-toolbar inventory-toolbar-catalog">
+                        <select id="outboundWarehouse" aria-label="Kho xuất"></select>
+                        <input id="outboundSearch" type="search" placeholder="Tìm sản phẩm hoặc mã sản phẩm..." />
+                        <select id="outboundCategory" aria-label="Danh mục"><option value="">Tất cả danh mục</option></select>
+                        <select id="outboundBrand" aria-label="Thương hiệu"><option value="">Tất cả thương hiệu</option></select>
+                    </div>
+                    <div class="inventory-product-grid" id="outboundProductGrid"></div>
+                    <div class="inventory-pagination"><span id="outboundPageMeta">Trang 1 / 1</span><div><button type="button" id="outboundPrevPage">Trước</button><button type="button" id="outboundNextPage">Sau</button></div></div>
+                </article>
 
-        <div class="io-filter-grid">
-            <label class="io-field"><span>Kho cần bổ sung</span><select id="replenishmentWarehouse"></select></label>
-            <label class="io-field"><span>Cửa sổ nhu cầu</span><select id="demandWindowDays"><option value="14">14 ngày</option><option value="30" selected>30 ngày</option><option value="60">60 ngày</option><option value="90">90 ngày</option></select></label>
-            <label class="io-field"><span>Lead time</span><input id="leadTimeDays" type="number" min="1" max="60" value="7" /></label>
-            <label class="io-field"><span>Safety days</span><input id="safetyDays" type="number" min="0" max="30" value="3" /></label>
-            <label class="io-field"><span>Mục tiêu khi chưa có cầu</span><input id="fallbackTargetQuantity" type="number" min="5" max="5000" value="10" /></label>
-        </div>
+                <article class="inventory-panel">
+                    <div class="inventory-panel-head inventory-panel-head-toolbar"><div><h2>Hàng xuất</h2><p>Nhập số lượng, giá bán và mức thuế của từng mặt hàng.</p></div><button class="inventory-link-button inventory-link-danger" type="button" id="clearOutboundButton">Xóa tất cả</button></div>
+                    <div class="inventory-table-wrap">
+                        <table class="inventory-table"><thead><tr><th>Sản phẩm</th><th>Có thể bán</th><th>Số lượng</th><th>Giá bán</th><th>Thuế</th><th class="is-number">Tiền hàng</th><th></th></tr></thead><tbody id="outboundLineBody"></tbody></table>
+                    </div>
+                </article>
 
-        <div class="io-kpi-grid io-kpi-grid-compact">
-            <article class="io-kpi"><span>SKU cần bổ sung</span><strong id="replenishmentSkuCount">—</strong></article>
-            <article class="io-kpi"><span>Tổng số lượng đề xuất</span><strong id="replenishmentQuantity">—</strong></article>
-            <article class="io-kpi"><span>Giá trị mua ước tính</span><strong id="replenishmentValue">—</strong></article>
-            <article class="io-kpi"><span>Kỳ bao phủ</span><strong id="replenishmentPlanningDays">—</strong></article>
-        </div>
+                <article class="inventory-panel">
+                    <div class="inventory-panel-head inventory-panel-head-toolbar"><div><h2>Phiếu xuất gần đây</h2><p>Các lần xuất hàng mới nhất.</p></div><button class="inventory-icon-button" type="button" id="refreshOutboundRecent">↻</button></div>
+                    <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>Mã phiếu</th><th>Ngày</th><th>Từ kho → nơi nhận</th><th>Số lượng</th><th class="is-number">Tổng tiền</th><th class="is-number">Giá vốn</th><th class="is-number">Lợi nhuận</th></tr></thead><tbody id="outboundRecentBody"></tbody></table></div>
+                </article>
+            </main>
 
-        <div class="io-table-wrap">
-            <table class="io-table">
-                <thead><tr><th>SKU / Sản phẩm</th><th>Tồn</th><th>Nhu cầu</th><th>Độ phủ</th><th>Mục tiêu</th><th>Đề xuất</th><th>Giá trị ước tính</th><th>Ưu tiên</th></tr></thead>
-                <tbody id="replenishmentTableBody"></tbody>
-            </table>
-        </div>
-        <p class="io-basis" id="replenishmentBasis"></p>
-    </section>
-
-    <section class="io-panel" data-panel="transfer" hidden>
-        <div class="io-panel-heading">
-            <div>
-                <h2>Điều chuyển tồn giữa kho</h2>
-                <p>Xuất FIFO ở kho nguồn, tạo lô tại kho đích, di chuyển serial và giữ nguyên tuổi hàng.</p>
-            </div>
-            <button type="button" class="io-button io-button-primary" id="previewTransferButton"><i class="fa-solid fa-list-check"></i> Kiểm tra phiếu</button>
-        </div>
-
-        <div class="io-transfer-layout">
-            <div class="io-transfer-main">
-                <div class="io-filter-grid io-transfer-filters">
-                    <label class="io-field"><span>Kho nguồn</span><select id="transferSourceWarehouse"></select></label>
-                    <label class="io-field"><span>Kho đích</span><select id="transferTargetWarehouse"></select></label>
-                    <label class="io-field io-field-wide"><span>Tìm SKU</span><input id="transferProductSearch" type="search" placeholder="Tên sản phẩm, biến thể hoặc Variant ID" /></label>
-                    <label class="io-field"><span>Trạng thái</span><select id="transferStockScope"><option value="available">Còn tồn</option><option value="low">Sắp hết</option><option value="all">Tất cả</option></select></label>
+            <aside class="inventory-panel inventory-sticky-panel">
+                <div class="inventory-panel-head"><div><h2>Thông tin phiếu xuất</h2><p>Chọn nơi nhận và kiểm tra kết quả dự kiến.</p></div></div>
+                <label class="inventory-field"><span>Cửa hàng / đại lý nhận *</span><select id="outboundStore"></select></label>
+                <label class="inventory-field"><span>Số chứng từ</span><input id="outboundInvoice" maxlength="100" placeholder="Có thể để trống" /></label>
+                <div class="inventory-form-grid inventory-form-grid-compact">
+                    <label class="inventory-field"><span>Chiết khấu (%)</span><input id="outboundDiscount" type="number" min="0" max="100" step="0.01" value="0" /></label>
+                    <label class="inventory-field"><span>Phí giao hàng</span><input id="outboundShipping" type="number" min="0" step="1000" value="0" /></label>
                 </div>
-                <div class="io-product-grid" id="transferProductGrid"></div>
-                <div class="io-pagination">
-                    <span id="transferPageMeta">Trang 1 / 1</span>
-                    <div><button type="button" id="transferPrevPage"><i class="fa-solid fa-chevron-left"></i></button><button type="button" id="transferNextPage"><i class="fa-solid fa-chevron-right"></i></button></div>
+                <label class="inventory-field"><span>Ghi chú</span><textarea id="outboundNotes" rows="3" maxlength="500"></textarea></label>
+                <div class="inventory-summary-list">
+                    <div><span>Tiền hàng sau chiết khấu</span><strong id="outboundNetRevenue">—</strong></div>
+                    <div><span>Thuế đầu ra</span><strong id="outboundTax">—</strong></div>
+                    <div class="is-emphasis"><span>Tổng thanh toán</span><strong id="outboundInvoiceTotal">—</strong></div>
+                    <div><span>Giá vốn hàng xuất</span><strong id="outboundCost">—</strong></div>
+                    <div><span>Phí giao hàng</span><strong id="outboundShippingSummary">—</strong></div>
+                    <div><span>Lợi nhuận dự kiến</span><strong id="outboundProfit">—</strong></div>
                 </div>
-            </div>
-
-            <aside class="io-transfer-cart">
-                <div class="io-cart-header"><div><span class="io-eyebrow">TRANSFER DRAFT</span><h3>Phiếu điều chuyển</h3></div><button type="button" class="io-link-button" id="clearTransferButton">Xóa hết</button></div>
-                <div id="transferCartLines" class="io-cart-lines"></div>
-                <label class="io-field"><span>Lý do điều chuyển</span><textarea id="transferReason" rows="3" maxlength="500" placeholder="Cân bằng tồn, bổ sung kho chi nhánh..."></textarea></label>
-                <div class="io-cart-summary"><div><span>Số SKU</span><strong id="transferLineCount">0</strong></div><div><span>Tổng số lượng</span><strong id="transferTotalQuantity">0</strong></div><div><span>Giá trị ước tính</span><strong id="transferEstimatedValue">0 đ</strong></div></div>
-                <div class="io-alert" id="transferPreviewResult" hidden></div>
-                <button type="button" class="io-button io-button-success io-button-block" id="submitTransferButton" disabled><i class="fa-solid fa-check"></i> Ghi sổ điều chuyển</button>
+                <div class="inventory-alert" id="outboundStatus">Thêm mặt hàng để bắt đầu.</div>
+                <button class="inventory-button inventory-button-secondary inventory-button-block" type="button" id="checkOutboundButton">Kiểm tra phiếu</button>
+                <button class="inventory-button inventory-button-primary inventory-button-block" type="button" id="submitOutboundButton" disabled>Xác nhận xuất kho</button>
             </aside>
         </div>
+    </section>
 
-        <div class="io-subpanel">
-            <div class="io-panel-heading io-panel-heading-small"><div><h3>Điều chuyển gần đây</h3><p>Giao dịch OUT/IN dùng chung một mã tham chiếu.</p></div><button class="io-icon-button" type="button" id="refreshTransfersButton"><i class="fa-solid fa-rotate"></i></button></div>
-            <div class="io-table-wrap"><table class="io-table"><thead><tr><th>Mã</th><th>Thời gian</th><th>Kho nguồn → đích</th><th>Sản phẩm</th><th>Số lượng</th><th>Giá trị</th></tr></thead><tbody id="recentTransferTableBody"></tbody></table></div>
+    <section data-operation-panel="transfer" hidden>
+        <div class="inventory-workspace-grid inventory-workspace-wide">
+            <main>
+                <article class="inventory-panel">
+                    <div class="inventory-panel-head"><div><h2>Chọn hàng cần chuyển</h2><p>Hàng được chuyển nguyên giá vốn và ngày nhập sang kho nhận.</p></div></div>
+                    <div class="inventory-toolbar inventory-toolbar-transfer">
+                        <label class="inventory-field"><span>Kho chuyển</span><select id="transferSourceWarehouse"></select></label>
+                        <label class="inventory-field"><span>Kho nhận</span><select id="transferTargetWarehouse"></select></label>
+                        <label class="inventory-field inventory-field-wide"><span>Tìm sản phẩm</span><input id="transferSearch" type="search" placeholder="Tên hoặc mã sản phẩm..." /></label>
+                    </div>
+                    <div class="inventory-product-grid" id="transferProductGrid"></div>
+                    <div class="inventory-pagination"><span id="transferPageMeta">Trang 1 / 1</span><div><button type="button" id="transferPrevPage">Trước</button><button type="button" id="transferNextPage">Sau</button></div></div>
+                </article>
+
+                <article class="inventory-panel">
+                    <div class="inventory-panel-head inventory-panel-head-toolbar"><div><h2>Lần chuyển kho gần đây</h2><p>Lịch sử chuyển hàng giữa các kho.</p></div><button class="inventory-icon-button" type="button" id="refreshTransferRecent">↻</button></div>
+                    <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>Mã</th><th>Thời gian</th><th>Kho chuyển → kho nhận</th><th>Sản phẩm</th><th>Số lượng</th><th class="is-number">Giá trị</th></tr></thead><tbody id="transferRecentBody"></tbody></table></div>
+                </article>
+            </main>
+
+            <aside class="inventory-panel inventory-sticky-panel">
+                <div class="inventory-panel-head inventory-panel-head-toolbar"><div><h2>Phiếu chuyển kho</h2><p id="transferLineCount">Chưa chọn mặt hàng</p></div><button class="inventory-link-button inventory-link-danger" type="button" id="clearTransferButton">Xóa tất cả</button></div>
+                <div class="inventory-cart-list" id="transferLineList"></div>
+                <label class="inventory-field"><span>Lý do chuyển *</span><textarea id="transferReason" rows="3" maxlength="500" placeholder="Ví dụ: Bổ sung hàng cho kho chi nhánh"></textarea></label>
+                <div class="inventory-summary-list">
+                    <div><span>Tổng số lượng</span><strong id="transferTotalQuantity">0</strong></div>
+                    <div><span>Giá trị ước tính</span><strong id="transferEstimatedValue">0 đ</strong></div>
+                </div>
+                <div class="inventory-alert" id="transferStatus">Chọn mặt hàng cần chuyển.</div>
+                <button class="inventory-button inventory-button-secondary inventory-button-block" type="button" id="checkTransferButton">Kiểm tra phiếu</button>
+                <button class="inventory-button inventory-button-primary inventory-button-block" type="button" id="submitTransferButton" disabled>Xác nhận chuyển kho</button>
+            </aside>
         </div>
     </section>
 
-    <section class="io-panel" data-panel="health" hidden>
-        <div class="io-panel-heading">
-            <div><h2>Sức khỏe dữ liệu tồn kho</h2><p>Đối chiếu snapshot, lô, serial, reservation và phiên kiểm kê đang mở.</p></div>
-            <button type="button" class="io-button io-button-light" id="refreshHealthButton"><i class="fa-solid fa-rotate"></i> Quét lại</button>
-        </div>
+    <section data-operation-panel="counting" hidden>
+        <section class="inventory-grid inventory-grid-counting">
+            <article class="inventory-panel">
+                <div class="inventory-panel-head"><div><h2>Tạo đợt kiểm kê</h2><p>Chọn kho và các mặt hàng cần đếm thực tế.</p></div></div>
+                <div class="inventory-toolbar inventory-toolbar-counting">
+                    <label class="inventory-field"><span>Kho kiểm kê</span><select id="countWarehouse"></select></label>
+                    <label class="inventory-field inventory-field-wide"><span>Tìm sản phẩm</span><input id="countSearch" type="search" placeholder="Tên hoặc mã sản phẩm..." /></label>
+                    <button class="inventory-button inventory-button-secondary" type="button" id="selectAllCountPageButton">Chọn trang này</button>
+                </div>
+                <div class="inventory-product-grid inventory-product-grid-compact" id="countProductGrid"></div>
+                <div class="inventory-pagination"><span id="countPageMeta">Trang 1 / 1</span><div><button type="button" id="countPrevPage">Trước</button><button type="button" id="countNextPage">Sau</button></div></div>
+                <div class="inventory-count-create-bar">
+                    <div><strong id="countSelectionTotal">0 mặt hàng đã chọn</strong><small>Chọn đúng các mặt hàng đang được đếm.</small></div>
+                    <label class="inventory-field inventory-field-wide"><span>Ghi chú</span><input id="countNotes" maxlength="500" placeholder="Khu vực hoặc người phụ trách" /></label>
+                    <button class="inventory-button inventory-button-primary" type="button" id="createCountButton">Tạo đợt kiểm kê</button>
+                </div>
+            </article>
 
-        <div class="io-health-banner" id="healthBanner">Đang quét dữ liệu...</div>
-        <div class="io-kpi-grid">
-            <article class="io-kpi"><span>Lệch tồn tổng</span><strong id="healthStockDrift">—</strong><small>Variant snapshot ≠ tổng lô</small></article>
-            <article class="io-kpi"><span>Lệch serial</span><strong id="healthSerialMismatch">—</strong><small>InStock serial ≠ tồn lô</small></article>
-            <article class="io-kpi"><span>Lô bất hợp lệ</span><strong id="healthInvalidLots">—</strong><small>Âm, vượt nhập hoặc thiếu kho</small></article>
-            <article class="io-kpi"><span>Lô tồn lâu</span><strong id="healthAgedLots">—</strong><small>Trên 90 ngày</small></article>
-            <article class="io-kpi"><span>Kiểm kê đang mở</span><strong id="healthOpenCounts">—</strong></article>
-            <article class="io-kpi"><span>Reservation hoạt động</span><strong id="healthReservations">—</strong></article>
-        </div>
+            <article class="inventory-panel">
+                <div class="inventory-panel-head inventory-panel-head-toolbar"><div><h2>Các đợt kiểm kê</h2><p>Chọn một đợt để nhập số lượng thực tế.</p></div><button class="inventory-icon-button" type="button" id="refreshCountSessions">↻</button></div>
+                <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>Mã</th><th>Kho</th><th>Tiến độ</th><th>Chênh lệch</th><th>Trạng thái</th><th>Ngày tạo</th><th></th></tr></thead><tbody id="countSessionBody"></tbody></table></div>
+            </article>
+        </section>
 
-        <div class="io-health-columns">
-            <div class="io-subpanel">
-                <div class="io-panel-heading io-panel-heading-small"><div><h3>Lệch snapshot tồn tổng</h3><p>Có thể sửa tự động từ tổng RemainingQuantity của lô.</p></div></div>
-                <div class="io-table-wrap"><table class="io-table"><thead><tr><th>SKU</th><th>Sản phẩm</th><th>Snapshot</th><th>Tổng lô</th><th>Lệch</th></tr></thead><tbody id="stockDriftTableBody"></tbody></table></div>
-                <label class="io-field"><span>Lý do đồng bộ</span><input id="repairReason" maxlength="300" placeholder="Đối soát định kỳ..." /></label>
-                <button type="button" class="io-button io-button-primary" id="repairSnapshotsButton"><i class="fa-solid fa-screwdriver-wrench"></i> Đồng bộ snapshot theo lô</button>
+        <section class="inventory-panel" id="countDetailPanel" hidden>
+            <div class="inventory-panel-head inventory-panel-head-toolbar">
+                <div><h2 id="countDetailTitle">Chi tiết kiểm kê</h2><p id="countDetailMeta"></p></div>
+                <div class="inventory-head-actions">
+                    <button class="inventory-button inventory-button-secondary" type="button" id="submitCountButton" hidden>Gửi xác nhận</button>
+                    <button class="inventory-button inventory-button-primary" type="button" id="postCountButton" hidden>Hoàn tất kiểm kê</button>
+                    <button class="inventory-link-button inventory-link-danger" type="button" id="cancelCountButton" hidden>Hủy đợt kiểm kê</button>
+                </div>
             </div>
-            <div class="io-subpanel">
-                <div class="io-panel-heading io-panel-heading-small"><div><h3>Lệch serial cần xử lý vật lý</h3><p>Không tự sửa để tránh tạo/xóa IMEI ngoài kiểm kê.</p></div></div>
-                <div class="io-table-wrap"><table class="io-table"><thead><tr><th>Lô</th><th>SKU</th><th>Kho</th><th>Tồn lô</th><th>Serial</th><th>Lệch</th></tr></thead><tbody id="serialMismatchTableBody"></tbody></table></div>
-            </div>
-        </div>
+            <div class="inventory-alert" id="countDetailStatus">Nhập số lượng thực tế rồi lưu từng dòng.</div>
+            <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>Sản phẩm</th><th>Tồn hệ thống</th><th>Số đếm thực tế</th><th>Chênh lệch</th><th>Lý do</th><th>Giá vốn khi tăng</th><th>Ghi chú</th><th></th></tr></thead><tbody id="countLineBody"></tbody></table></div>
+        </section>
     </section>
+
+    <div class="inventory-toast-stack" id="inventoryToastStack" aria-live="polite"></div>
 </div>
-
-<div class="io-toast-stack" id="operationsToastStack" aria-live="polite"></div>
 
 @section Scripts {
     <script src="~/js/admin/inventory-operations.js" asp-append-version="true"></script>
