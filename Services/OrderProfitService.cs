@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading;
@@ -9,11 +9,8 @@ using TMDT_LT.Models;
 namespace TMDT_LT.Services;
 
 /// <summary>
-/// Báo cáo tài chính vận hành từ dữ liệu project hiện có.
-/// - Lợi nhuận ghi nhận chỉ tính đơn đã giao/hoàn thành hoặc đang trong quy trình trả hàng.
-/// - Lợi nhuận tiền thu tính trên phần tiền thực tế đã thu, sau hoàn tiền.
-/// - Phí vận chuyển trong Shipping hiện là snapshot/proxy, chưa phải đối soát carrier invoice.
-/// - Phí cổng thanh toán chưa có trường chuẩn hóa nên chưa được khấu trừ.
+/// Tổng hợp số liệu tài chính vận hành từ đơn hàng, thanh toán, hoàn tiền,
+/// giá vốn FIFO và chi phí giao hàng hiện có.
 /// </summary>
 public static class OrderProfitService
 {
@@ -23,6 +20,10 @@ public static class OrderProfitService
         DateTime toExclusive,
         CancellationToken cancellationToken = default)
     {
+        /*
+         * Một khoản tiền phải được đưa vào kỳ theo ngày thực thu, không chỉ theo
+         * ngày tạo đơn. Đồng thời vẫn tải đơn được tạo trong kỳ để tính công nợ.
+         */
         var orders = await context.Orders
             .AsNoTracking()
             .Include(order => order.Payments)
@@ -30,8 +31,23 @@ public static class OrderProfitService
             .Include(order => order.Shipping)
             .Include(order => order.OrderInventoryAllocations)
             .Where(order =>
-                order.OrderDate >= fromInclusive
-                && order.OrderDate < toExclusive)
+                (order.OrderDate.HasValue
+                    && order.OrderDate.Value >= fromInclusive
+                    && order.OrderDate.Value < toExclusive)
+                || (order.CompletedDate.HasValue
+                    && order.CompletedDate.Value >= fromInclusive
+                    && order.CompletedDate.Value < toExclusive)
+                || order.Payments.Any(payment =>
+                    payment.PaymentDate.HasValue
+                    && payment.PaymentDate.Value >= fromInclusive
+                    && payment.PaymentDate.Value < toExclusive)
+                || order.PaymentTransactions.Any(transaction =>
+                    (transaction.ProcessedAt.HasValue
+                        && transaction.ProcessedAt.Value >= fromInclusive
+                        && transaction.ProcessedAt.Value < toExclusive)
+                    || (!transaction.ProcessedAt.HasValue
+                        && transaction.ReceivedAt >= fromInclusive
+                        && transaction.ReceivedAt < toExclusive)))
             .ToListAsync(cancellationToken);
 
         decimal invoiceTotal = 0m;
@@ -50,22 +66,43 @@ public static class OrderProfitService
         int recognizedOrderCount = 0;
         int excludedPendingOrderCount = 0;
 
-        foreach (var order in orders)
+        foreach (Orders order in orders)
         {
             decimal orderInvoice = GetInvoiceTotal(order);
-            decimal orderPaid = GetPaidAmount(order);
-            decimal orderRefund = Math.Min(
-                orderPaid,
-                GetSuccessfulRefundAmount(order));
-            decimal orderNetCash = Math.Max(0m, orderPaid - orderRefund);
+            bool orderCreatedInPeriod = IsInPeriod(
+                order.OrderDate,
+                fromInclusive,
+                toExclusive);
             bool isTerminalWithoutRevenue = IsTerminalWithoutRevenue(order.Status);
-            bool isRevenueRecognized = IsRevenueRecognized(order.Status);
 
-            decimal collectionRatio = orderInvoice > 0m
-                ? Math.Clamp(orderNetCash / orderInvoice, 0m, 1m)
-                : 0m;
-            decimal orderVatCollected = RoundMoney(
-                Math.Max(0m, order.TaxAmount) * collectionRatio);
+            DateTime? revenueRecognitionDate = GetRevenueRecognitionDate(order);
+            bool isRevenueRecognizedInPeriod =
+                IsRevenueRecognized(order.Status)
+                && IsInPeriod(
+                    revenueRecognitionDate,
+                    fromInclusive,
+                    toExclusive);
+
+            decimal orderPaidInPeriod = GetPaidAmountInPeriod(
+                order,
+                fromInclusive,
+                toExclusive);
+            decimal orderRefundInPeriod = Math.Min(
+                GetPaidAmount(order),
+                GetSuccessfulRefundAmountInPeriod(
+                    order,
+                    fromInclusive,
+                    toExclusive));
+            decimal orderNetCashInPeriod =
+                orderPaidInPeriod - orderRefundInPeriod;
+
+            decimal lifetimePaid = GetPaidAmount(order);
+            decimal lifetimeRefund = Math.Min(
+                lifetimePaid,
+                GetSuccessfulRefundAmount(order));
+            decimal lifetimeNetCash = Math.Max(
+                0m,
+                lifetimePaid - lifetimeRefund);
 
             decimal currentAllocationCogs = order.OrderInventoryAllocations
                 .Where(allocation =>
@@ -79,44 +116,60 @@ public static class OrderProfitService
                         !IsCancelledShipping(
                             shipping.Status,
                             shipping.ProviderStatus))
-                    .Sum(shipping => Math.Max(0m, shipping.ShippingFee ?? 0m))
+                    .Sum(shipping => Math.Max(
+                        0m,
+                        shipping.ShippingFee ?? 0m))
                 : 0m;
 
-            // Tiền thu chỉ mang theo phần giá vốn tương ứng với tỷ lệ thu tiền.
-            // Tránh biến đơn chưa thanh toán/chưa giao thành "lợi nhuận tiền mặt âm".
+            /*
+             * Lợi nhuận tiền thu chỉ mang theo phần VAT và giá vốn tương ứng
+             * với tỷ lệ tiền thực tế thu trong kỳ. Hoàn tiền lớn hơn tiền thu
+             * của cùng kỳ được phản ánh thành dòng tiền âm, không bị ép về 0.
+             */
+            decimal positiveCashInPeriod = Math.Max(
+                0m,
+                orderNetCashInPeriod);
+            decimal collectionRatio = orderInvoice > 0m
+                ? Math.Clamp(
+                    positiveCashInPeriod / orderInvoice,
+                    0m,
+                    1m)
+                : 0m;
+            decimal orderVatCollected = RoundMoney(
+                Math.Max(0m, order.TaxAmount) * collectionRatio);
             decimal cashMatchedCogs = RoundMoney(
                 currentAllocationCogs * collectionRatio);
-            decimal cashMatchedShipping = orderNetCash > 0m
+            decimal cashMatchedShipping = positiveCashInPeriod > 0m
                 ? orderShippingCostProxy
                 : 0m;
-            decimal orderCashProfit = RoundMoney(
-                orderNetCash
-                - orderVatCollected
-                - cashMatchedCogs
-                - cashMatchedShipping);
+            decimal orderCashProfit = orderNetCashInPeriod >= 0m
+                ? RoundMoney(
+                    orderNetCashInPeriod
+                    - orderVatCollected
+                    - cashMatchedCogs
+                    - cashMatchedShipping)
+                : RoundMoney(orderNetCashInPeriod);
 
-            invoiceTotal += isTerminalWithoutRevenue ? 0m : orderInvoice;
-            paidAmount += orderPaid;
-            refundAmount += orderRefund;
-            netCashCollected += orderNetCash;
-            if (!isTerminalWithoutRevenue)
+            if (orderCreatedInPeriod && !isTerminalWithoutRevenue)
             {
-                outstandingAmount += Math.Max(0m, orderInvoice - orderNetCash);
+                invoiceTotal += orderInvoice;
+                outstandingAmount += Math.Max(
+                    0m,
+                    orderInvoice - lifetimeNetCash);
             }
 
-            activeCogs += currentAllocationCogs;
+            paidAmount += orderPaidInPeriod;
+            refundAmount += orderRefundInPeriod;
+            netCashCollected += orderNetCashInPeriod;
             outputVatCollected += orderVatCollected;
-            shippingCostProxy += orderShippingCostProxy;
             cashContributionProfit += orderCashProfit;
 
-            if (order.CostCalculatedAt.HasValue)
-            {
-                costedOrderCount++;
-            }
-
-            if (isRevenueRecognized)
+            if (isRevenueRecognizedInPeriod)
             {
                 recognizedOrderCount++;
+                activeCogs += currentAllocationCogs;
+                shippingCostProxy += orderShippingCostProxy;
+
                 decimal recognizedNetRevenue = Math.Max(
                     0m,
                     order.MerchandiseNetRevenueAmount);
@@ -125,17 +178,25 @@ public static class OrderProfitService
                     : Math.Max(0m, order.CogsAmount);
                 recognizedGrossProfit += RoundMoney(
                     recognizedNetRevenue - recognizedCogs);
+
+                if (order.CostCalculatedAt.HasValue)
+                {
+                    costedOrderCount++;
+                }
             }
-            else if (!isTerminalWithoutRevenue)
+            else if (orderCreatedInPeriod && !isTerminalWithoutRevenue)
             {
                 excludedPendingOrderCount++;
             }
 
-            if (orderNetCash > 0m)
+            if (orderPaidInPeriod > 0m)
             {
                 paidOrderCount++;
             }
-            else if (orderInvoice > 0m && !isTerminalWithoutRevenue)
+            else if (orderCreatedInPeriod
+                && orderInvoice > 0m
+                && !isTerminalWithoutRevenue
+                && lifetimeNetCash <= 0m)
             {
                 unpaidOrderCount++;
             }
@@ -160,7 +221,7 @@ public static class OrderProfitService
             RoundMoney(cashContributionProfit),
             recognizedOrderCount,
             excludedPendingOrderCount,
-            "Lợi nhuận tiền thu chưa trừ phí cổng thanh toán. ShippingFee hiện là snapshot/proxy, chưa phải hóa đơn đối soát thực tế từ đơn vị vận chuyển.");
+            "Lợi nhuận tiền thu chưa trừ phí cổng thanh toán. Chi phí giao hàng hiện là số liệu vận hành có sẵn, chưa phải hóa đơn đối soát cuối cùng.");
     }
 
     private static decimal GetInvoiceTotal(Orders order) =>
@@ -172,16 +233,54 @@ public static class OrderProfitService
 
     private static decimal GetPaidAmount(Orders order)
     {
+        decimal invoice = GetInvoiceTotal(order);
         decimal paid = order.Payments
             .Where(payment => IsPaidStatus(payment.PaymentStatus))
-            .Sum(payment => Math.Max(0m, payment.Amount ?? 0m));
+            .Sum(payment => ResolvePaidAmount(payment, invoice));
 
-        // Trong mô hình hiện tại một đơn thường chỉ có một payment thành công.
-        // Cap theo tổng invoice để tránh payment retry bị cộng trùng trong dashboard.
-        decimal invoice = GetInvoiceTotal(order);
         return invoice > 0m
             ? Math.Min(paid, invoice)
             : paid;
+    }
+
+    private static decimal GetPaidAmountInPeriod(
+        Orders order,
+        DateTime fromInclusive,
+        DateTime toExclusive)
+    {
+        decimal invoice = GetInvoiceTotal(order);
+        DateTime? fallbackDate = GetRevenueRecognitionDate(order)
+            ?? order.OrderDate;
+
+        decimal paid = order.Payments
+            .Where(payment => IsPaidStatus(payment.PaymentStatus))
+            .Where(payment => IsInPeriod(
+                payment.PaymentDate ?? fallbackDate,
+                fromInclusive,
+                toExclusive))
+            .Sum(payment => ResolvePaidAmount(payment, invoice));
+
+        return invoice > 0m
+            ? Math.Min(paid, invoice)
+            : paid;
+    }
+
+    private static decimal ResolvePaidAmount(
+        Payments payment,
+        decimal invoice)
+    {
+        decimal storedAmount = Math.Max(
+            0m,
+            payment.Amount ?? 0m);
+
+        /*
+         * Dữ liệu đơn cũ có thể đã được đánh dấu Paid nhưng Amount chưa được
+         * backfill. Khi trạng thái thanh toán đã hợp lệ, dùng tổng hóa đơn làm
+         * giá trị dự phòng thay vì biến khoản thu thành 0 đồng.
+         */
+        return storedAmount > 0m
+            ? storedAmount
+            : invoice;
     }
 
     private static decimal GetSuccessfulRefundAmount(Orders order) =>
@@ -189,30 +288,113 @@ public static class OrderProfitService
             .Where(transaction =>
                 IsRefundEvent(transaction.EventType)
                 && IsSuccessfulTransactionStatus(transaction.Status))
-            .Sum(transaction => Math.Max(0m, transaction.Amount ?? 0m));
+            .Sum(transaction => Math.Max(
+                0m,
+                transaction.Amount ?? 0m));
+
+    private static decimal GetSuccessfulRefundAmountInPeriod(
+        Orders order,
+        DateTime fromInclusive,
+        DateTime toExclusive) =>
+        order.PaymentTransactions
+            .Where(transaction =>
+                IsRefundEvent(transaction.EventType)
+                && IsSuccessfulTransactionStatus(transaction.Status)
+                && IsInPeriod(
+                    transaction.ProcessedAt ?? transaction.ReceivedAt,
+                    fromInclusive,
+                    toExclusive))
+            .Sum(transaction => Math.Max(
+                0m,
+                transaction.Amount ?? 0m));
+
+    private static DateTime? GetRevenueRecognitionDate(Orders order)
+    {
+        if (order.CompletedDate.HasValue)
+        {
+            return order.CompletedDate.Value;
+        }
+
+        DateTime? deliveredAt = order.Shipping
+            .Where(shipping => shipping.DeliveredDate.HasValue)
+            .Select(shipping => shipping.DeliveredDate)
+            .OrderByDescending(value => value)
+            .FirstOrDefault();
+
+        return deliveredAt ?? order.OrderDate;
+    }
+
+    private static bool IsInPeriod(
+        DateTime? value,
+        DateTime fromInclusive,
+        DateTime toExclusive) =>
+        value.HasValue
+        && value.Value >= fromInclusive
+        && value.Value < toExclusive;
 
     private static bool IsRevenueRecognized(string? status) =>
-        string.Equals(status, OrderStatuses.Delivered, StringComparison.Ordinal)
-        || string.Equals(status, OrderStatuses.Completed, StringComparison.Ordinal)
-        || string.Equals(status, OrderStatuses.ReturnPending, StringComparison.Ordinal)
-        || string.Equals(status, OrderStatuses.ReturnAwaitingCustomer, StringComparison.Ordinal)
-        || string.Equals(status, OrderStatuses.ReturnInspecting, StringComparison.Ordinal);
+        string.Equals(
+            status,
+            OrderStatuses.Delivered,
+            StringComparison.Ordinal)
+        || string.Equals(
+            status,
+            OrderStatuses.Completed,
+            StringComparison.Ordinal)
+        || string.Equals(
+            status,
+            OrderStatuses.ReturnPending,
+            StringComparison.Ordinal)
+        || string.Equals(
+            status,
+            OrderStatuses.ReturnAwaitingCustomer,
+            StringComparison.Ordinal)
+        || string.Equals(
+            status,
+            OrderStatuses.ReturnInspecting,
+            StringComparison.Ordinal);
 
     private static bool IsTerminalWithoutRevenue(string? status) =>
-        string.Equals(status, OrderStatuses.Cancelled, StringComparison.Ordinal)
-        || string.Equals(status, OrderStatuses.Returned, StringComparison.Ordinal);
+        string.Equals(
+            status,
+            OrderStatuses.Cancelled,
+            StringComparison.Ordinal)
+        || string.Equals(
+            status,
+            OrderStatuses.Returned,
+            StringComparison.Ordinal);
 
     private static bool HasCarrierCostBeenIncurred(Orders order) =>
         order.Shipping.Any(shipping =>
-            !IsCancelledShipping(shipping.Status, shipping.ProviderStatus)
+            !IsCancelledShipping(
+                shipping.Status,
+                shipping.ProviderStatus)
             && (shipping.ShippedDate.HasValue
                 || shipping.DeliveredDate.HasValue
-                || string.Equals(shipping.Status, ShippingStatuses.Created, StringComparison.Ordinal)
-                || string.Equals(shipping.Status, ShippingStatuses.Picking, StringComparison.Ordinal)
-                || string.Equals(shipping.Status, ShippingStatuses.InTransit, StringComparison.Ordinal)
-                || string.Equals(shipping.Status, ShippingStatuses.Delivered, StringComparison.Ordinal)
-                || string.Equals(shipping.Status, ShippingStatuses.Returning, StringComparison.Ordinal)
-                || string.Equals(shipping.Status, ShippingStatuses.Returned, StringComparison.Ordinal)));
+                || string.Equals(
+                    shipping.Status,
+                    ShippingStatuses.Created,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    shipping.Status,
+                    ShippingStatuses.Picking,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    shipping.Status,
+                    ShippingStatuses.InTransit,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    shipping.Status,
+                    ShippingStatuses.Delivered,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    shipping.Status,
+                    ShippingStatuses.Returning,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    shipping.Status,
+                    ShippingStatuses.Returned,
+                    StringComparison.Ordinal)));
 
     private static bool IsPaidStatus(string? value)
     {
@@ -229,8 +411,12 @@ public static class OrderProfitService
     private static bool IsRefundEvent(string? value)
     {
         string normalized = Normalize(value);
-        return normalized.Contains("refund", StringComparison.Ordinal)
-            || normalized.Contains("hoan tien", StringComparison.Ordinal);
+        return normalized.Contains(
+                "refund",
+                StringComparison.Ordinal)
+            || normalized.Contains(
+                "hoan tien",
+                StringComparison.Ordinal);
     }
 
     private static bool IsSuccessfulTransactionStatus(string? value)
@@ -248,9 +434,14 @@ public static class OrderProfitService
         string? status,
         string? providerStatus)
     {
-        string combined = Normalize(status) + " " + Normalize(providerStatus);
-        return combined.Contains("cancel", StringComparison.Ordinal)
-            || combined.Contains("huy", StringComparison.Ordinal);
+        string combined =
+            Normalize(status) + " " + Normalize(providerStatus);
+        return combined.Contains(
+                "cancel",
+                StringComparison.Ordinal)
+            || combined.Contains(
+                "huy",
+                StringComparison.Ordinal);
     }
 
     private static string Normalize(string? value)
@@ -262,32 +453,79 @@ public static class OrderProfitService
 
         return value.Trim().ToLowerInvariant()
             .Replace("đ", "d", StringComparison.Ordinal)
+            .Replace("á", "a", StringComparison.Ordinal)
+            .Replace("à", "a", StringComparison.Ordinal)
+            .Replace("ả", "a", StringComparison.Ordinal)
             .Replace("ã", "a", StringComparison.Ordinal)
             .Replace("ạ", "a", StringComparison.Ordinal)
-            .Replace("ấ", "a", StringComparison.Ordinal)
-            .Replace("ầ", "a", StringComparison.Ordinal)
-            .Replace("ậ", "a", StringComparison.Ordinal)
             .Replace("ă", "a", StringComparison.Ordinal)
             .Replace("ắ", "a", StringComparison.Ordinal)
             .Replace("ằ", "a", StringComparison.Ordinal)
+            .Replace("ẳ", "a", StringComparison.Ordinal)
+            .Replace("ẵ", "a", StringComparison.Ordinal)
+            .Replace("ặ", "a", StringComparison.Ordinal)
+            .Replace("â", "a", StringComparison.Ordinal)
+            .Replace("ấ", "a", StringComparison.Ordinal)
+            .Replace("ầ", "a", StringComparison.Ordinal)
+            .Replace("ẩ", "a", StringComparison.Ordinal)
+            .Replace("ẫ", "a", StringComparison.Ordinal)
+            .Replace("ậ", "a", StringComparison.Ordinal)
+            .Replace("é", "e", StringComparison.Ordinal)
+            .Replace("è", "e", StringComparison.Ordinal)
+            .Replace("ẻ", "e", StringComparison.Ordinal)
+            .Replace("ẽ", "e", StringComparison.Ordinal)
+            .Replace("ẹ", "e", StringComparison.Ordinal)
             .Replace("ê", "e", StringComparison.Ordinal)
             .Replace("ế", "e", StringComparison.Ordinal)
             .Replace("ề", "e", StringComparison.Ordinal)
+            .Replace("ể", "e", StringComparison.Ordinal)
+            .Replace("ễ", "e", StringComparison.Ordinal)
             .Replace("ệ", "e", StringComparison.Ordinal)
+            .Replace("í", "i", StringComparison.Ordinal)
+            .Replace("ì", "i", StringComparison.Ordinal)
+            .Replace("ỉ", "i", StringComparison.Ordinal)
+            .Replace("ĩ", "i", StringComparison.Ordinal)
+            .Replace("ị", "i", StringComparison.Ordinal)
+            .Replace("ó", "o", StringComparison.Ordinal)
+            .Replace("ò", "o", StringComparison.Ordinal)
+            .Replace("ỏ", "o", StringComparison.Ordinal)
+            .Replace("õ", "o", StringComparison.Ordinal)
+            .Replace("ọ", "o", StringComparison.Ordinal)
             .Replace("ô", "o", StringComparison.Ordinal)
             .Replace("ố", "o", StringComparison.Ordinal)
             .Replace("ồ", "o", StringComparison.Ordinal)
+            .Replace("ổ", "o", StringComparison.Ordinal)
+            .Replace("ỗ", "o", StringComparison.Ordinal)
+            .Replace("ộ", "o", StringComparison.Ordinal)
             .Replace("ơ", "o", StringComparison.Ordinal)
             .Replace("ớ", "o", StringComparison.Ordinal)
             .Replace("ờ", "o", StringComparison.Ordinal)
+            .Replace("ở", "o", StringComparison.Ordinal)
+            .Replace("ỡ", "o", StringComparison.Ordinal)
+            .Replace("ợ", "o", StringComparison.Ordinal)
+            .Replace("ú", "u", StringComparison.Ordinal)
+            .Replace("ù", "u", StringComparison.Ordinal)
+            .Replace("ủ", "u", StringComparison.Ordinal)
+            .Replace("ũ", "u", StringComparison.Ordinal)
+            .Replace("ụ", "u", StringComparison.Ordinal)
             .Replace("ư", "u", StringComparison.Ordinal)
             .Replace("ứ", "u", StringComparison.Ordinal)
             .Replace("ừ", "u", StringComparison.Ordinal)
-            .Replace("ý", "y", StringComparison.Ordinal);
+            .Replace("ử", "u", StringComparison.Ordinal)
+            .Replace("ữ", "u", StringComparison.Ordinal)
+            .Replace("ự", "u", StringComparison.Ordinal)
+            .Replace("ý", "y", StringComparison.Ordinal)
+            .Replace("ỳ", "y", StringComparison.Ordinal)
+            .Replace("ỷ", "y", StringComparison.Ordinal)
+            .Replace("ỹ", "y", StringComparison.Ordinal)
+            .Replace("ỵ", "y", StringComparison.Ordinal);
     }
 
     private static decimal RoundMoney(decimal value) =>
-        decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+        decimal.Round(
+            value,
+            2,
+            MidpointRounding.AwayFromZero);
 }
 
 public sealed record OrderProfitOverview(

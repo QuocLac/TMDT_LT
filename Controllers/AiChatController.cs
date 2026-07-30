@@ -30,8 +30,6 @@ public sealed class AiChatController : Controller
     [HttpGet("Health")]
     public IActionResult Health()
     {
-        // Cho phép kiểm tra cấu hình trên localhost kể cả khi profile
-        // vô tình chạy Production. Không công khai trạng thái này từ xa.
         if (!_environment.IsDevelopment()
             && !IsLocalRequest())
         {
