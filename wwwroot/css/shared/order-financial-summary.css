@@ -16,8 +16,6 @@
 .order-financial-summary__header {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
     padding: 17px 18px;
     border-bottom: 1px solid #e2e8f0;
     background: linear-gradient(135deg, #f8fafc, #eff6ff);
@@ -37,22 +35,6 @@
     color: #0f172a;
     font-size: 16px;
     font-weight: 850;
-}
-
-.order-financial-summary__source {
-    flex-shrink: 0;
-    padding: 5px 9px;
-    border-radius: 999px;
-    background: #dcfce7;
-    color: #166534;
-    font-size: 10px;
-    font-weight: 800;
-    white-space: nowrap;
-}
-
-.order-financial-summary__source--legacy {
-    background: #fef3c7;
-    color: #92400e;
 }
 
 .order-financial-summary__body {
@@ -111,58 +93,6 @@
     text-align: right;
 }
 
-.order-financial-summary__audit {
-    margin-top: 15px;
-    padding-top: 13px;
-    border-top: 1px dashed #cbd5e1;
-}
-
-.order-financial-summary__audit summary {
-    color: #2563eb;
-    font-size: 11px;
-    font-weight: 800;
-    cursor: pointer;
-    user-select: none;
-}
-
-.order-financial-summary__audit-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 12px;
-}
-
-.order-financial-summary__audit-grid > div {
-    min-width: 0;
-    padding: 9px;
-    border-radius: 8px;
-    background: #f8fafc;
-}
-
-.order-financial-summary__audit-grid span {
-    display: block;
-    margin-bottom: 3px;
-    color: #94a3b8;
-    font-size: 9px;
-    font-weight: 750;
-    text-transform: uppercase;
-}
-
-.order-financial-summary__audit-grid strong {
-    display: block;
-    color: #334155;
-    font-size: 11px;
-    overflow-wrap: anywhere;
-}
-
-.order-financial-summary__check--ok {
-    color: #15803d !important;
-}
-
-.order-financial-summary__check--warning {
-    color: #b45309 !important;
-}
-
 .order-financial-summary--floating {
     position: fixed;
     right: 22px;
@@ -175,19 +105,6 @@
 }
 
 @media (max-width: 768px) {
-    .order-financial-summary__header {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .order-financial-summary__source {
-        align-self: flex-start;
-    }
-
-    .order-financial-summary__audit-grid {
-        grid-template-columns: 1fr;
-    }
-
     .order-financial-summary--floating {
         right: 12px;
         bottom: 12px;

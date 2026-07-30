@@ -40,37 +40,10 @@ public sealed class OrderFinancialSummaryBodyTagHelper
     {
         RouteMode routeMode = ResolveRouteMode();
 
-        if (routeMode == RouteMode.None)
-        {
-            return;
-        }
-
-        int orderId = ResolveOrderId();
-        if (orderId <= 0)
-        {
-            return;
-        }
-
-        if (!HasAccess(routeMode))
-        {
-            return;
-        }
-
-        Orders? order = await _context.Orders
-            .AsNoTracking()
-            .Include(current =>
-                current.OrderDetails)
-            .Include(current =>
-                current.Payments)
-            .Include(current =>
-                current.Shipping)
-            .FirstOrDefaultAsync(
-                current =>
-                    current.OrderId == orderId,
-                ViewContext.HttpContext
-                    .RequestAborted);
-
-        if (order == null)
+        if (routeMode == RouteMode.None
+            || !HasAccess(routeMode)
+            || ViewContext.ViewData.Model is not Orders order
+            || order.OrderId <= 0)
         {
             return;
         }
@@ -81,15 +54,38 @@ public sealed class OrderFinancialSummaryBodyTagHelper
             return;
         }
 
+        await EnsureLegacyShippingLoadedAsync(
+            routeMode,
+            order);
+
         var summary =
             OrderFinancialSummaryViewModel
                 .Create(order);
 
-        bool isAdmin =
-            routeMode == RouteMode.Admin;
-
         output.PostContent.AppendHtml(
-            BuildMarkup(summary, isAdmin));
+            BuildMarkup(summary, routeMode));
+    }
+
+    private async Task EnsureLegacyShippingLoadedAsync(
+        RouteMode routeMode,
+        Orders order)
+    {
+        if (routeMode != RouteMode.Customer
+            || order.ShippingFee.HasValue
+            || order.Shipping.Count > 0)
+        {
+            return;
+        }
+
+        var shippingEntry = _context.Entry(order)
+            .Collection(current => current.Shipping);
+
+        if (!shippingEntry.IsLoaded)
+        {
+            await shippingEntry.LoadAsync(
+                ViewContext.HttpContext
+                    .RequestAborted);
+        }
     }
 
     private RouteMode ResolveRouteMode()
@@ -99,9 +95,8 @@ public sealed class OrderFinancialSummaryBodyTagHelper
                 ?.ToString()
             ?? string.Empty;
         string controller =
-            ViewContext.RouteData.Values[
-                "controller"
-            ]?.ToString()
+            ViewContext.RouteData.Values["controller"]
+                ?.ToString()
             ?? string.Empty;
         string action =
             ViewContext.RouteData.Values["action"]
@@ -152,8 +147,7 @@ public sealed class OrderFinancialSummaryBodyTagHelper
     }
 
     private bool CustomerOwnsOrder(Orders order) =>
-        order.CustomerId
-            == GetCurrentCustomerId();
+        order.CustomerId == GetCurrentCustomerId();
 
     private int GetCurrentCustomerId()
     {
@@ -165,62 +159,13 @@ public sealed class OrderFinancialSummaryBodyTagHelper
             : 0;
     }
 
-    private int ResolveOrderId()
-    {
-        if (ViewContext.ViewData.Model
-            is Orders order
-            && order.OrderId > 0)
-        {
-            return order.OrderId;
-        }
-
-        object? routeId =
-            ViewContext.RouteData.Values["id"];
-
-        if (routeId != null
-            && int.TryParse(
-                routeId.ToString(),
-                out int parsedRouteId))
-        {
-            return parsedRouteId;
-        }
-
-        string queryId =
-            ViewContext.HttpContext.Request
-                .Query["id"]
-                .ToString();
-
-        if (int.TryParse(
-                queryId,
-                out int parsedQueryId))
-        {
-            return parsedQueryId;
-        }
-
-        string queryOrderId =
-            ViewContext.HttpContext.Request
-                .Query["orderId"]
-                .ToString();
-
-        return int.TryParse(
-            queryOrderId,
-            out int parsedOrderId)
-                ? parsedOrderId
-                : 0;
-    }
-
     private static string BuildMarkup(
         OrderFinancialSummaryViewModel summary,
-        bool isAdmin)
+        RouteMode routeMode)
     {
-        string mode = isAdmin
+        string mode = routeMode == RouteMode.Admin
             ? "admin"
             : "customer";
-
-        string legacyClass =
-            summary.IsLegacyFallback
-                ? " order-financial-summary__source--legacy"
-                : string.Empty;
 
         string voucherMarkup =
             string.IsNullOrWhiteSpace(
@@ -235,13 +180,9 @@ public sealed class OrderFinancialSummaryBodyTagHelper
                    </div>
                    """;
 
-        string adminMarkup = isAdmin
-            ? BuildAdminMarkup(summary)
-            : string.Empty;
-
         return $"""
             <link rel="stylesheet"
-                  href="/css/shared/order-financial-summary.css?v=1.0.0" />
+                  href="/css/shared/order-financial-summary.css?v=1.1.0" />
             <section class="order-financial-summary"
                      data-order-financial-summary="true"
                      data-mode="{mode}"
@@ -255,9 +196,6 @@ public sealed class OrderFinancialSummaryBodyTagHelper
                             Chi tiết thanh toán
                         </h3>
                     </div>
-                    <span class="order-financial-summary__source{legacyClass}">
-                        {Encode(summary.SnapshotSource)}
-                    </span>
                 </header>
 
                 <div class="order-financial-summary__body">
@@ -287,71 +225,10 @@ public sealed class OrderFinancialSummaryBodyTagHelper
                         <span>Tổng thanh toán</span>
                         <strong>{Money(summary.GrandTotalAmount)}</strong>
                     </div>
-
-                    {adminMarkup}
                 </div>
             </section>
             <script src="/js/shared/order-financial-summary.js?v=1.0.0"
                     defer></script>
-            """;
-    }
-
-    private static string BuildAdminMarkup(
-        OrderFinancialSummaryViewModel summary)
-    {
-        string consistencyClass =
-            summary.IsConsistent
-                ? "order-financial-summary__check--ok"
-                : "order-financial-summary__check--warning";
-
-        string consistencyText =
-            summary.IsConsistent
-                ? "Khớp snapshot"
-                : $"Lệch {Money(
-                    Math.Abs(
-                        summary.ReconciliationDelta))}";
-
-        string paymentAmount =
-            summary.PaymentAmount.HasValue
-                ? Money(summary.PaymentAmount.Value)
-                : "Chưa ghi nhận";
-
-        string checkoutReference =
-            string.IsNullOrWhiteSpace(
-                summary.CheckoutReference)
-                ? "Không có"
-                : Encode(
-                    summary.CheckoutReference);
-
-        return $"""
-            <details class="order-financial-summary__audit">
-                <summary>Thông tin đối soát Admin</summary>
-
-                <div class="order-financial-summary__audit-grid">
-                    <div>
-                        <span>Kiểm tra công thức</span>
-                        <strong class="{consistencyClass}">
-                            {consistencyText}
-                        </strong>
-                    </div>
-                    <div>
-                        <span>Phương thức</span>
-                        <strong>{EncodeOrDash(summary.PaymentMethod)}</strong>
-                    </div>
-                    <div>
-                        <span>Trạng thái thanh toán</span>
-                        <strong>{EncodeOrDash(summary.PaymentStatus)}</strong>
-                    </div>
-                    <div>
-                        <span>Số tiền Payment</span>
-                        <strong>{paymentAmount}</strong>
-                    </div>
-                    <div>
-                        <span>Checkout reference</span>
-                        <strong>{checkoutReference}</strong>
-                    </div>
-                </div>
-            </details>
             """;
     }
 
@@ -362,12 +239,6 @@ public sealed class OrderFinancialSummaryBodyTagHelper
 
     private static string Encode(string? value) =>
         WebUtility.HtmlEncode(value ?? string.Empty);
-
-    private static string EncodeOrDash(
-        string? value) =>
-        string.IsNullOrWhiteSpace(value)
-            ? "—"
-            : Encode(value);
 
     private enum RouteMode
     {
