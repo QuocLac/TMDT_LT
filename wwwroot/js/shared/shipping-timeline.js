@@ -39,13 +39,98 @@
     const body = host.querySelector('.shipping-drawer-body');
     let loaded = false;
 
+    if (audience === 'admin') {
+        const actionHost = ensureAdminActionsHost();
+        if (!actionHost) {
+            openButton.hidden = true;
+            console.warn('Không tìm thấy khu vực công cụ để gắn nút vận chuyển.');
+        } else {
+            openButton.classList.add('shipping-fab--inline');
+            actionHost.appendChild(openButton);
+        }
+    }
+
     function ensureStylesheet() {
-        if (document.querySelector('link[data-shipping-timeline-css]')) return;
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = '/css/shared/shipping-timeline.css?v=1.0.0';
-        link.dataset.shippingTimelineCss = 'true';
-        document.head.appendChild(link);
+        if (!document.querySelector('link[data-shipping-timeline-css]')) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = '/css/shared/shipping-timeline.css?v=1.0.0';
+            link.dataset.shippingTimelineCss = 'true';
+            document.head.appendChild(link);
+        }
+
+        if (audience === 'admin'
+            && !document.querySelector('link[data-order-details-integrations-css]')) {
+            const adminLink = document.createElement('link');
+            adminLink.rel = 'stylesheet';
+            adminLink.href = '/css/admin/order-details-integrations.css?v=1.0.0';
+            adminLink.dataset.orderDetailsIntegrationsCss = 'true';
+            document.head.appendChild(adminLink);
+        }
+    }
+
+    function findAdminSidebar() {
+        const content = document.querySelector(
+            '.admin-main-content > .content-wrapper'
+        );
+
+        if (!content) return null;
+
+        for (const layout of Array.from(content.children)) {
+            if (!(layout instanceof HTMLElement)
+                || layout.children.length < 2) {
+                continue;
+            }
+
+            const layoutStyle = window.getComputedStyle(layout);
+            if (layoutStyle.display !== 'grid') continue;
+
+            const sidebar = layout.lastElementChild;
+            if (!(sidebar instanceof HTMLElement)) continue;
+
+            const sidebarStyle = window.getComputedStyle(sidebar);
+            if (sidebarStyle.display !== 'flex'
+                || sidebarStyle.flexDirection !== 'column') {
+                continue;
+            }
+
+            layout.classList.add('order-detail-layout');
+            sidebar.classList.add('order-detail-sidebar');
+            return sidebar;
+        }
+
+        return null;
+    }
+
+    function ensureAdminActionsHost() {
+        const sidebar = findAdminSidebar();
+        if (!sidebar) return null;
+
+        let actionHost = sidebar.querySelector(
+            ':scope > [data-order-tools-card] [data-order-actions]'
+        );
+        if (actionHost) return actionHost;
+
+        const card = document.createElement('section');
+        card.className = 'admin-card order-detail-tools-card';
+        card.dataset.orderToolsCard = 'true';
+        card.innerHTML = `
+            <h3 class="order-detail-tools-card__title">
+                Công cụ đơn hàng
+            </h3>
+            <div class="order-detail-tools-card__actions"
+                 data-order-actions="true"></div>`;
+
+        const summaryHost = sidebar.querySelector(
+            ':scope > [data-order-summary-host]'
+        );
+        const insertBefore = summaryHost?.nextElementSibling
+            ?? (sidebar.children.length > 1
+                ? sidebar.children[1]
+                : null);
+
+        sidebar.insertBefore(card, insertBefore);
+        return card.querySelector('[data-order-actions]');
     }
 
     function openDrawer() {

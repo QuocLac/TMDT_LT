@@ -1,3 +1,7 @@
+.order-financial-summary:not([data-mounted="true"]) {
+    display: none;
+}
+
 .order-financial-summary {
     margin-bottom: 22px;
     overflow: hidden;

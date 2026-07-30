@@ -1,0 +1,70 @@
+.order-detail-layout {
+    align-items: start;
+}
+
+.order-detail-sidebar,
+.order-detail-summary-host {
+    min-width: 0;
+}
+
+.order-detail-summary-host .order-financial-summary {
+    margin: 0;
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+}
+
+.order-detail-tools-card {
+    padding: 20px;
+}
+
+.order-detail-tools-card__title {
+    margin: 0 0 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--admin-border, #e5e7eb);
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+}
+
+.order-detail-tools-card__actions {
+    display: grid;
+    gap: 10px;
+}
+
+.order-detail-tools-card .order-receipt-action,
+.order-detail-tools-card .order-receipt-action__button {
+    width: 100%;
+}
+
+.order-detail-tools-card .order-receipt-action__button {
+    min-height: 44px;
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+.order-detail-tools-card .shipping-fab.shipping-fab--inline {
+    position: static;
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+.order-detail-tools-card .shipping-fab.shipping-fab--inline:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.order-detail-tools-card .shipping-fab--inline .shipping-fab-badge {
+    max-width: 120px;
+}
+
+@media (max-width: 1180px) {
+    .order-detail-layout {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}
